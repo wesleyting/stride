@@ -11,9 +11,11 @@ import { cn } from "@/lib/utils";
 export function AppFrame({
   children,
   showSidebar = false,
+  sidebarFooter,
 }: {
   children: React.ReactNode;
   showSidebar?: boolean;
+  sidebarFooter?: React.ReactNode;
 }) {
   return (
     <div className="min-h-screen bg-stone-100 md:p-6">
@@ -23,14 +25,14 @@ export function AppFrame({
           showSidebar ? "max-w-7xl md:flex" : "max-w-6xl",
         )}
       >
-        {showSidebar ? <Sidebar /> : null}
+        {showSidebar ? <Sidebar footer={sidebarFooter} /> : null}
         {children}
       </div>
     </div>
   );
 }
 
-function Sidebar() {
+function Sidebar({ footer }: { footer?: React.ReactNode }) {
   return (
     <aside className="flex border-b border-stone-200 bg-stone-50 px-4 py-3 md:w-52 md:shrink-0 md:flex-col md:border-r md:border-b-0 md:px-3 md:py-5">
       <Link
@@ -58,7 +60,7 @@ function Sidebar() {
       </nav>
 
       <div className="mt-auto hidden pt-8 md:block">
-        <SidebarPlaceholder icon={Settings} label="Settings" />
+        {footer ?? <SidebarPlaceholder icon={Settings} label="Settings" />}
       </div>
     </aside>
   );

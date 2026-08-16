@@ -2,15 +2,28 @@
 
 Stride helps people return to the things they care about without reconstructing where they left off.
 
-This first engineering milestone is a local, static core-flow prototype:
+This milestone replaces the earlier local-only prototype with a Supabase-backed app:
 
 `Home → Guitar → Blackbird → Log practice → Updated Blackbird state`
 
-The practice form accepts a natural-language note and uses deterministic client-side rules to update Blackbird’s current state for the active app session. There is no backend, authentication, database, or AI service in this milestone.
+## What’s included
 
-## Run locally
+- Next.js + TypeScript
+- Tailwind CSS
+- shadcn/ui primitives
+- Lucide icons
+- Supabase Auth
+- Supabase Postgres persistence
+- Row Level Security for user-owned data
 
-Requirements: Node.js 20.9 or newer and pnpm.
+## Local setup
+
+1. Copy `.env.example` to `.env.local`
+2. Fill in your Supabase URL and publishable key
+3. Run the schema in `supabase/migrations/0001_stride_schema.sql` against your Supabase project
+4. Make sure email/password auth is enabled in Supabase Auth
+
+Then run:
 
 ```bash
 pnpm install
@@ -26,4 +39,8 @@ pnpm lint
 pnpm build
 ```
 
-Product, UX, and milestone documentation is preserved in [`docs/`](docs/).
+## Notes
+
+- The seeded Guitar/Blackbird experience is created in the database for each authenticated user.
+- There is no AI, Supabase service role usage, or auth secret committed in this repo.
+- Product, UX, and milestone documentation is preserved in [`docs/`](docs/).
