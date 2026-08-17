@@ -6,17 +6,11 @@ import {
   Footprints,
   Guitar,
   Music2,
-  Plus,
   Waypoints,
 } from "lucide-react";
 import { AppFrame } from "@/components/stride/app-frame";
-import { Button, buttonVariants } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { CreateActivityModal } from "@/components/stride/create-activity-modal";
+import { Button } from "@/components/ui/button";
 import { requireUser } from "@/lib/auth";
 import {
   buildActivitySummary,
@@ -25,7 +19,7 @@ import {
   type ActivityRecord,
   type EntryRecord,
 } from "@/lib/stride";
-import { createActivityAction, signOutAction } from "./actions";
+import { signOutAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -36,9 +30,6 @@ const iconMap: Record<string, typeof Guitar> = {
   piano: Music2,
   development: Code2,
 };
-
-const fieldClassName =
-  "mt-1 rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-950 shadow-sm outline-none transition placeholder:text-stone-400 focus:border-stone-400 focus:ring-2 focus:ring-stone-500/20";
 
 export default async function HomePage({
   searchParams,
@@ -148,13 +139,7 @@ export default async function HomePage({
           <h1 className="text-2xl font-semibold tracking-tight text-stone-950">
             Your activities
           </h1>
-          <Link
-            href="#create-activity"
-            className={buttonVariants({ size: "default" })}
-          >
-            <Plus data-icon="inline-start" aria-hidden="true" />
-            New activity
-          </Link>
+          <CreateActivityModal />
         </div>
 
         <section className="mt-6" aria-label="Activities">
@@ -171,50 +156,6 @@ export default async function HomePage({
             ))}
           </div>
         </section>
-
-        <Card id="create-activity" className="mt-5">
-          <CardHeader>
-            <CardTitle>Create activity</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form action={createActivityAction} className="grid gap-4">
-              <div className="grid gap-4 sm:grid-cols-[1fr_11rem]">
-                <label className="grid gap-1.5 text-sm font-medium text-stone-700">
-                  Name
-                  <input
-                    name="name"
-                    type="text"
-                    required
-                    maxLength={60}
-                    placeholder="Guitar, Running, Wellbeing..."
-                    className={fieldClassName}
-                  />
-                </label>
-                <label className="grid gap-1.5 text-sm font-medium text-stone-700">
-                  Template
-                  <select name="kind" defaultValue="practice" className={fieldClassName}>
-                    <option value="practice">Practice</option>
-                    <option value="journal">Journal</option>
-                    <option value="fitness">Fitness</option>
-                  </select>
-                </label>
-              </div>
-              <label className="grid gap-1.5 text-sm font-medium text-stone-700">
-                Description
-                <textarea
-                  name="description"
-                  rows={3}
-                  maxLength={120}
-                  placeholder="A short note about what this activity is for"
-                  className={fieldClassName}
-                />
-              </label>
-              <div className="flex justify-end">
-                <Button type="submit">Create activity</Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
       </main>
     </AppFrame>
   );
@@ -236,7 +177,7 @@ function ActivityRow({
   return (
     <Link
       href={href}
-      className="grid min-h-16 grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-4 border-b border-stone-200 px-4 py-4 last:border-b-0 hover:bg-stone-50"
+      className="grid min-h-16 grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-4 border-b border-stone-200 px-4 py-4 text-left transition-colors last:border-b-0 hover:bg-stone-50 focus-visible:bg-stone-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-stone-400"
       aria-label={`Open ${name}. ${summary}. Last active ${lastActive}.`}
     >
       <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-stone-100 text-stone-700">

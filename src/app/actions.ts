@@ -11,6 +11,11 @@ import {
   slugify,
 } from "@/lib/stride";
 
+export type MutationState = {
+  success: boolean;
+  error: string | null;
+};
+
 const authSchema = z.object({
   email: z.string().email("Enter a valid email address."),
   password: z.string().min(8, "Use at least 8 characters."),
@@ -55,6 +60,14 @@ const activityDescriptionFallbacks: Record<
 
 function errorQuery(message: string) {
   return `?error=${encodeURIComponent(message)}`;
+}
+
+function mutationError(message: string): MutationState {
+  return { success: false, error: message };
+}
+
+function mutationSuccess(): MutationState {
+  return { success: true, error: null };
 }
 
 async function getSignedInUser() {
@@ -118,10 +131,13 @@ export async function signOutAction() {
   redirect("/sign-in");
 }
 
-export async function createActivityAction(formData: FormData) {
+export async function createActivityAction(
+  _previousState: MutationState,
+  formData: FormData,
+): Promise<MutationState> {
   const { supabase, user } = await getSignedInUser();
   if (!user) {
-    redirect("/sign-in");
+    return mutationError("You need to sign in first.");
   }
 
   const parsed = activitySchema.safeParse({
@@ -132,7 +148,7 @@ export async function createActivityAction(formData: FormData) {
 
   if (!parsed.success) {
     const firstIssue = parsed.error.issues[0];
-    redirect(`/${errorQuery(firstIssue?.message ?? "Check the activity details.")}`);
+    return mutationError(firstIssue?.message ?? "Check the activity details.");
   }
 
   const slug = slugify(parsed.data.name);
@@ -149,17 +165,20 @@ export async function createActivityAction(formData: FormData) {
   });
 
   if (error) {
-    redirect(`/${errorQuery(error.message)}`);
+    return mutationError(error.message);
   }
 
   revalidatePath("/");
-  redirect(`/${slug}`);
+  return mutationSuccess();
 }
 
-export async function createItemAction(formData: FormData) {
+export async function createItemAction(
+  _previousState: MutationState,
+  formData: FormData,
+): Promise<MutationState> {
   const { supabase, user } = await getSignedInUser();
   if (!user) {
-    redirect("/sign-in");
+    return mutationError("You need to sign in first.");
   }
 
   const parsed = itemSchema.safeParse({
@@ -171,10 +190,8 @@ export async function createItemAction(formData: FormData) {
 
   if (!parsed.success || !activitySlug) {
     const firstIssue = parsed.success ? null : parsed.error.issues[0];
-    redirect(
-      `/${activitySlug || "guitar"}${errorQuery(
-        firstIssue?.message ?? "Choose an activity and give the item a name.",
-      )}`,
+    return mutationError(
+      firstIssue?.message ?? "Choose an activity and give the item a name.",
     );
   }
 
@@ -186,7 +203,7 @@ export async function createItemAction(formData: FormData) {
     .single();
 
   if (activityError || !activity) {
-    redirect(`/${activitySlug}${errorQuery("That activity could not be found.")}`);
+    return mutationError("That activity could not be found.");
   }
 
   const slug = slugify(parsed.data.name);
@@ -205,17 +222,20 @@ export async function createItemAction(formData: FormData) {
   });
 
   if (error) {
-    redirect(`/${activitySlug}${errorQuery(error.message)}`);
+    return mutationError(error.message);
   }
 
   revalidatePath(`/${activitySlug}`);
-  redirect(`/${activitySlug}/${slug}`);
+  return mutationSuccess();
 }
 
-export async function logPracticeAction(formData: FormData) {
+export async function logPracticeAction(
+  _previousState: MutationState,
+  formData: FormData,
+): Promise<MutationState> {
   const { supabase, user } = await getSignedInUser();
   if (!user) {
-    redirect("/sign-in");
+    return mutationError("You need to sign in first.");
   }
 
   const parsed = practiceSchema.safeParse({
@@ -226,10 +246,8 @@ export async function logPracticeAction(formData: FormData) {
   });
 
   if (!parsed.success) {
-    const activitySlug = String(formData.get("activitySlug") ?? "guitar");
-    const itemSlug = String(formData.get("itemSlug") ?? "blackbird");
     const message = parsed.error.issues[0]?.message ?? "Add a note before saving.";
-    redirect(`/${activitySlug}/${itemSlug}/log${errorQuery(message)}`);
+    return mutationError(message);
   }
 
   const { data: activity, error: activityError } = await supabase
@@ -240,7 +258,7 @@ export async function logPracticeAction(formData: FormData) {
     .single();
 
   if (activityError || !activity) {
-    redirect(`/${parsed.data.activitySlug}${errorQuery("That activity could not be found.")}`);
+    return mutationError("That activity could not be found.");
   }
 
   const { data: item, error: itemError } = await supabase
@@ -254,9 +272,7 @@ export async function logPracticeAction(formData: FormData) {
     .single();
 
   if (itemError || !item) {
-    redirect(
-      `/${parsed.data.activitySlug}/${parsed.data.itemSlug}${errorQuery("That item could not be found.")}`,
-    );
+    return mutationError("That item could not be found.");
   }
 
   const normalizedNote = parsed.data.note.trim();
@@ -276,9 +292,7 @@ export async function logPracticeAction(formData: FormData) {
   });
 
   if (entryError) {
-    redirect(
-      `/${parsed.data.activitySlug}/${parsed.data.itemSlug}/log${errorQuery(entryError.message)}`,
-    );
+    return mutationError(entryError.message);
   }
 
   const { error: updateError } = await supabase
@@ -293,14 +307,49 @@ export async function logPracticeAction(formData: FormData) {
     .eq("user_id", user.id);
 
   if (updateError) {
-    redirect(
-      `/${parsed.data.activitySlug}/${parsed.data.itemSlug}/log${errorQuery(updateError.message)}`,
-    );
+    return mutationError(updateError.message);
   }
 
   revalidatePath(`/${parsed.data.activitySlug}`);
   revalidatePath(`/${parsed.data.activitySlug}/${parsed.data.itemSlug}`);
-  redirect(`/${parsed.data.activitySlug}/${parsed.data.itemSlug}`);
+  return mutationSuccess();
+}
+
+export async function updateItemAction(
+  _previousState: MutationState,
+  formData: FormData,
+): Promise<MutationState> {
+  const { supabase, user } = await getSignedInUser();
+  if (!user) {
+    return mutationError("You need to sign in first.");
+  }
+
+  const itemId = String(formData.get("itemId") ?? "").trim();
+  const itemSlug = String(formData.get("itemSlug") ?? "").trim();
+  const activitySlug = String(formData.get("activitySlug") ?? "").trim();
+  const name = String(formData.get("name") ?? "").trim();
+  const description = String(formData.get("description") ?? "").trim();
+
+  if (!itemId || !itemSlug || !activitySlug || name.length < 2) {
+    return mutationError("Check the item details.");
+  }
+
+  const { error } = await supabase
+    .from("items")
+    .update({
+      name,
+      description,
+    })
+    .eq("id", itemId)
+    .eq("user_id", user.id);
+
+  if (error) {
+    return mutationError(error.message);
+  }
+
+  revalidatePath(`/${activitySlug}`);
+  revalidatePath(`/${activitySlug}/${itemSlug}`);
+  return mutationSuccess();
 }
 
 export async function bootstrapDataIfNeeded() {

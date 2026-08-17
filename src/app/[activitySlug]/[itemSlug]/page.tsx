@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
   CalendarDays,
@@ -9,9 +8,9 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { AppFrame } from "@/components/stride/app-frame";
+import { LogPracticeModal } from "@/components/stride/log-practice-modal";
 import { PageHeader } from "@/components/stride/page-header";
 import { SectionHeading } from "@/components/stride/section-heading";
-import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -73,6 +72,9 @@ export default async function ItemPage({
   const entries = (entriesResult.data ?? []) as EntryRecord[];
   const paramsObject = await searchParams;
   const error = typeof paramsObject.error === "string" ? paramsObject.error : "";
+  const lastEntryLabel = entries[0]
+    ? formatEntryDisplay(entries[0].created_at).label
+    : undefined;
 
   const currentState = [
     { label: "Focus", value: item.focus, icon: Target },
@@ -105,24 +107,18 @@ export default async function ItemPage({
           title={item.name}
           actions={
             <>
-              <Button
-                type="button"
-                variant="outline"
-                disabled
-                title="Not included in this milestone"
-              >
-                Edit song
-              </Button>
-              <Link
-                href={`/${activity.slug}/${item.slug}/log`}
-                className={buttonVariants({ size: "default" })}
-              >
-                {activity.kind === "practice"
-                  ? "Log practice"
-                  : activity.kind === "fitness"
-                    ? "Log run"
-                    : "Write entry"}
-              </Link>
+              <LogPracticeModal
+                activitySlug={activity.slug}
+                activityName={activity.name}
+                activityKind={activity.kind}
+                itemSlug={item.slug}
+                itemName={item.name}
+                currentFocus={item.focus}
+                currentGoingWell={item.going_well}
+                currentStillWorkingOn={item.still_working_on}
+                currentConfidence={item.confidence}
+                lastEntryLabel={lastEntryLabel}
+              />
             </>
           }
         />
