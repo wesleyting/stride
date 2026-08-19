@@ -189,6 +189,18 @@ export function clampRating(value: number) {
   return Math.min(5, Math.max(1, value));
 }
 
+const proficiencyLabels = [
+  "Learning",
+  "Rough",
+  "Developing",
+  "Comfortable",
+  "Performance-ready",
+] as const;
+
+export function describeProficiency(level: number) {
+  return proficiencyLabels[clampRating(level) - 1];
+}
+
 export function describeActivityKind(kind: ActivityKind) {
   switch (kind) {
     case "practice":

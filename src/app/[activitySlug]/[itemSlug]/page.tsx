@@ -1,14 +1,15 @@
 import { redirect } from "next/navigation";
 import {
+  BadgeCheck,
   CalendarDays,
   ChevronRight,
   RefreshCcw,
-  Star,
   Target,
   TrendingUp,
 } from "lucide-react";
 import { AppFrame } from "@/components/stride/app-frame";
 import { LogPracticeModal } from "@/components/stride/log-practice-modal";
+import { ProficiencyChip } from "@/components/stride/proficiency-chip";
 import { PageHeader } from "@/components/stride/page-header";
 import { SectionHeading } from "@/components/stride/section-heading";
 import {
@@ -18,7 +19,12 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { requireUser } from "@/lib/auth";
-import { ensureSeedData, formatEntryDisplay, type ActivityRecord, type EntryRecord, type ItemRecord } from "@/lib/stride";
+import {
+  formatEntryDisplay,
+  type ActivityRecord,
+  type EntryRecord,
+  type ItemRecord,
+} from "@/lib/stride";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +34,6 @@ export default async function ItemPage({
 }: PageProps<"/[activitySlug]/[itemSlug]">) {
   const { activitySlug, itemSlug } = await params;
   const { supabase, user } = await requireUser();
-  await ensureSeedData(supabase, user.id);
 
   const [activityResult, itemResult] = await Promise.all([
     supabase
@@ -85,9 +90,9 @@ export default async function ItemPage({
       icon: RefreshCcw,
     },
     {
-      label: "Confidence",
-      value: `${item.confidence} / 5`,
-      icon: Star,
+      label: "Proficiency",
+      value: <ProficiencyChip level={item.confidence} />,
+      icon: BadgeCheck,
     },
     {
       label: "Last practiced",
@@ -158,7 +163,7 @@ export default async function ItemPage({
                       <span className="font-medium">{label}</span>
                     </dt>
                     <dd className="min-w-0 [overflow-wrap:anywhere] text-sm leading-5 text-stone-800">
-                      {value || "Not set yet"}
+                      {value ?? "Not set yet"}
                     </dd>
                   </div>
                 ))}
@@ -190,7 +195,9 @@ export default async function ItemPage({
                         {entry.content}
                       </p>
                       <span className="text-sm font-medium text-stone-700">
-                        {entry.rating}/5
+                        {entry.rating
+                          ? `Session rating ${entry.rating}/5`
+                          : "Session rating not set"}
                       </span>
                     </article>
                   );

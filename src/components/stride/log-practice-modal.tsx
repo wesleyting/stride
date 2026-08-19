@@ -4,6 +4,7 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { Clock3 } from "lucide-react";
 import { logPracticeAction, type MutationState } from "@/app/actions";
 import { DialogShell } from "@/components/stride/dialog-shell";
+import { ProficiencyChip } from "@/components/stride/proficiency-chip";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -13,11 +14,11 @@ const initialState: MutationState = {
 };
 
 const feelingLabels = [
-  "Very difficult",
-  "Difficult",
-  "Neutral",
-  "Good",
-  "Very good",
+  "Learning",
+  "Rough",
+  "Developing",
+  "Comfortable",
+  "Performance-ready",
 ];
 
 const fieldClassName =
@@ -124,10 +125,8 @@ export function LogPracticeModal({
                 </span>
               </p>
               <p>
-                Confidence:{" "}
-                <span className="font-medium text-stone-950">
-                  {currentConfidence} / 5
-                </span>
+                Current proficiency:{" "}
+                <ProficiencyChip level={currentConfidence} className="ml-1" />
               </p>
               <p>
                 Last entry:{" "}
@@ -179,7 +178,7 @@ export function LogPracticeModal({
 
             <fieldset>
               <legend className="text-sm font-semibold text-stone-950">
-                How are you feeling about it?
+                Current proficiency
               </legend>
               <div className="mt-3 grid grid-cols-5 gap-2 sm:gap-3">
                 {feelingLabels.map((label, index) => {
@@ -195,12 +194,10 @@ export function LogPracticeModal({
                         name="rating"
                         value={value}
                         defaultChecked={value === currentConfidence}
+                        aria-label={`${label} level`}
                         className="peer sr-only"
                       />
-                      <span className="flex h-11 items-center justify-center rounded-md border border-stone-300 bg-white text-base font-medium text-stone-800 transition-colors peer-checked:border-stone-800 peer-checked:bg-stone-800 peer-checked:text-white peer-focus-visible:ring-2 peer-focus-visible:ring-stone-500 peer-focus-visible:ring-offset-2">
-                        {value}
-                      </span>
-                      <span className="mt-2 block text-[0.65rem] leading-4 text-stone-500 sm:text-xs">
+                      <span className="flex h-11 items-center justify-center rounded-md border border-stone-300 bg-white px-2 text-center text-sm font-medium text-stone-800 transition-colors peer-checked:border-stone-800 peer-checked:bg-stone-800 peer-checked:text-white peer-focus-visible:ring-2 peer-focus-visible:ring-stone-500 peer-focus-visible:ring-offset-2">
                         {label}
                       </span>
                     </label>

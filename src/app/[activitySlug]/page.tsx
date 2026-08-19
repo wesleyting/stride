@@ -5,7 +5,7 @@ import { AppFrame } from "@/components/stride/app-frame";
 import { CreateItemModal } from "@/components/stride/create-item-modal";
 import { LogPracticeModal } from "@/components/stride/log-practice-modal";
 import { PageHeader } from "@/components/stride/page-header";
-import { RatingStars } from "@/components/stride/rating-stars";
+import { ProficiencyChip } from "@/components/stride/proficiency-chip";
 import { SectionHeading } from "@/components/stride/section-heading";
 import {
   Card,
@@ -15,7 +15,6 @@ import {
 } from "@/components/ui/card";
 import { requireUser } from "@/lib/auth";
 import {
-  ensureSeedData,
   formatEntryDisplay,
   type ActivityRecord,
   type EntryRecord,
@@ -30,7 +29,6 @@ export default async function ActivityPage({
 }: PageProps<"/[activitySlug]">) {
   const { activitySlug } = await params;
   const { supabase, user } = await requireUser();
-  await ensureSeedData(supabase, user.id);
 
   const [activityResult, itemsResult, entriesResult] = await Promise.all([
     supabase
@@ -150,7 +148,7 @@ export default async function ActivityPage({
               ))
             ) : (
               <div className="px-4 py-6 text-sm text-stone-500">
-                No songs yet. Add one below to get started.
+                No songs yet. Use Add song to get started.
               </div>
             )}
           </Card>
@@ -181,7 +179,10 @@ export default async function ActivityPage({
                         {item.description || item.focus || "On the back burner"}
                       </p>
                     </div>
-                    <RatingStars rating={item.confidence} className="sm:justify-self-end" />
+                    <ProficiencyChip
+                      level={item.confidence}
+                      className="sm:justify-self-end"
+                    />
                   </div>
                 ))}
               </div>
@@ -219,7 +220,9 @@ export default async function ActivityPage({
                         </p>
                       </div>
                       <span className="text-sm font-medium text-stone-700">
-                        {entry.rating}/5
+                        {entry.rating
+                          ? `Session rating ${entry.rating}/5`
+                          : "Session rating not set"}
                       </span>
                     </article>
                   );
@@ -279,7 +282,7 @@ function ItemRow({
           >
             {item.name}
           </Link>
-          <RatingStars rating={item.confidence} className="shrink-0 pt-0.5" />
+          <ProficiencyChip level={item.confidence} className="shrink-0" />
         </div>
         <p className="mt-1 text-sm leading-5 text-stone-600">
           {item.focus || item.description || "Add a note about what matters here."}

@@ -14,7 +14,6 @@ import { Button } from "@/components/ui/button";
 import { requireUser } from "@/lib/auth";
 import {
   buildActivitySummary,
-  ensureSeedData,
   formatRelativeDate,
   type ActivityRecord,
   type EntryRecord,
@@ -35,7 +34,6 @@ export default async function HomePage({
   searchParams,
 }: PageProps<"/">) {
   const { supabase, user } = await requireUser();
-  await ensureSeedData(supabase, user.id);
 
   const params = await searchParams;
   const error = typeof params.error === "string" ? params.error : "";
@@ -143,18 +141,38 @@ export default async function HomePage({
         </div>
 
         <section className="mt-6" aria-label="Activities">
-          <div className="overflow-hidden rounded-lg border border-stone-200 bg-white">
-            {activityRows.map((activity) => (
-              <ActivityRow
-                key={activity.id}
-                href={`/${activity.slug}`}
-                name={activity.name}
-                summary={activity.summary}
-                lastActive={activity.last_active_label}
-                icon={iconMap[activity.slug] ?? Waypoints}
-              />
-            ))}
-          </div>
+          {activityRows.length > 0 ? (
+            <div className="overflow-hidden rounded-lg border border-stone-200 bg-white">
+              {activityRows.map((activity) => (
+                <ActivityRow
+                  key={activity.id}
+                  href={`/${activity.slug}`}
+                  name={activity.name}
+                  summary={activity.summary}
+                  lastActive={activity.last_active_label}
+                  icon={iconMap[activity.slug] ?? Waypoints}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-xl border border-stone-200 bg-white p-6 sm:p-8">
+              <div className="max-w-xl">
+                <p className="text-sm font-medium uppercase tracking-[0.16em] text-stone-500">
+                  First run
+                </p>
+                <h2 className="mt-2 text-xl font-semibold tracking-tight text-stone-950">
+                  Start with one activity
+                </h2>
+                <p className="mt-2 max-w-prose text-sm leading-6 text-stone-600">
+                  Keep it light. Create one activity for what you want to track,
+                  then add songs or items as you go.
+                </p>
+                <div className="mt-4">
+                  <CreateActivityModal />
+                </div>
+              </div>
+            </div>
+          )}
         </section>
       </main>
     </AppFrame>
