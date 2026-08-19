@@ -3,9 +3,9 @@ import { redirect } from "next/navigation";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { AppFrame } from "@/components/stride/app-frame";
 import { CreateItemModal } from "@/components/stride/create-item-modal";
+import { DifficultyControl } from "@/components/stride/difficulty-control";
 import { LogPracticeModal } from "@/components/stride/log-practice-modal";
 import { PageHeader } from "@/components/stride/page-header";
-import { ProficiencyChip } from "@/components/stride/proficiency-chip";
 import { SectionHeading } from "@/components/stride/section-heading";
 import {
   Card,
@@ -14,6 +14,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { requireUser } from "@/lib/auth";
+import { normalizePracticeTags } from "@/lib/practice-tags";
 import {
   formatEntryDisplay,
   type ActivityRecord,
@@ -40,14 +41,14 @@ export default async function ActivityPage({
     supabase
       .from("items")
       .select(
-        "id, activity_id, name, slug, description, focus, going_well, still_working_on, confidence, sort_order, is_archived, created_at, updated_at",
+        "id, activity_id, name, slug, description, focus, going_well, still_working_on, confidence, difficulty, sort_order, is_archived, created_at, updated_at",
       )
       .eq("user_id", user.id)
       .eq("is_archived", false)
       .order("sort_order", { ascending: true }),
     supabase
       .from("entries")
-      .select("id, activity_id, item_id, content, rating, created_at")
+      .select("id, activity_id, item_id, content, rating, practice_part, created_at")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false }),
   ]);
@@ -84,12 +85,11 @@ export default async function ActivityPage({
   const focusItems = allItems.slice(0, 3);
   const otherItems = allItems.slice(3);
   const recentEntries = entries.slice(0, 3);
-  const currentItem = allItems[0];
   const sectionTitle =
-    activity.kind === "practice" ? "Currently focusing on" : "Current items";
+    activity.kind === "practice" ? "Pick up where you left off" : "Current items";
   const sectionDescription =
     activity.kind === "practice"
-      ? "Your main priority songs"
+      ? "See what needs attention and continue from there"
       : "Your main priority items";
   const otherLabel =
     activity.kind === "practice" ? "Other songs" : "Other items";
@@ -137,6 +137,7 @@ export default async function ActivityPage({
                   activityName={activity.name}
                   activityKind={activity.kind}
                   item={item}
+                  latestEntry={latestEntryByItem.get(item.id)}
                   lastEntryLabel={
                     latestEntryByItem.get(item.id)
                       ? formatEntryDisplay(
@@ -144,11 +145,14 @@ export default async function ActivityPage({
                         ).label
                       : undefined
                   }
+                  previousParts={Array.from(new Set(entries.filter((entry) => entry.item_id === item.id && entry.practice_part).map((entry) => entry.practice_part!)))}
                 />
               ))
             ) : (
-              <div className="px-4 py-6 text-sm text-stone-500">
-                No songs yet. Use Add song to get started.
+              <div className="px-5 py-8">
+                <p className="text-base font-semibold text-stone-950">Nothing here yet</p>
+                <p className="mt-1 text-sm leading-6 text-stone-600">Add the first {activity.kind === "practice" ? "song" : "item"} you want to keep track of.</p>
+                <div className="mt-4"><CreateItemModal activitySlug={activity.slug} activityKind={activity.kind} /></div>
               </div>
             )}
           </Card>
@@ -166,7 +170,7 @@ export default async function ActivityPage({
                 {otherItems.map((item) => (
                   <div
                     key={item.id}
-                    className="grid gap-3 border-b border-stone-200 px-4 py-3 last:border-b-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start"
+                    className="grid gap-3 border-b border-stone-200 px-4 py-3 transition-colors last:border-b-0 hover:bg-stone-50 focus-within:bg-stone-50 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
                   >
                     <div className="min-w-0">
                       <Link
@@ -179,9 +183,11 @@ export default async function ActivityPage({
                         {item.description || item.focus || "On the back burner"}
                       </p>
                     </div>
-                    <ProficiencyChip
-                      level={item.confidence}
-                      className="sm:justify-self-end"
+                    <DifficultyControl
+                      itemId={item.id}
+                      itemSlug={item.slug}
+                      activitySlug={activity.slug}
+                      value={item.difficulty}
                     />
                   </div>
                 ))}
@@ -191,7 +197,7 @@ export default async function ActivityPage({
         </section>
 
         <div className="mt-5 grid gap-4 md:grid-cols-2">
-          <Card>
+          {recentEntries.length > 0 ? <Card className="md:col-span-2">
             <CardHeader>
               <CardTitle>Recent activity</CardTitle>
             </CardHeader>
@@ -215,13 +221,14 @@ export default async function ActivityPage({
                         <p className="text-sm font-medium text-stone-800">
                           {entry.item_id ? itemNameById.get(entry.item_id) ?? "Item" : activity.name}
                         </p>
+                        {entry.practice_part ? <div className="mt-1 flex flex-wrap gap-1">{normalizePracticeTags(entry.practice_part).map((tag) => <span key={tag} className="inline-flex rounded-full bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-600">{tag}</span>)}</div> : null}
                         <p className="mt-1 min-w-0 [overflow-wrap:anywhere] text-sm leading-5 text-stone-600">
                           {entry.content}
                         </p>
                       </div>
                       <span className="text-sm font-medium text-stone-700">
                         {entry.rating
-                          ? `Session rating ${entry.rating}/5`
+                          ? `Session rating ${entry.rating}/10`
                           : "Session rating not set"}
                       </span>
                     </article>
@@ -237,21 +244,8 @@ export default async function ActivityPage({
                 <ChevronRight className="size-4" aria-hidden="true" />
               </div>
             </CardContent>
-          </Card>
+          </Card> : null}
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Notes</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm font-medium text-stone-900">
-                {activity.kind === "practice" ? "Focus this week:" : "Current notes:"}
-              </p>
-              <p className="mt-1 text-sm leading-6 text-stone-600">
-                {currentItem?.still_working_on || activity.description}
-              </p>
-            </CardContent>
-          </Card>
         </div>
 
       </main>
@@ -264,48 +258,72 @@ function ItemRow({
   activityName,
   activityKind,
   item,
+  latestEntry,
   lastEntryLabel,
+  previousParts,
 }: {
   activitySlug: string;
   activityName: string;
-  activityKind: "practice" | "journal" | "fitness";
+  activityKind: "practice" | "journal" | "fitness" | "projects";
   item: ItemRecord;
+  latestEntry?: EntryRecord;
   lastEntryLabel?: string;
+  previousParts: string[];
 }) {
   return (
-    <div className="grid gap-3 border-b border-stone-200 px-4 py-4 last:border-b-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-      <div className="min-w-0">
-        <div className="flex items-start justify-between gap-4">
-          <Link
-            href={`/${activitySlug}/${item.slug}`}
-            className="block min-w-0 truncate text-sm font-semibold text-stone-950 transition-colors hover:text-stone-950 hover:underline focus-visible:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-stone-400"
-          >
+    <div className="group grid gap-3 border-b border-stone-200 px-4 py-4 transition-colors last:border-b-0 hover:bg-stone-50 focus-within:bg-stone-50 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+      <Link
+        href={`/${activitySlug}/${item.slug}`}
+        className="-m-2 min-w-0 rounded-lg p-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-400"
+      >
+        <div className="flex items-center gap-3">
+          <span className="block min-w-0 truncate text-sm font-semibold leading-5 text-stone-950">
             {item.name}
-          </Link>
-          <ProficiencyChip level={item.confidence} className="shrink-0" />
+          </span>
         </div>
-        <p className="mt-1 text-sm leading-5 text-stone-600">
-          {item.focus || item.description || "Add a note about what matters here."}
-        </p>
+        {latestEntry ? (
+          <div className="mt-1.5 space-y-1">
+            <p className="text-sm font-medium leading-5 text-stone-800">
+              Continue: {latestEntry.practice_part || item.focus || "Review your last session"}
+            </p>
+            {item.still_working_on ? <p className="text-sm leading-5 text-stone-600">Needs attention: {item.still_working_on}</p> : null}
+            <p className="line-clamp-1 text-xs leading-5 text-stone-500">Last time: {latestEntry.content}</p>
+          </div>
+        ) : (
+          <div className="mt-1.5">
+            {item.description ? <p className="text-sm leading-5 text-stone-600">{item.description}</p> : null}
+            <p className="mt-1 text-xs font-medium text-stone-500">No practice logged yet</p>
+          </div>
+        )}
         {lastEntryLabel ? (
           <p className="mt-1 text-xs text-stone-500">
             {activityKind === "practice" ? "Last practiced" : "Last entry"}{" "}
             {lastEntryLabel}
           </p>
         ) : null}
+      </Link>
+      <div className="flex flex-wrap items-center gap-3 sm:justify-end">
+        <DifficultyControl
+          itemId={item.id}
+          itemSlug={item.slug}
+          activitySlug={activitySlug}
+          value={item.difficulty}
+        />
+        <LogPracticeModal
+          activitySlug={activitySlug}
+          activityName={activityName}
+          activityKind={activityKind}
+          itemSlug={item.slug}
+          itemName={item.name}
+          previousParts={previousParts}
+          hasHistory={Boolean(lastEntryLabel)}
+          currentFocus={item.focus}
+          currentGoingWell={item.going_well}
+          currentStillWorkingOn={item.still_working_on}
+          currentConfidence={item.confidence}
+          lastEntryLabel={lastEntryLabel}
+        />
       </div>
-      <LogPracticeModal
-        activitySlug={activitySlug}
-        activityName={activityName}
-        activityKind={activityKind}
-        itemSlug={item.slug}
-        itemName={item.name}
-        currentFocus={item.focus}
-        currentGoingWell={item.going_well}
-        currentStillWorkingOn={item.still_working_on}
-        currentConfidence={item.confidence}
-        lastEntryLabel={lastEntryLabel}
-      />
     </div>
   );
 }

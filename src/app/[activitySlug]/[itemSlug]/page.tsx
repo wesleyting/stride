@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 import {
-  BadgeCheck,
   CalendarDays,
   ChevronRight,
   RefreshCcw,
@@ -9,7 +8,6 @@ import {
 } from "lucide-react";
 import { AppFrame } from "@/components/stride/app-frame";
 import { LogPracticeModal } from "@/components/stride/log-practice-modal";
-import { ProficiencyChip } from "@/components/stride/proficiency-chip";
 import { PageHeader } from "@/components/stride/page-header";
 import { SectionHeading } from "@/components/stride/section-heading";
 import {
@@ -19,6 +17,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { requireUser } from "@/lib/auth";
+import { normalizePracticeTags } from "@/lib/practice-tags";
 import {
   formatEntryDisplay,
   type ActivityRecord,
@@ -45,7 +44,7 @@ export default async function ItemPage({
     supabase
       .from("items")
       .select(
-        "id, activity_id, name, slug, description, focus, going_well, still_working_on, confidence, sort_order, is_archived, created_at, updated_at",
+        "id, activity_id, name, slug, description, focus, going_well, still_working_on, confidence, difficulty, sort_order, is_archived, created_at, updated_at",
       )
       .eq("user_id", user.id)
       .eq("slug", itemSlug)
@@ -65,7 +64,7 @@ export default async function ItemPage({
 
   const entriesResult = await supabase
     .from("entries")
-    .select("id, activity_id, item_id, content, rating, created_at")
+    .select("id, activity_id, item_id, content, rating, practice_part, created_at")
     .eq("user_id", user.id)
     .eq("item_id", item.id)
     .order("created_at", { ascending: false });
@@ -81,27 +80,23 @@ export default async function ItemPage({
     ? formatEntryDisplay(entries[0].created_at).label
     : undefined;
 
+  const hasState = Boolean(item.focus || item.going_well || item.still_working_on || entries.length > 0);
   const currentState = [
-    { label: "Focus", value: item.focus, icon: Target },
+    { label: "Focus now", value: item.focus, icon: Target },
     { label: "Going well", value: item.going_well, icon: TrendingUp },
     {
-      label: "Still working on",
+      label: "Needs attention",
       value: item.still_working_on,
       icon: RefreshCcw,
-    },
-    {
-      label: "Proficiency",
-      value: <ProficiencyChip level={item.confidence} />,
-      icon: BadgeCheck,
     },
     {
       label: "Last practiced",
       value: entries[0]
         ? formatEntryDisplay(entries[0].created_at).label
-        : "Not yet",
+        : "",
       icon: CalendarDays,
     },
-  ];
+  ].filter((state) => Boolean(state.value));
 
   return (
     <AppFrame>
@@ -118,6 +113,8 @@ export default async function ItemPage({
                 activityKind={activity.kind}
                 itemSlug={item.slug}
                 itemName={item.name}
+                hasHistory={entries.length > 0}
+                previousParts={Array.from(new Set(entries.map((entry) => entry.practice_part).filter((part): part is string => Boolean(part))))}
                 currentFocus={item.focus}
                 currentGoingWell={item.going_well}
                 currentStillWorkingOn={item.still_working_on}
@@ -138,11 +135,11 @@ export default async function ItemPage({
         ) : null}
 
         <div className="mt-7 grid gap-5 lg:grid-cols-[0.95fr_1.25fr]">
-          <section aria-labelledby="current-state-heading">
+          {hasState ? <section aria-labelledby="current-state-heading">
             <div id="current-state-heading">
               <SectionHeading
-                title="Current state"
-                description="What you’re working on right now"
+                title="Pick up here"
+                description="The useful context from your previous sessions"
               />
             </div>
             <Card className="mt-4 gap-0 py-0">
@@ -163,13 +160,13 @@ export default async function ItemPage({
                       <span className="font-medium">{label}</span>
                     </dt>
                     <dd className="min-w-0 [overflow-wrap:anywhere] text-sm leading-5 text-stone-800">
-                      {value ?? "Not set yet"}
+                      {value}
                     </dd>
                   </div>
                 ))}
               </dl>
             </Card>
-          </section>
+          </section> : null}
 
           <section aria-labelledby="recent-progress-heading">
             <div id="recent-progress-heading">
@@ -191,12 +188,13 @@ export default async function ItemPage({
                         </span>
                         {date.detail ? <span>{date.detail}</span> : null}
                       </p>
-                      <p className="min-w-0 [overflow-wrap:anywhere] text-sm leading-5 text-stone-700">
-                        {entry.content}
-                      </p>
+                      <div className="min-w-0">
+                        {entry.practice_part ? <div className="mb-1.5 flex flex-wrap gap-1">{normalizePracticeTags(entry.practice_part).map((tag) => <span key={tag} className="inline-flex rounded-full bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-600">{tag}</span>)}</div> : null}
+                        <p className="[overflow-wrap:anywhere] text-sm leading-5 text-stone-700">{entry.content}</p>
+                      </div>
                       <span className="text-sm font-medium text-stone-700">
                         {entry.rating
-                          ? `Session rating ${entry.rating}/5`
+                          ? `Session rating ${entry.rating}/10`
                           : "Session rating not set"}
                       </span>
                     </article>
@@ -204,7 +202,7 @@ export default async function ItemPage({
                 })
               ) : (
                 <div className="px-4 py-6 text-sm text-stone-500">
-                  No entries yet.
+                  No practice logged yet. Log your first practice to start building context here.
                 </div>
               )}
               <div className="flex items-center justify-between px-4 py-3 text-sm font-medium text-stone-500">
@@ -215,7 +213,7 @@ export default async function ItemPage({
           </section>
         </div>
 
-        <Card className="mt-5">
+        {item.description ? <Card className="mt-5">
           <CardHeader>
             <CardTitle className="text-sm">
               {activity.kind === "practice"
@@ -228,7 +226,7 @@ export default async function ItemPage({
               {item.description || "No notes yet."}
             </p>
           </CardContent>
-        </Card>
+        </Card> : null}
       </main>
     </AppFrame>
   );

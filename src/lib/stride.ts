@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-export type ActivityKind = "practice" | "journal" | "fitness";
+export type ActivityKind = "practice" | "journal" | "fitness" | "projects";
 
 export type ActivityRecord = {
   id: string;
@@ -23,6 +23,7 @@ export type ItemRecord = {
   going_well: string;
   still_working_on: string;
   confidence: number;
+  difficulty: number;
   sort_order: number;
   is_archived: boolean;
   created_at: string;
@@ -35,6 +36,7 @@ export type EntryRecord = {
   item_id: string | null;
   content: string;
   rating: number | null;
+  practice_part: string | null;
   created_at: string;
 };
 
@@ -185,8 +187,8 @@ export function slugify(value: string) {
     .replace(/^-+|-+$/g, "");
 }
 
-export function clampRating(value: number) {
-  return Math.min(5, Math.max(1, value));
+export function clampRating(value: number, maximum = 5) {
+  return Math.min(maximum, Math.max(1, value));
 }
 
 const proficiencyLabels = [
@@ -209,6 +211,8 @@ export function describeActivityKind(kind: ActivityKind) {
       return "Journal";
     case "fitness":
       return "Fitness";
+    case "projects":
+      return "Projects";
   }
 }
 

@@ -167,9 +167,6 @@ export default async function HomePage({
                   Keep it light. Create one activity for what you want to track,
                   then add songs or items as you go.
                 </p>
-                <div className="mt-4">
-                  <CreateActivityModal />
-                </div>
               </div>
             </div>
           )}
@@ -195,7 +192,7 @@ function ActivityRow({
   return (
     <Link
       href={href}
-      className="grid min-h-16 grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-4 border-b border-stone-200 px-4 py-4 text-left transition-colors last:border-b-0 hover:bg-stone-50 focus-visible:bg-stone-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-stone-400"
+      className="grid min-h-16 grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-3 border-b border-stone-200 px-4 py-4 text-left transition-colors last:border-b-0 hover:bg-stone-50 focus-visible:bg-stone-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-stone-400"
       aria-label={`Open ${name}. ${summary}. Last active ${lastActive}.`}
     >
       <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-stone-100 text-stone-700">
@@ -205,7 +202,7 @@ function ActivityRow({
         <span className="block truncate text-sm font-semibold text-stone-950">
           {name}
         </span>
-        <span className="mt-0.5 block truncate text-sm text-stone-500">
+        <span className="mt-0.5 block truncate text-sm leading-5 text-stone-500">
           {summary}
         </span>
       </span>

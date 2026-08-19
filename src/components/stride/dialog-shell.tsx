@@ -64,15 +64,14 @@ export function DialogShell({
         event.preventDefault();
         onOpenChange(false);
       }}
-      onClick={(event) => {
-        if (event.target === event.currentTarget) {
-          onOpenChange(false);
-        }
-      }}
       className="fixed inset-0 z-50 m-0 h-full w-full max-w-none border-0 bg-transparent p-0 text-stone-950 backdrop:bg-stone-950/35"
     >
-      <div className="flex min-h-full items-center justify-center p-4 sm:p-6">
+      <div
+        className="flex min-h-full items-center justify-center p-4 sm:p-6"
+        onClick={() => onOpenChange(false)}
+      >
         <section
+          onClick={(event) => event.stopPropagation()}
           className={cn(
             "flex max-h-[calc(100vh-2rem)] w-full flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-stone-200 sm:max-h-[calc(100vh-3rem)]",
             size === "md" && "max-w-xl",

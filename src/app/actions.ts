@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { serializePracticeTags } from "@/lib/practice-tags";
 import {
   clampRating,
   ensureSeedData,
@@ -23,7 +24,7 @@ const authSchema = z.object({
 
 const activitySchema = z.object({
   name: z.string().trim().min(2, "Activity names need at least 2 characters.").max(60),
-  kind: z.enum(["practice", "journal", "fitness"]),
+  kind: z.enum(["practice", "journal", "fitness", "projects"]),
   description: z
     .string()
     .trim()
@@ -40,11 +41,13 @@ const itemSchema = z.object({
     .max(120, "Keep the description short.")
     .optional()
     .or(z.literal("")),
+  difficulty: z.coerce.number().int().min(1).max(5),
 });
 
 const practiceSchema = z.object({
   note: z.string().trim().min(1, "Add a short note about your practice.").max(500),
-  rating: z.coerce.number().int().min(1).max(5),
+  rating: z.coerce.number().int().min(1).max(10),
+  practicePart: z.string().trim().max(160, "Keep the practice tags under 160 characters.").optional().or(z.literal("")),
   activitySlug: z.string().trim().min(1),
   itemSlug: z.string().trim().min(1),
 });
@@ -56,6 +59,7 @@ const activityDescriptionFallbacks: Record<
   practice: "Practicing regularly",
   journal: "Journal & reflection",
   fitness: "Building endurance",
+  projects: "Ongoing work",
 };
 
 function errorQuery(message: string) {
@@ -184,6 +188,7 @@ export async function createItemAction(
   const parsed = itemSchema.safeParse({
     name: formData.get("name"),
     description: formData.get("description") ?? "",
+    difficulty: formData.get("difficulty"),
   });
 
   const activitySlug = String(formData.get("activitySlug") ?? "").trim();
@@ -218,6 +223,7 @@ export async function createItemAction(
     going_well: "",
     still_working_on: "",
     confidence: 3,
+    difficulty: parsed.data.difficulty,
     sort_order: 999,
   });
 
@@ -241,6 +247,7 @@ export async function logPracticeAction(
   const parsed = practiceSchema.safeParse({
     note: formData.get("note"),
     rating: formData.get("rating"),
+    practicePart: formData.get("practicePart") ?? "",
     activitySlug: formData.get("activitySlug"),
     itemSlug: formData.get("itemSlug"),
   });
@@ -276,6 +283,7 @@ export async function logPracticeAction(
   }
 
   const normalizedNote = parsed.data.note.trim();
+  const normalizedPracticeParts = serializePracticeTags(parsed.data.practicePart ?? "");
   const updatedState = inferCurrentState(normalizedNote, {
     focus: item.focus,
     going_well: item.going_well,
@@ -288,7 +296,8 @@ export async function logPracticeAction(
     activity_id: activity.id,
     item_id: item.id,
     content: normalizedNote,
-    rating: clampRating(parsed.data.rating),
+    rating: clampRating(parsed.data.rating, 10),
+    practice_part: normalizedPracticeParts || null,
   });
 
   if (entryError) {
@@ -298,10 +307,9 @@ export async function logPracticeAction(
   const { error: updateError } = await supabase
     .from("items")
     .update({
-      focus: updatedState.focus,
+      focus: normalizedPracticeParts || updatedState.focus,
       going_well: updatedState.going_well,
       still_working_on: updatedState.still_working_on,
-      confidence: clampRating(parsed.data.rating),
     })
     .eq("id", item.id)
     .eq("user_id", user.id);
@@ -309,6 +317,37 @@ export async function logPracticeAction(
   if (updateError) {
     return mutationError(updateError.message);
   }
+
+  revalidatePath(`/${parsed.data.activitySlug}`);
+  revalidatePath(`/${parsed.data.activitySlug}/${parsed.data.itemSlug}`);
+  return mutationSuccess();
+}
+
+export async function updateItemDifficultyAction(formData: FormData) {
+  const { supabase, user } = await getSignedInUser();
+  if (!user) return mutationError("You need to sign in first.");
+
+  const parsed = z.object({
+    itemId: z.string().uuid(),
+    itemSlug: z.string().trim().min(1),
+    activitySlug: z.string().trim().min(1),
+    difficulty: z.coerce.number().int().min(1).max(5),
+  }).safeParse({
+    itemId: formData.get("itemId"),
+    itemSlug: formData.get("itemSlug"),
+    activitySlug: formData.get("activitySlug"),
+    difficulty: formData.get("difficulty"),
+  });
+
+  if (!parsed.success) return mutationError("Choose a difficulty from 1 to 5.");
+
+  const { error } = await supabase
+    .from("items")
+    .update({ difficulty: parsed.data.difficulty })
+    .eq("id", parsed.data.itemId)
+    .eq("user_id", user.id);
+
+  if (error) return mutationError(error.message);
 
   revalidatePath(`/${parsed.data.activitySlug}`);
   revalidatePath(`/${parsed.data.activitySlug}/${parsed.data.itemSlug}`);

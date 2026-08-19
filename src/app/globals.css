@@ -132,11 +132,20 @@
   button,
   a,
   input,
-  textarea {
+  textarea,
+  select,
+  summary {
     @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2;
   }
   button,
   a {
     -webkit-tap-highlight-color: transparent;
+  }
+  button:not(:disabled),
+  a,
+  summary,
+  select,
+  input[type="range"] {
+    cursor: pointer;
   }
 }
