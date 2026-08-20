@@ -258,14 +258,23 @@ export function formatEntryDisplay(date: string, now = new Date()) {
     month: "short",
     day: "numeric",
   });
+  const time = entryDate.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
 
-  if (difference === 0) return { label: "Today", detail };
-  if (difference === 1) return { label: "Yesterday", detail };
+  if (difference === 0) return { label: "Today", detail, time };
+  if (difference === 1) return { label: "Yesterday", detail, time };
   if (difference > 1 && difference < 7) {
-    return { label: `${difference} days ago`, detail };
+    return { label: `${difference} days ago`, detail, time };
   }
 
-  return { label: detail, detail: "" };
+  return { label: detail, detail: "", time };
+}
+
+export function formatEntryMoment(date: string) {
+  const display = formatEntryDisplay(date);
+  return `${display.label} at ${display.time}`;
 }
 
 export function buildActivitySummary(activity: ActivityRecord, itemCount: number) {

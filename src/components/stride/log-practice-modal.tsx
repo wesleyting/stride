@@ -1,12 +1,12 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
-import { Clock3, Gauge, Tag } from "lucide-react";
+import { Clock3, Gauge } from "lucide-react";
 import { logPracticeAction, type MutationState } from "@/app/actions";
 import { DialogShell } from "@/components/stride/dialog-shell";
 import { buttonVariants } from "@/components/ui/button";
+import { PracticeTagInput } from "@/components/stride/practice-tag-input";
 import { cn } from "@/lib/utils";
-import { normalizePracticeTags, serializePracticeTags } from "@/lib/practice-tags";
 
 const initialState: MutationState = { success: false, error: null };
 const fieldClassName =
@@ -100,13 +100,6 @@ function PracticeForm({
     initialState,
   );
   const [rating, setRating] = useState(6);
-  const [practiceParts, setPracticeParts] = useState("");
-  const suggestionTags = normalizePracticeTags(previousParts.join(","));
-  const selectedTags = normalizePracticeTags(practiceParts);
-
-  function addSuggestedTag(tag: string) {
-    setPracticeParts(serializePracticeTags([...selectedTags, tag].join(",")));
-  }
 
   useEffect(() => {
     if (state.success) close();
@@ -133,44 +126,7 @@ function PracticeForm({
       </div>
 
       <div className="grid gap-5 sm:grid-cols-[minmax(0,1fr)_13rem]">
-        <label className="text-sm font-semibold text-stone-900">
-          <span className="flex items-center gap-2">
-            <Tag className="size-4 text-stone-500" aria-hidden="true" />
-            What part did you work on?
-          </span>
-          <input
-            name="practicePart"
-            type="text"
-            value={practiceParts}
-            onChange={(event) => setPracticeParts(event.target.value)}
-            onBlur={() => setPracticeParts(serializePracticeTags(practiceParts))}
-            maxLength={160}
-            placeholder="Intro, Chorus, Singing…"
-            autoComplete="off"
-            className={fieldClassName}
-          />
-          <span className="mt-1.5 block text-xs leading-5 font-normal text-stone-500">
-            Optional. Separate multiple tags with commas.
-          </span>
-          {suggestionTags.length > 0 ? (
-            <span className="mt-2 flex flex-wrap gap-1.5">
-              {suggestionTags.map((tag) => {
-                const selected = selectedTags.some((selectedTag) => selectedTag.toLocaleLowerCase() === tag.toLocaleLowerCase());
-                return (
-                  <button
-                    key={tag}
-                    type="button"
-                    disabled={selected}
-                    onClick={() => addSuggestedTag(tag)}
-                    className="cursor-pointer rounded-full border border-stone-200 bg-white px-2.5 py-1 text-xs font-medium text-stone-600 transition-colors hover:border-stone-400 hover:text-stone-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-400 disabled:cursor-default disabled:bg-stone-100 disabled:text-stone-400"
-                  >
-                    {selected ? "✓ " : "+ "}{tag}
-                  </button>
-                );
-              })}
-            </span>
-          ) : null}
-        </label>
+        <PracticeTagInput name="practicePart" suggestions={previousParts} />
 
         <fieldset className="rounded-xl border border-stone-200 bg-white px-4 py-3">
           <legend className="px-1 text-sm font-semibold text-stone-900">

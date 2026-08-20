@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import {
   CalendarDays,
-  ChevronRight,
   RefreshCcw,
   Target,
   TrendingUp,
@@ -20,6 +19,7 @@ import { requireUser } from "@/lib/auth";
 import { normalizePracticeTags } from "@/lib/practice-tags";
 import {
   formatEntryDisplay,
+  formatEntryMoment,
   type ActivityRecord,
   type EntryRecord,
   type ItemRecord,
@@ -77,7 +77,7 @@ export default async function ItemPage({
   const paramsObject = await searchParams;
   const error = typeof paramsObject.error === "string" ? paramsObject.error : "";
   const lastEntryLabel = entries[0]
-    ? formatEntryDisplay(entries[0].created_at).label
+    ? formatEntryMoment(entries[0].created_at)
     : undefined;
 
   const hasState = Boolean(item.focus || item.going_well || item.still_working_on || entries.length > 0);
@@ -91,9 +91,7 @@ export default async function ItemPage({
     },
     {
       label: "Last practiced",
-      value: entries[0]
-        ? formatEntryDisplay(entries[0].created_at).label
-        : "",
+      value: entries[0] ? formatEntryMoment(entries[0].created_at) : "",
       icon: CalendarDays,
     },
   ].filter((state) => Boolean(state.value));
@@ -180,35 +178,33 @@ export default async function ItemPage({
                   return (
                     <article
                       key={entry.id}
-                      className="grid gap-2 border-b border-stone-200 px-4 py-4 last:border-b-0 sm:grid-cols-[4.5rem_1fr_auto] sm:gap-4"
+                      className="grid gap-3 border-b border-stone-200 px-4 py-4 last:border-b-0 sm:grid-cols-[6rem_minmax(0,1fr)_auto] sm:gap-4"
                     >
                       <p className="text-xs leading-5 text-stone-500">
                         <span className="block font-medium text-stone-700">
                           {date.label}
                         </span>
-                        {date.detail ? <span>{date.detail}</span> : null}
+                        <span>{date.time}</span>
                       </p>
                       <div className="min-w-0">
-                        {entry.practice_part ? <div className="mb-1.5 flex flex-wrap gap-1">{normalizePracticeTags(entry.practice_part).map((tag) => <span key={tag} className="inline-flex rounded-full bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-600">{tag}</span>)}</div> : null}
+                        {entry.practice_part ? <div className="mb-1.5 flex flex-wrap gap-1">{normalizePracticeTags(entry.practice_part).map((tag) => <span key={tag} className="inline-flex rounded-md bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-600">{tag}</span>)}</div> : null}
                         <p className="[overflow-wrap:anywhere] text-sm leading-5 text-stone-700">{entry.content}</p>
                       </div>
-                      <span className="text-sm font-medium text-stone-700">
-                        {entry.rating
-                          ? `Session rating ${entry.rating}/10`
-                          : "Session rating not set"}
+                      <span className="w-fit text-xs text-stone-500 sm:justify-self-end sm:text-right">
+                        <span className="block">Session rating</span>
+                        <span className="mt-0.5 block text-sm font-semibold tabular-nums text-stone-800">
+                          {entry.rating ? `${entry.rating} / 10` : "Not rated"}
+                        </span>
                       </span>
                     </article>
                   );
                 })
               ) : (
-                <div className="px-4 py-6 text-sm text-stone-500">
-                  No practice logged yet. Log your first practice to start building context here.
+                <div className="border-l-4 border-amber-400 bg-amber-50 px-5 py-5">
+                  <p className="text-sm font-semibold text-stone-900">Ready for your first practice log</p>
+                  <p className="mt-1 text-sm leading-6 text-stone-600">Capture what you start with so this page can show exactly where to pick up next time.</p>
                 </div>
               )}
-              <div className="flex items-center justify-between px-4 py-3 text-sm font-medium text-stone-500">
-                View all history
-                <ChevronRight className="size-4" aria-hidden="true" />
-              </div>
             </Card>
           </section>
         </div>
