@@ -7,6 +7,8 @@ import {
 } from "lucide-react";
 import { AppFrame } from "@/components/stride/app-frame";
 import { LogPracticeModal } from "@/components/stride/log-practice-modal";
+import { EditItemModal } from "@/components/stride/edit-item-modal";
+import { DeleteItemModal } from "@/components/stride/delete-item-modal";
 import { PageHeader } from "@/components/stride/page-header";
 import { SectionHeading } from "@/components/stride/section-heading";
 import {
@@ -105,6 +107,8 @@ export default async function ItemPage({
           title={item.name}
           actions={
             <>
+              <EditItemModal itemId={item.id} itemSlug={item.slug} activitySlug={activity.slug} itemName={item.name} description={item.description} />
+              <DeleteItemModal itemId={item.id} activitySlug={activity.slug} itemName={item.name} leavePageAfterDelete />
               <LogPracticeModal
                 activitySlug={activity.slug}
                 activityName={activity.name}

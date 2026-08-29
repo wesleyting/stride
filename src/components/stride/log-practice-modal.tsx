@@ -62,7 +62,7 @@ export function LogPracticeModal({
         open={open}
         onOpenChange={setOpen}
         title={`${actionLabel} — ${itemName}`}
-        description="Capture enough context to make your next session easier."
+        description="A quick note now makes your next session easier to start."
         size="lg"
       >
         {open ? (

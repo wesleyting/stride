@@ -391,6 +391,44 @@ export async function updateItemAction(
   return mutationSuccess();
 }
 
+export async function deleteItemAction(
+  _previousState: MutationState,
+  formData: FormData,
+): Promise<MutationState> {
+  const { supabase, user } = await getSignedInUser();
+  if (!user) return mutationError("You need to sign in first.");
+
+  const parsed = z.object({
+    itemId: z.string().uuid(),
+    activitySlug: z.string().trim().min(1),
+  }).safeParse({
+    itemId: formData.get("itemId"),
+    activitySlug: formData.get("activitySlug"),
+  });
+
+  if (!parsed.success) return mutationError("That item could not be deleted.");
+
+  const { error: entryError } = await supabase
+    .from("entries")
+    .delete()
+    .eq("user_id", user.id)
+    .eq("item_id", parsed.data.itemId);
+
+  if (entryError) return mutationError(entryError.message);
+
+  const { error: itemError } = await supabase
+    .from("items")
+    .delete()
+    .eq("user_id", user.id)
+    .eq("id", parsed.data.itemId);
+
+  if (itemError) return mutationError(itemError.message);
+
+  revalidatePath(`/${parsed.data.activitySlug}`);
+  revalidatePath("/");
+  return mutationSuccess();
+}
+
 export async function bootstrapDataIfNeeded() {
   const { supabase, user } = await getSignedInUser();
 

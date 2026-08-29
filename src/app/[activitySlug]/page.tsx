@@ -4,6 +4,8 @@ import { ChevronDown } from "lucide-react";
 import { AppFrame } from "@/components/stride/app-frame";
 import { CreateItemModal } from "@/components/stride/create-item-modal";
 import { DifficultyControl } from "@/components/stride/difficulty-control";
+import { EditItemModal } from "@/components/stride/edit-item-modal";
+import { DeleteItemModal } from "@/components/stride/delete-item-modal";
 import { LogPracticeModal } from "@/components/stride/log-practice-modal";
 import { PageHeader } from "@/components/stride/page-header";
 import { SectionHeading } from "@/components/stride/section-heading";
@@ -171,7 +173,7 @@ export default async function ActivityPage({
                 {otherItems.map((item) => (
                   <div
                     key={item.id}
-                    className="grid gap-3 border-b border-stone-200 px-4 py-3 transition-colors last:border-b-0 hover:bg-stone-50 focus-within:bg-stone-50 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+                    className="group/item grid gap-3 border-b border-stone-200 px-4 py-3 transition-colors last:border-b-0 hover:bg-stone-50 focus-within:bg-stone-50 sm:grid-cols-[minmax(0,1fr)_9rem_4rem] sm:items-center"
                   >
                     <div className="min-w-0">
                       <Link
@@ -190,6 +192,10 @@ export default async function ActivityPage({
                       activitySlug={activity.slug}
                       value={item.difficulty}
                     />
+                    <div className="flex items-center justify-end opacity-100 transition-opacity sm:opacity-0 sm:group-hover/item:opacity-100 sm:group-focus-within/item:opacity-100">
+                      <EditItemModal itemId={item.id} itemSlug={item.slug} activitySlug={activity.slug} itemName={item.name} description={item.description} />
+                      <DeleteItemModal itemId={item.id} activitySlug={activity.slug} itemName={item.name} />
+                    </div>
                   </div>
                 ))}
               </div>
@@ -277,7 +283,7 @@ function ItemRow({
 }) {
   return (
     <div className={cn(
-      "group grid gap-4 border-b border-stone-200 px-4 py-4 transition-colors last:border-b-0 focus-within:bg-stone-50 sm:grid-cols-[minmax(0,1fr)_9rem_10rem] sm:items-center",
+      "group/item grid gap-4 border-b border-stone-200 px-4 py-4 transition-colors last:border-b-0 focus-within:bg-stone-50 sm:grid-cols-[minmax(0,1fr)_9rem_10rem_4rem] sm:items-center",
       latestEntry ? "hover:bg-stone-50" : "border-l-4 border-l-amber-400 bg-amber-50/60 pl-3 hover:bg-amber-50",
     )}>
       <Link
@@ -306,7 +312,7 @@ function ItemRow({
         ) : (
           <div className="border-stone-200 sm:border-l sm:pl-4">
             <p className="text-sm font-medium text-stone-800">Create your starting point</p>
-            <p className="mt-1 text-xs text-stone-500">Log what you try first so Stride can show where to continue.</p>
+            <p className="mt-1 text-xs text-stone-500">Take 30 seconds to note what you try so your next session is easier to start.</p>
           </div>
         )}
       </Link>
@@ -330,6 +336,10 @@ function ItemRow({
           currentConfidence={item.confidence}
           lastEntryLabel={lastEntryLabel}
         /></div>
+        <div className="flex items-center justify-end opacity-100 transition-opacity sm:opacity-0 sm:group-hover/item:opacity-100 sm:group-focus-within/item:opacity-100">
+          <EditItemModal itemId={item.id} itemSlug={item.slug} activitySlug={activitySlug} itemName={item.name} description={item.description} />
+          <DeleteItemModal itemId={item.id} activitySlug={activitySlug} itemName={item.name} />
+        </div>
     </div>
   );
 }
