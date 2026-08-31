@@ -48,8 +48,24 @@ const practiceSchema = z.object({
   note: z.string().trim().min(1, "Add a short note about your practice.").max(500),
   rating: z.coerce.number().int().min(1).max(10),
   practicePart: z.string().trim().max(160, "Keep the practice tags under 160 characters.").optional().or(z.literal("")),
+  nextAction: z.string().trim().max(180, "Keep the next step under 180 characters.").optional().or(z.literal("")),
   activitySlug: z.string().trim().min(1),
   itemSlug: z.string().trim().min(1),
+});
+
+const songWorkspaceSchema = z.object({
+  itemId: z.string().uuid(),
+  itemSlug: z.string().trim().min(1),
+  nextAction: z.string().trim().max(180, "Keep the next step under 180 characters."),
+  youtubeUrl: z
+    .string()
+    .trim()
+    .max(500)
+    .refine(
+      (value) => !value || /^https:\/\/(www\.)?(youtube\.com|youtu\.be)\//i.test(value),
+      "Use a YouTube or youtu.be link.",
+    ),
+  description: z.string().trim().max(500, "Keep song notes under 500 characters."),
 });
 
 const activityDescriptionFallbacks: Record<
@@ -200,12 +216,29 @@ export async function createItemAction(
     );
   }
 
-  const { data: activity, error: activityError } = await supabase
+  let { data: activity, error: activityError } = await supabase
     .from("activities")
     .select("id, slug")
     .eq("user_id", user.id)
     .eq("slug", activitySlug)
-    .single();
+    .maybeSingle();
+
+  if ((!activity || activityError) && activitySlug === "guitar") {
+    const created = await supabase
+      .from("activities")
+      .insert({
+        user_id: user.id,
+        name: "Guitar",
+        slug: "guitar",
+        kind: "practice",
+        description: "Songs and practice notes",
+        sort_order: 0,
+      })
+      .select("id, slug")
+      .single();
+    activity = created.data;
+    activityError = created.error;
+  }
 
   if (activityError || !activity) {
     return mutationError("That activity could not be found.");
@@ -232,6 +265,8 @@ export async function createItemAction(
   }
 
   revalidatePath(`/${activitySlug}`);
+  revalidatePath("/");
+  revalidatePath("/songs");
   return mutationSuccess();
 }
 
@@ -248,6 +283,7 @@ export async function logPracticeAction(
     note: formData.get("note"),
     rating: formData.get("rating"),
     practicePart: formData.get("practicePart") ?? "",
+    nextAction: formData.get("nextAction") ?? "",
     activitySlug: formData.get("activitySlug"),
     itemSlug: formData.get("itemSlug"),
   });
@@ -310,6 +346,7 @@ export async function logPracticeAction(
       focus: normalizedPracticeParts || updatedState.focus,
       going_well: updatedState.going_well,
       still_working_on: updatedState.still_working_on,
+      ...(parsed.data.nextAction ? { next_action: parsed.data.nextAction } : {}),
     })
     .eq("id", item.id)
     .eq("user_id", user.id);
@@ -320,6 +357,9 @@ export async function logPracticeAction(
 
   revalidatePath(`/${parsed.data.activitySlug}`);
   revalidatePath(`/${parsed.data.activitySlug}/${parsed.data.itemSlug}`);
+  revalidatePath("/");
+  revalidatePath("/songs");
+  revalidatePath(`/songs/${parsed.data.itemSlug}`);
   return mutationSuccess();
 }
 
@@ -351,6 +391,84 @@ export async function updateItemDifficultyAction(formData: FormData) {
 
   revalidatePath(`/${parsed.data.activitySlug}`);
   revalidatePath(`/${parsed.data.activitySlug}/${parsed.data.itemSlug}`);
+  revalidatePath("/");
+  revalidatePath("/songs");
+  revalidatePath(`/songs/${parsed.data.itemSlug}`);
+  return mutationSuccess();
+}
+
+export async function toggleFavoriteAction(
+  itemId: string,
+  nextValue: boolean,
+): Promise<MutationState> {
+  const { supabase, user } = await getSignedInUser();
+  if (!user) return mutationError("You need to sign in first.");
+
+  const parsed = z.object({ itemId: z.string().uuid(), nextValue: z.boolean() }).safeParse({
+    itemId,
+    nextValue,
+  });
+  if (!parsed.success) return mutationError("That song could not be updated.");
+
+  const { error } = await supabase
+    .from("items")
+    .update({ is_favorite: parsed.data.nextValue })
+    .eq("id", parsed.data.itemId)
+    .eq("user_id", user.id);
+
+  if (error) {
+    return mutationError(
+      error.code === "42703"
+        ? "Run migration 0006_guitar_workspace.sql before using favorites."
+        : error.message,
+    );
+  }
+
+  revalidatePath("/");
+  revalidatePath("/songs");
+  return mutationSuccess();
+}
+
+export async function updateSongWorkspaceAction(
+  _previousState: MutationState,
+  formData: FormData,
+): Promise<MutationState> {
+  const { supabase, user } = await getSignedInUser();
+  if (!user) return mutationError("You need to sign in first.");
+
+  const parsed = songWorkspaceSchema.safeParse({
+    itemId: formData.get("itemId"),
+    itemSlug: formData.get("itemSlug"),
+    nextAction: formData.get("nextAction") ?? "",
+    youtubeUrl: formData.get("youtubeUrl") ?? "",
+    description: formData.get("description") ?? "",
+  });
+  if (!parsed.success) {
+    return mutationError(parsed.error.issues[0]?.message ?? "Check the song details.");
+  }
+
+  const { error } = await supabase
+    .from("items")
+    .update({
+      next_action: parsed.data.nextAction,
+      youtube_url: parsed.data.youtubeUrl,
+      description: parsed.data.description,
+    })
+    .eq("id", parsed.data.itemId)
+    .eq("user_id", user.id);
+
+  if (error) {
+    return mutationError(
+      error.code === "42703"
+        ? "Run migration 0006_guitar_workspace.sql before saving song resources."
+        : error.message,
+    );
+  }
+
+  revalidatePath("/");
+  revalidatePath("/songs");
+  revalidatePath(`/songs/${parsed.data.itemSlug}`);
+  revalidatePath(`/guitar/${parsed.data.itemSlug}`);
   return mutationSuccess();
 }
 
@@ -388,6 +506,9 @@ export async function updateItemAction(
 
   revalidatePath(`/${activitySlug}`);
   revalidatePath(`/${activitySlug}/${itemSlug}`);
+  revalidatePath("/");
+  revalidatePath("/songs");
+  revalidatePath(`/songs/${itemSlug}`);
   return mutationSuccess();
 }
 
@@ -408,6 +529,19 @@ export async function deleteItemAction(
 
   if (!parsed.success) return mutationError("That item could not be deleted.");
 
+  const resourceResult = await supabase
+    .from("song_resources")
+    .select("storage_path")
+    .eq("user_id", user.id)
+    .eq("item_id", parsed.data.itemId);
+
+  if (!resourceResult.error && resourceResult.data.length > 0) {
+    const storageResult = await supabase.storage
+      .from("song-resources")
+      .remove(resourceResult.data.map((resource) => resource.storage_path));
+    if (storageResult.error) return mutationError(storageResult.error.message);
+  }
+
   const { error: entryError } = await supabase
     .from("entries")
     .delete()
@@ -426,6 +560,7 @@ export async function deleteItemAction(
 
   revalidatePath(`/${parsed.data.activitySlug}`);
   revalidatePath("/");
+  revalidatePath("/songs");
   return mutationSuccess();
 }
 

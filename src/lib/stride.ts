@@ -24,11 +24,56 @@ export type ItemRecord = {
   still_working_on: string;
   confidence: number;
   difficulty: number;
+  is_favorite: boolean;
+  next_action: string;
+  youtube_url: string;
   sort_order: number;
   is_archived: boolean;
   created_at: string;
   updated_at: string;
 };
+
+export type SongResourceRecord = {
+  id: string;
+  item_id: string;
+  storage_path: string;
+  file_name: string;
+  mime_type: string;
+  created_at: string;
+  signed_url?: string;
+};
+
+export function calculatePracticeStreak(createdDates: string[]) {
+  if (createdDates.length === 0) return 0;
+
+  const dayKeys = new Set(
+    createdDates.map((value) => {
+      const date = new Date(value);
+      return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+    }),
+  );
+  const cursor = new Date();
+  const todayKey = `${cursor.getFullYear()}-${cursor.getMonth()}-${cursor.getDate()}`;
+  cursor.setDate(cursor.getDate() - 1);
+  const yesterdayKey = `${cursor.getFullYear()}-${cursor.getMonth()}-${cursor.getDate()}`;
+
+  if (!dayKeys.has(todayKey) && !dayKeys.has(yesterdayKey)) return 0;
+  if (dayKeys.has(todayKey)) cursor.setDate(cursor.getDate() + 1);
+
+  let streak = 0;
+  while (true) {
+    const key = `${cursor.getFullYear()}-${cursor.getMonth()}-${cursor.getDate()}`;
+    if (!dayKeys.has(key)) break;
+    streak += 1;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return streak;
+}
+
+export function entriesWithinDays<T extends { created_at: string }>(entries: T[], days: number) {
+  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+  return entries.filter((entry) => new Date(entry.created_at).getTime() >= cutoff);
+}
 
 export type EntryRecord = {
   id: string;

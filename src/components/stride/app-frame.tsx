@@ -1,10 +1,8 @@
 import Link from "next/link";
 import {
-  Archive,
-  Clock3,
+  Guitar,
   House,
-  Settings,
-  Waypoints,
+  Library,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -40,48 +38,24 @@ function Sidebar({ footer }: { footer?: React.ReactNode }) {
         className="flex items-center gap-2 rounded-md px-2 py-1.5 text-base font-semibold text-stone-950"
         aria-label="Stride home"
       >
-        <Waypoints className="size-5" aria-hidden="true" />
+        <Guitar className="size-5" aria-hidden="true" />
         Stride
       </Link>
 
       <nav className="ml-auto flex items-center md:mt-6 md:ml-0 md:block" aria-label="Primary navigation">
         <Link
           href="/"
-          aria-current="page"
-          className="flex items-center gap-2 rounded-md bg-stone-200 px-3 py-2 text-sm font-medium text-stone-950"
+          className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-stone-700 transition hover:bg-stone-200 hover:text-stone-950 focus-visible:bg-stone-200"
         >
           <House className="size-4" aria-hidden="true" />
-          Activities
+          Home
         </Link>
-        <div className="mt-1 hidden space-y-1 md:block">
-          <SidebarPlaceholder icon={Clock3} label="Recent" />
-          <SidebarPlaceholder icon={Archive} label="Archive" />
-        </div>
+        <Link href="/songs" className="mt-1 flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-stone-700 transition hover:bg-stone-200 hover:text-stone-950 focus-visible:bg-stone-200"><Library className="size-4" aria-hidden="true" />All songs</Link>
       </nav>
 
       <div className="mt-auto hidden pt-8 md:block">
-        {footer ?? <SidebarPlaceholder icon={Settings} label="Settings" />}
+        {footer}
       </div>
     </aside>
-  );
-}
-
-function SidebarPlaceholder({
-  icon: Icon,
-  label,
-}: {
-  icon: typeof House;
-  label: string;
-}) {
-  return (
-    <button
-      type="button"
-      disabled
-      title="Not included in this milestone"
-      className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-stone-500 disabled:cursor-not-allowed"
-    >
-      <Icon className="size-4" aria-hidden="true" />
-      {label}
-    </button>
   );
 }

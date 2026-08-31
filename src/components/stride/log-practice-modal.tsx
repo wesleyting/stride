@@ -178,6 +178,23 @@ function PracticeForm({
         />
       </div>
 
+      <div>
+        <label htmlFor="next-action" className="text-sm font-semibold text-stone-950">
+          Where should you start next time? <span className="font-normal text-stone-500">(optional)</span>
+        </label>
+        <p id="next-action-help" className="mt-1 text-sm leading-5 text-stone-500">
+          One concrete cue will appear on Home and at the top of this song.
+        </p>
+        <input
+          id="next-action"
+          name="nextAction"
+          maxLength={180}
+          aria-describedby="next-action-help"
+          placeholder="Start slowly at the change into the chorus"
+          className={fieldClassName}
+        />
+      </div>
+
       <div className="flex flex-col-reverse gap-2 border-t border-stone-200 pt-4 sm:flex-row sm:justify-end">
         <button
           type="button"

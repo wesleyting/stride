@@ -33,6 +33,7 @@ export default async function ActivityPage({
   searchParams,
 }: PageProps<"/[activitySlug]">) {
   const { activitySlug } = await params;
+  if (activitySlug === "guitar") redirect("/songs");
   const { supabase, user } = await requireUser();
 
   const [activityResult, itemsResult, entriesResult] = await Promise.all([

@@ -34,6 +34,7 @@ export default async function ItemPage({
   searchParams,
 }: PageProps<"/[activitySlug]/[itemSlug]">) {
   const { activitySlug, itemSlug } = await params;
+  if (activitySlug === "guitar") redirect(`/songs/${itemSlug}`);
   const { supabase, user } = await requireUser();
 
   const [activityResult, itemResult] = await Promise.all([
