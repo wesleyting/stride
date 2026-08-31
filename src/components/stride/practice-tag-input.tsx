@@ -95,9 +95,6 @@ export function PracticeTagInput({
         name={name}
         value={serializePracticeTags([...tags, draft].join(","))}
       />
-      <p className="mt-1.5 text-xs leading-5 text-stone-500">
-        Press Enter or type a comma to create a tag.
-      </p>
       {normalizedSuggestions.length > 0 ? (
         <div className="mt-2 flex flex-wrap gap-1.5" aria-label="Previous tags">
           {normalizedSuggestions.map((tag) => {

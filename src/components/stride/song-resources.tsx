@@ -21,6 +21,7 @@ export function SongResources({
 }) {
   const [resources, setResources] = useState(initialResources);
   const [selected, setSelected] = useState<SongResourceRecord | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -90,16 +91,17 @@ export function SongResources({
   }
 
   async function remove(resource: SongResourceRecord) {
-    if (!window.confirm(`Remove ${resource.file_name}?`)) return;
     setError("");
     const before = resources;
     setResources((current) => current.filter((candidate) => candidate.id !== resource.id));
     setSelected(null);
+    setConfirmingDelete(false);
     const supabase = createClient();
     const storageResult = await supabase.storage.from("song-resources").remove([resource.storage_path]);
     const metadataResult = await supabase.from("song_resources").delete().eq("id", resource.id).eq("item_id", itemId);
     if (storageResult.error || metadataResult.error) {
       setResources(before);
+      setSelected(resource);
       setError(storageResult.error?.message ?? metadataResult.error?.message ?? "Could not remove the image.");
     }
   }
@@ -107,10 +109,7 @@ export function SongResources({
   return (
     <section className="rounded-xl border border-stone-200 bg-white" aria-labelledby="resources-heading">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 px-4 py-3 sm:px-5">
-        <div>
-          <h2 id="resources-heading" className="text-sm font-semibold text-stone-950">Chords, tabs & screenshots</h2>
-          <p className="mt-0.5 text-xs text-stone-500">Private visual references kept with this song.</p>
-        </div>
+        <h2 id="resources-heading" className="text-sm font-semibold text-stone-950">Screenshots</h2>
         <label className={buttonVariants({ variant: "outline", size: "sm" })}>
           <Upload data-icon="inline-start" aria-hidden="true" />
           {busy ? "Uploading…" : "Add image"}
@@ -130,12 +129,12 @@ export function SongResources({
       ) : (
         <button type="button" onClick={() => inputRef.current?.click()} className="m-4 flex w-[calc(100%-2rem)] items-center gap-3 rounded-lg border border-dashed border-stone-300 px-4 py-5 text-left transition hover:border-stone-400 hover:bg-stone-50 focus-visible:ring-2 focus-visible:ring-stone-500 sm:m-5 sm:w-[calc(100%-2.5rem)]">
           <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-stone-100"><ImagePlus className="size-5 text-stone-600" aria-hidden="true" /></span>
-          <span><span className="block text-sm font-semibold text-stone-900">Add your first visual reference</span><span className="mt-0.5 block text-xs text-stone-500">Chord charts, tabs, handwritten notes, or screenshots.</span></span>
+          <span className="text-sm font-semibold text-stone-900">Add screenshot</span>
         </button>
       )}
 
-      <DialogShell open={Boolean(selected)} onOpenChange={(open) => { if (!open) setSelected(null); }} title={selected?.file_name ?? "Song resource"} size="xl">
-        {selected ? <div className="grid gap-4"><div className="relative min-h-[50vh] overflow-hidden rounded-lg bg-stone-100">{selected.signed_url ? <Image src={selected.signed_url} alt={selected.file_name} fill unoptimized className="object-contain" /> : null}</div><div className="flex justify-end"><button type="button" onClick={() => remove(selected)} className={buttonVariants({ variant: "destructive" })}><Trash2 data-icon="inline-start" aria-hidden="true" />Remove image</button></div></div> : null}
+      <DialogShell open={Boolean(selected)} onOpenChange={(open) => { if (!open) { setSelected(null); setConfirmingDelete(false); } }} title={confirmingDelete ? "Remove screenshot?" : selected?.file_name ?? "Screenshot"} size={confirmingDelete ? "md" : "xl"}>
+        {selected ? confirmingDelete ? <div className="grid gap-5"><p className="text-sm leading-6 text-stone-600">This permanently removes <span className="font-medium text-stone-900">{selected.file_name}</span>.</p><div className="flex justify-end gap-2"><button type="button" onClick={() => setConfirmingDelete(false)} className={buttonVariants({ variant: "outline" })}>Cancel</button><button type="button" onClick={() => remove(selected)} className={buttonVariants({ variant: "destructive" })}><Trash2 data-icon="inline-start" aria-hidden="true" />Remove</button></div></div> : <div className="grid gap-4"><div className="relative min-h-[50vh] overflow-hidden rounded-lg bg-stone-100">{selected.signed_url ? <Image src={selected.signed_url} alt={selected.file_name} fill unoptimized className="object-contain" /> : null}</div><div className="flex justify-end"><button type="button" onClick={() => setConfirmingDelete(true)} className={buttonVariants({ variant: "destructive" })}><Trash2 data-icon="inline-start" aria-hidden="true" />Remove</button></div></div> : null}
       </DialogShell>
     </section>
   );

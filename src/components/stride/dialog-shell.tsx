@@ -21,6 +21,7 @@ export function DialogShell({
   size?: "md" | "lg" | "xl";
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const backdropPointerDown = useRef(false);
   const titleId = useId();
   const descriptionId = useId();
 
@@ -68,7 +69,15 @@ export function DialogShell({
     >
       <div
         className="flex min-h-full items-center justify-center p-4 sm:p-6"
-        onClick={() => onOpenChange(false)}
+        onPointerDown={(event) => {
+          backdropPointerDown.current = event.target === event.currentTarget;
+        }}
+        onPointerUp={(event) => {
+          if (backdropPointerDown.current && event.target === event.currentTarget) {
+            onOpenChange(false);
+          }
+          backdropPointerDown.current = false;
+        }}
       >
         <section
           onClick={(event) => event.stopPropagation()}

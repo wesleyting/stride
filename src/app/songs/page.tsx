@@ -26,5 +26,5 @@ export default async function SongsPage() {
     entries = (entryResult.data ?? []) as EntryRecord[];
   }
 
-  return <AppFrame showSidebar sidebarFooter={<form action={signOutAction}><button type="submit" className="w-full rounded-md px-3 py-2 text-left text-sm text-stone-500 transition hover:bg-stone-100">Sign out</button></form>}><main className="min-w-0 flex-1 px-4 py-6 sm:px-7 sm:py-8"><header className="flex items-start justify-between gap-4"><div><h1 className="text-2xl font-semibold tracking-tight text-stone-950">All songs</h1><p className="mt-1 text-sm text-stone-600">Search, favorite, edit, or jump directly into a practice log.</p></div><CreateItemModal activitySlug="guitar" activityKind="practice" /></header><SongLibrary songs={songs} entries={entries} /></main></AppFrame>;
+  return <AppFrame showSidebar sidebarFooter={<form action={signOutAction}><button type="submit" className="w-full rounded-md px-3 py-2 text-left text-sm text-stone-500 transition hover:bg-stone-100">Sign out</button></form>}><main className="min-w-0 flex-1 px-4 py-6 sm:px-7 sm:py-8"><header className="flex items-start justify-between gap-4"><h1 className="text-2xl font-semibold tracking-tight text-stone-950">All songs</h1><CreateItemModal activitySlug="guitar" activityKind="practice" /></header><SongLibrary songs={songs} entries={entries} /></main></AppFrame>;
 }

@@ -46,9 +46,6 @@ export function DifficultyControl({
 
   return (
     <div className="relative inline-flex shrink-0 items-center gap-1.5">
-      {!compact ? (
-        <span className="text-xs font-medium text-stone-500">Difficulty</span>
-      ) : null}
       <div
         className={cn("flex items-center", pending && "opacity-60")}
         role="radiogroup"

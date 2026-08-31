@@ -1,8 +1,8 @@
 import Link from "next/link";
 import {
-  Guitar,
   House,
   Library,
+  Waypoints,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -38,7 +38,7 @@ function Sidebar({ footer }: { footer?: React.ReactNode }) {
         className="flex items-center gap-2 rounded-md px-2 py-1.5 text-base font-semibold text-stone-950"
         aria-label="Stride home"
       >
-        <Guitar className="size-5" aria-hidden="true" />
+        <Waypoints className="size-5" aria-hidden="true" />
         Stride
       </Link>
 

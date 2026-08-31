@@ -1,7 +1,7 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
-import { Clock3, Gauge } from "lucide-react";
+import { useActionState, useEffect, useRef, useState } from "react";
+import { Gauge, Link2, Plus, Tags } from "lucide-react";
 import { logPracticeAction, type MutationState } from "@/app/actions";
 import { DialogShell } from "@/components/stride/dialog-shell";
 import { buttonVariants } from "@/components/ui/button";
@@ -25,56 +25,51 @@ type LogPracticeModalProps = {
   currentStillWorkingOn?: string;
   currentConfidence?: number;
   lastEntryLabel?: string;
+  currentYoutubeUrl?: string;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  hideTrigger?: boolean;
 };
 
 export function LogPracticeModal({
   activitySlug,
-  activityName,
   activityKind,
   itemSlug,
   itemName,
-  hasHistory = false,
   previousParts = [],
+  currentYoutubeUrl = "",
+  open: controlledOpen,
+  onOpenChange,
+  hideTrigger = false,
 }: LogPracticeModalProps) {
-  const [open, setOpen] = useState(false);
-  const actionLabel =
-    activityKind === "practice"
-      ? hasHistory
-        ? "Log practice"
-        : "Log first practice"
-      : activityKind === "fitness"
-        ? "Log run"
-        : activityKind === "journal"
-          ? "Write entry"
-          : "Log progress";
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen ?? internalOpen;
+  const setOpen = onOpenChange ?? setInternalOpen;
+  const actionLabel = activityKind === "fitness" ? "Log run" : activityKind === "journal" ? "Write entry" : activityKind === "projects" ? "Log progress" : "Log practice";
 
   return (
     <>
-      <button
+      {!hideTrigger ? <button
         type="button"
         onClick={() => setOpen(true)}
         className={buttonVariants({ size: "default" })}
       >
-        <Clock3 data-icon="inline-start" aria-hidden="true" />
+        <Plus data-icon="inline-start" aria-hidden="true" />
         {actionLabel}
-      </button>
+      </button> : null}
       <DialogShell
         open={open}
         onOpenChange={setOpen}
-        title={`${actionLabel} — ${itemName}`}
-        description="A quick note now makes your next session easier to start."
+        title={itemName}
         size="lg"
       >
-        {open ? (
-          <PracticeForm
+        <PracticeForm
             activitySlug={activitySlug}
-            activityName={activityName}
             itemSlug={itemSlug}
-            itemName={itemName}
             previousParts={previousParts}
+            currentYoutubeUrl={currentYoutubeUrl}
             close={() => setOpen(false)}
-          />
-        ) : null}
+        />
       </DialogShell>
     </>
   );
@@ -82,17 +77,15 @@ export function LogPracticeModal({
 
 function PracticeForm({
   activitySlug,
-  activityName,
   itemSlug,
-  itemName,
   previousParts,
+  currentYoutubeUrl,
   close,
 }: {
   activitySlug: string;
-  activityName: string;
   itemSlug: string;
-  itemName: string;
   previousParts: string[];
+  currentYoutubeUrl: string;
   close: () => void;
 }) {
   const [state, formAction, pending] = useActionState(
@@ -100,13 +93,28 @@ function PracticeForm({
     initialState,
   );
   const [rating, setRating] = useState(6);
+  const [showAreas, setShowAreas] = useState(false);
+  const [showYoutube, setShowYoutube] = useState(false);
+  const [resetSignal, setResetSignal] = useState(0);
+  const formRef = useRef<HTMLFormElement>(null);
+  const areasRef = useRef<HTMLDivElement>(null);
+  const youtubeRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (state.success) close();
+    if (state.success) {
+      formRef.current?.reset();
+      queueMicrotask(() => {
+        setRating(6);
+        setShowAreas(false);
+        setShowYoutube(false);
+        setResetSignal((value) => value + 1);
+      });
+      close();
+    }
   }, [close, state.success]);
 
   return (
-    <form action={formAction} className="grid gap-6">
+    <form ref={formRef} action={formAction} className="grid gap-6">
       <input type="hidden" name="activitySlug" value={activitySlug} />
       <input type="hidden" name="itemSlug" value={itemSlug} />
 
@@ -119,24 +127,29 @@ function PracticeForm({
         </div>
       ) : null}
 
-      <div className="rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-stone-600">
-        <span className="font-semibold text-stone-900">{itemName}</span>
-        <span className="mx-2 text-stone-300">/</span>
-        {activityName}
+      <div>
+        <label htmlFor="practice-note" className="text-sm font-semibold text-stone-950">
+          How did it go?
+        </label>
+        <textarea
+          id="practice-note"
+          name="note"
+          rows={4}
+          required
+          maxLength={500}
+          placeholder="What improved, what was difficult, or anything you want to remember…"
+          className={cn(fieldClassName, "min-h-24 resize-y py-3 leading-6")}
+        />
       </div>
 
-      <div className="grid gap-5 sm:grid-cols-[minmax(0,1fr)_13rem]">
-        <PracticeTagInput name="practicePart" suggestions={previousParts} />
-
-        <fieldset className="rounded-xl border border-stone-200 bg-white px-4 py-3">
+      <fieldset className="rounded-xl border border-stone-200 bg-white px-4 py-3">
           <legend className="px-1 text-sm font-semibold text-stone-900">
             <span className="flex items-center gap-2">
               <Gauge className="size-4 text-stone-500" aria-hidden="true" />
               Session rating
             </span>
           </legend>
-          <div className="mt-1 flex items-baseline justify-between">
-            <span className="text-xs text-stone-500">How it felt today</span>
+          <div className="mt-1 flex items-baseline justify-end">
             <output className="text-2xl font-semibold tabular-nums text-stone-950">
               {rating}<span className="text-sm font-normal text-stone-400">/10</span>
             </output>
@@ -156,43 +169,22 @@ function PracticeForm({
             <span>Tough</span>
             <span>Great</span>
           </div>
-        </fieldset>
+      </fieldset>
+
+      <div className="border-t border-stone-200 pt-5">
+        <p className="text-sm font-semibold text-stone-950">Add details</p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          <OptionalButton active={showAreas} onClick={() => reveal(setShowAreas, areasRef)} icon={Tags}>Worked on</OptionalButton>
+          <OptionalButton active={showYoutube} onClick={() => reveal(setShowYoutube, youtubeRef)} icon={Link2}>YouTube link</OptionalButton>
+        </div>
       </div>
 
-      <div>
-        <label htmlFor="practice-note" className="text-sm font-semibold text-stone-950">
-          How did it go?
-        </label>
-        <p id="practice-note-help" className="mt-1 text-sm leading-5 text-stone-500">
-          Note what improved, what felt difficult, and what you want to remember next time.
-        </p>
-        <textarea
-          id="practice-note"
-          name="note"
-          rows={7}
-          required
-          maxLength={500}
-          aria-describedby="practice-note-help"
-          placeholder="The picking pattern felt steadier. The transition into the chorus still needs slow practice…"
-          className={cn(fieldClassName, "mt-3 min-h-44 resize-y py-3 leading-6")}
-        />
-      </div>
+      <div ref={areasRef} className={showAreas ? "block" : "hidden"}><PracticeTagInput key={resetSignal} name="practicePart" suggestions={previousParts} /></div>
+      <input type="hidden" name="nextAction" value="" />
 
-      <div>
-        <label htmlFor="next-action" className="text-sm font-semibold text-stone-950">
-          Where should you start next time? <span className="font-normal text-stone-500">(optional)</span>
-        </label>
-        <p id="next-action-help" className="mt-1 text-sm leading-5 text-stone-500">
-          One concrete cue will appear on Home and at the top of this song.
-        </p>
-        <input
-          id="next-action"
-          name="nextAction"
-          maxLength={180}
-          aria-describedby="next-action-help"
-          placeholder="Start slowly at the change into the chorus"
-          className={fieldClassName}
-        />
+      <div ref={youtubeRef} className={showYoutube ? "block" : "hidden"}>
+        <label htmlFor="practice-youtube" className="text-sm font-semibold text-stone-950">YouTube link</label>
+        <input id="practice-youtube" name="youtubeUrl" type="url" maxLength={500} defaultValue={currentYoutubeUrl} placeholder="https://www.youtube.com/watch?v=…" className={fieldClassName} />
       </div>
 
       <div className="flex flex-col-reverse gap-2 border-t border-stone-200 pt-4 sm:flex-row sm:justify-end">
@@ -213,4 +205,16 @@ function PracticeForm({
       </div>
     </form>
   );
+}
+
+function reveal(setVisible: React.Dispatch<React.SetStateAction<boolean>>, target: React.RefObject<HTMLDivElement | null>) {
+  setVisible((visible) => {
+    const next = !visible;
+    if (next) requestAnimationFrame(() => target.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
+    return next;
+  });
+}
+
+function OptionalButton({ active, onClick, icon: Icon, children }: { active: boolean; onClick: () => void; icon: typeof Tags; children: React.ReactNode }) {
+  return <button type="button" aria-pressed={active} onClick={onClick} className={cn(buttonVariants({ variant: active ? "secondary" : "outline", size: "sm" }), "rounded-full")}><Icon className="size-3.5" aria-hidden="true" />{children}</button>;
 }

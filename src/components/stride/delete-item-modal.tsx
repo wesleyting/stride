@@ -13,7 +13,7 @@ const initialState: MutationState = { success: false, error: null };
 export function DeleteItemModal({ itemId, activitySlug, itemName, leavePageAfterDelete = false, returnHref }: { itemId: string; activitySlug: string; itemName: string; leavePageAfterDelete?: boolean; returnHref?: string }) {
   const [open, setOpen] = useState(false);
   return <>
-    <button type="button" onClick={() => setOpen(true)} aria-label={`Delete ${itemName}`} title={`Delete ${itemName}`} className={cn(buttonVariants({ variant: "ghost", size: "icon-sm" }), "text-stone-400 hover:bg-red-50 hover:text-red-700")}><Trash2 aria-hidden="true" /></button>
+    <button type="button" onClick={() => setOpen(true)} aria-label={`Delete ${itemName}`} title={`Delete ${itemName}`} className={cn(buttonVariants({ variant: "ghost", size: "icon-sm" }), "text-stone-600 hover:bg-red-50 hover:text-red-700")}><Trash2 aria-hidden="true" /></button>
     <DialogShell open={open} onOpenChange={setOpen} title={`Delete ${itemName}?`} description="This permanently removes the song and all of its practice history." size="md">
       {open ? <DeleteItemForm itemId={itemId} activitySlug={activitySlug} itemName={itemName} leavePageAfterDelete={leavePageAfterDelete} returnHref={returnHref} close={() => setOpen(false)} /> : null}
     </DialogShell>

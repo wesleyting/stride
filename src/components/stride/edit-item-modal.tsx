@@ -15,7 +15,7 @@ export function EditItemModal({ itemId, itemSlug, activitySlug, itemName, descri
 }) {
   const [open, setOpen] = useState(false);
   return <>
-    <button type="button" onClick={() => setOpen(true)} aria-label={`Edit ${itemName}`} title={`Edit ${itemName}`} className={cn(buttonVariants({ variant: "ghost", size: "icon-sm" }), "text-stone-500 hover:text-stone-950")}><Pencil aria-hidden="true" /></button>
+    <button type="button" onClick={() => setOpen(true)} aria-label={`Edit ${itemName}`} title={`Edit ${itemName}`} className={cn(buttonVariants({ variant: "ghost", size: "icon-sm" }), "text-stone-600 hover:text-stone-950")}><Pencil aria-hidden="true" /></button>
     <DialogShell open={open} onOpenChange={setOpen} title={`Edit ${itemName}`} description="Update the song name or the note that describes it." size="md">
       {open ? <EditItemForm itemId={itemId} itemSlug={itemSlug} activitySlug={activitySlug} itemName={itemName} description={description} close={() => setOpen(false)} /> : null}
     </DialogShell>

@@ -75,6 +75,25 @@ export function entriesWithinDays<T extends { created_at: string }>(entries: T[]
   return entries.filter((entry) => new Date(entry.created_at).getTime() >= cutoff);
 }
 
+export function formatCompactLogDate(value: string) {
+  const date = new Date(value);
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const daysAgo = Math.floor((startOfToday.getTime() - startOfDate.getTime()) / 86400000);
+  const time = new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(date).replace(" AM", "AM").replace(" PM", "PM");
+
+  if (daysAgo === 0) return `Today, ${time}`;
+  if (daysAgo === 1) return `Yesterday, ${time}`;
+  const weekday = new Intl.DateTimeFormat("en-US", { weekday: "short" }).format(date);
+  if (daysAgo > 1 && daysAgo < 7) return `${weekday}, ${time}`;
+  if (daysAgo >= 7 && daysAgo < 14) return `Last ${weekday}, ${time}`;
+  return `${new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(date)}, ${time}`;
+}
+
 export type EntryRecord = {
   id: string;
   activity_id: string;
@@ -230,6 +249,22 @@ export function slugify(value: string) {
     .trim()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+}
+
+export function titleCaseSongName(value: string) {
+  return value
+    .trim()
+    .split(/\s+/)
+    .map((word) => {
+      if (word.length > 1 && word === word.toUpperCase()) return word;
+      return word
+        .split("-")
+        .map((part) =>
+          part ? `${part.charAt(0).toUpperCase()}${part.slice(1).toLowerCase()}` : part,
+        )
+        .join("-");
+    })
+    .join(" ");
 }
 
 export function clampRating(value: number, maximum = 5) {

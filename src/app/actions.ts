@@ -10,6 +10,7 @@ import {
   ensureSeedData,
   inferCurrentState,
   slugify,
+  titleCaseSongName,
 } from "@/lib/stride";
 
 export type MutationState = {
@@ -42,6 +43,10 @@ const itemSchema = z.object({
     .optional()
     .or(z.literal("")),
   difficulty: z.coerce.number().int().min(1).max(5),
+  youtubeUrl: z.string().trim().max(500).refine(
+    (value) => !value || /^https:\/\/(www\.)?(youtube\.com|youtu\.be)\//i.test(value),
+    "Use a YouTube or youtu.be link.",
+  ).optional().or(z.literal("")),
 });
 
 const practiceSchema = z.object({
@@ -49,6 +54,10 @@ const practiceSchema = z.object({
   rating: z.coerce.number().int().min(1).max(10),
   practicePart: z.string().trim().max(160, "Keep the practice tags under 160 characters.").optional().or(z.literal("")),
   nextAction: z.string().trim().max(180, "Keep the next step under 180 characters.").optional().or(z.literal("")),
+  youtubeUrl: z.string().trim().max(500).refine(
+    (value) => !value || /^https:\/\/(www\.)?(youtube\.com|youtu\.be)\//i.test(value),
+    "Use a YouTube or youtu.be link.",
+  ).optional().or(z.literal("")),
   activitySlug: z.string().trim().min(1),
   itemSlug: z.string().trim().min(1),
 });
@@ -205,6 +214,7 @@ export async function createItemAction(
     name: formData.get("name"),
     description: formData.get("description") ?? "",
     difficulty: formData.get("difficulty"),
+    youtubeUrl: formData.get("youtubeUrl") ?? "",
   });
 
   const activitySlug = String(formData.get("activitySlug") ?? "").trim();
@@ -244,12 +254,13 @@ export async function createItemAction(
     return mutationError("That activity could not be found.");
   }
 
-  const slug = slugify(parsed.data.name);
+  const normalizedName = titleCaseSongName(parsed.data.name);
+  const slug = slugify(normalizedName);
 
   const { error } = await supabase.from("items").insert({
     user_id: user.id,
     activity_id: activity.id,
-    name: parsed.data.name,
+    name: normalizedName,
     slug,
     description: parsed.data.description ?? "",
     focus: "",
@@ -257,6 +268,7 @@ export async function createItemAction(
     still_working_on: "",
     confidence: 3,
     difficulty: parsed.data.difficulty,
+    ...(parsed.data.youtubeUrl ? { youtube_url: parsed.data.youtubeUrl } : {}),
     sort_order: 999,
   });
 
@@ -284,6 +296,7 @@ export async function logPracticeAction(
     rating: formData.get("rating"),
     practicePart: formData.get("practicePart") ?? "",
     nextAction: formData.get("nextAction") ?? "",
+    youtubeUrl: formData.get("youtubeUrl") ?? "",
     activitySlug: formData.get("activitySlug"),
     itemSlug: formData.get("itemSlug"),
   });
@@ -347,6 +360,7 @@ export async function logPracticeAction(
       going_well: updatedState.going_well,
       still_working_on: updatedState.still_working_on,
       ...(parsed.data.nextAction ? { next_action: parsed.data.nextAction } : {}),
+      ...(parsed.data.youtubeUrl ? { youtube_url: parsed.data.youtubeUrl } : {}),
     })
     .eq("id", item.id)
     .eq("user_id", user.id);
@@ -429,6 +443,33 @@ export async function toggleFavoriteAction(
   return mutationSuccess();
 }
 
+export async function setHomeSongsAction(
+  _previousState: MutationState,
+  formData: FormData,
+): Promise<MutationState> {
+  const { supabase, user } = await getSignedInUser();
+  if (!user) return mutationError("You need to sign in first.");
+
+  const rawIds = String(formData.get("itemIds") ?? "");
+  const parsed = z.array(z.string().uuid()).max(12).safeParse(rawIds ? rawIds.split(",") : []);
+  if (!parsed.success) return mutationError("Those Home songs could not be saved.");
+
+  const activity = await supabase.from("activities").select("id").eq("user_id", user.id).eq("slug", "guitar").maybeSingle();
+  if (activity.error || !activity.data) return mutationError("Guitar could not be found.");
+
+  const clearResult = await supabase.from("items").update({ is_favorite: false }).eq("user_id", user.id).eq("activity_id", activity.data.id);
+  if (clearResult.error) return mutationError(clearResult.error.code === "42703" ? "Run migration 0006_guitar_workspace.sql first." : clearResult.error.message);
+
+  if (parsed.data.length) {
+    const setResult = await supabase.from("items").update({ is_favorite: true }).eq("user_id", user.id).eq("activity_id", activity.data.id).in("id", parsed.data);
+    if (setResult.error) return mutationError(setResult.error.message);
+  }
+
+  revalidatePath("/");
+  revalidatePath("/songs");
+  return mutationSuccess();
+}
+
 export async function updateSongWorkspaceAction(
   _previousState: MutationState,
   formData: FormData,
@@ -484,7 +525,7 @@ export async function updateItemAction(
   const itemId = String(formData.get("itemId") ?? "").trim();
   const itemSlug = String(formData.get("itemSlug") ?? "").trim();
   const activitySlug = String(formData.get("activitySlug") ?? "").trim();
-  const name = String(formData.get("name") ?? "").trim();
+  const name = titleCaseSongName(String(formData.get("name") ?? ""));
   const description = String(formData.get("description") ?? "").trim();
 
   if (!itemId || !itemSlug || !activitySlug || name.length < 2) {

@@ -13,7 +13,7 @@ const initialState: MutationState = {
 };
 
 const fieldClassName =
-  "mt-1 rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-950 shadow-sm outline-none transition placeholder:text-stone-400 focus:border-stone-400 focus:ring-2 focus:ring-stone-500/20";
+  "w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-sm text-stone-950 shadow-sm outline-none transition placeholder:text-stone-400 focus:border-stone-400 focus:ring-2 focus:ring-stone-500/20";
 
 export function CreateItemModal({
   activitySlug,
@@ -26,10 +26,10 @@ export function CreateItemModal({
 
   const actionLabel =
     activityKind === "practice"
-      ? "Add song"
+      ? "Add Song"
       : activityKind === "fitness"
-        ? "Add item"
-        : "Add item";
+        ? "Add Item"
+        : "Add Item";
 
   const titleLabel = actionLabel;
 
@@ -48,7 +48,6 @@ export function CreateItemModal({
         open={open}
         onOpenChange={setOpen}
         title={titleLabel}
-        description="Add a new item to the selected activity."
         size="md"
       >
         {open ? (
@@ -80,6 +79,7 @@ function ItemForm({
     initialState,
   );
   const [difficulty, setDifficulty] = useState(3);
+  const [showDetails, setShowDetails] = useState(false);
 
   useEffect(() => {
     if (state.success) {
@@ -88,7 +88,7 @@ function ItemForm({
   }, [close, state.success]);
 
   return (
-    <form action={formAction} className="grid gap-4">
+    <form action={formAction} className="grid gap-5 text-left">
       <input type="hidden" name="activitySlug" value={activitySlug} />
 
       {state.error ? (
@@ -100,31 +100,26 @@ function ItemForm({
         </div>
       ) : null}
 
-      <label className="grid gap-1.5 text-sm font-medium text-stone-700">
+      <label className="grid gap-2 text-sm font-semibold text-stone-900">
         Name
         <input
           name="name"
           type="text"
           required
           maxLength={60}
-          placeholder={activityKind === "practice" ? "Blackbird" : "Current focus"}
+          placeholder={activityKind === "practice" ? "Song name" : "Item name"}
           className={fieldClassName}
         />
       </label>
 
       {activityKind === "practice" ? (
         <fieldset>
-          <legend className="text-sm font-medium text-stone-700">
-            Song difficulty
-          </legend>
-          <p className="mt-1 text-xs leading-5 text-stone-500">
-            Your estimate of how challenging this song is overall.
-          </p>
-          <div className="mt-3 flex items-center gap-1" role="radiogroup">
+          <legend className="text-sm font-semibold text-stone-900">Difficulty</legend>
+          <div className="mt-2 flex w-48 items-center justify-between" role="radiogroup">
             {[1, 2, 3, 4, 5].map((value) => (
               <label
                 key={value}
-                className="cursor-pointer rounded-md p-1.5 transition-colors hover:bg-stone-100 focus-within:ring-2 focus-within:ring-stone-500 focus-within:ring-offset-2"
+                className="cursor-pointer rounded-md p-1 transition-colors hover:bg-stone-100 focus-within:ring-2 focus-within:ring-stone-500 focus-within:ring-offset-2"
                 title={`Difficulty ${value} out of 5`}
               >
                 <input
@@ -138,7 +133,7 @@ function ItemForm({
                 />
                 <Star
                   className={cn(
-                    "size-7 transition-colors",
+                    "size-6 transition-colors",
                     value <= difficulty
                       ? "fill-amber-400 text-amber-500"
                       : "fill-transparent text-stone-300",
@@ -149,27 +144,64 @@ function ItemForm({
               </label>
             ))}
           </div>
-          <div className="mt-1 flex max-w-48 justify-between text-xs text-stone-500">
+          <div className="mt-1 flex w-48 justify-between text-xs text-stone-500">
             <span>Easy</span>
-            <span>Challenging</span>
+            <span>Hard</span>
           </div>
         </fieldset>
       ) : (
         <input type="hidden" name="difficulty" value="3" />
       )}
 
-      <label className="grid gap-1.5 text-sm font-medium text-stone-700">
-        Description
-        <textarea
-          name="description"
-          rows={3}
-          maxLength={120}
-          placeholder="A short note about what this item is for"
-          className={cn(fieldClassName, "min-h-24 resize-y")}
-        />
-      </label>
+      <div className="border-t border-stone-200 pt-4">
+        <button
+          type="button"
+          onClick={() => setShowDetails((value) => !value)}
+          aria-expanded={showDetails}
+          className={buttonVariants({ variant: "ghost", size: "sm" })}
+        >
+          <Plus data-icon="inline-start" aria-hidden="true" />
+          {showDetails ? "Hide details" : "Add details"}
+        </button>
+      </div>
 
-      <div className="flex justify-end gap-2 pt-1">
+      {showDetails ? (
+        <div className="grid gap-5">
+          <label className="grid gap-2 text-sm font-semibold text-stone-900">
+            <span>
+              YouTube link{" "}
+              <span className="font-normal text-stone-500">Optional</span>
+            </span>
+            <input
+              name="youtubeUrl"
+              type="url"
+              maxLength={500}
+              placeholder="https://www.youtube.com/watch?v=…"
+              className={fieldClassName}
+            />
+          </label>
+          <label className="grid gap-2 text-sm font-semibold text-stone-900">
+            <span>
+              Description{" "}
+              <span className="font-normal text-stone-500">Optional</span>
+            </span>
+            <textarea
+              name="description"
+              rows={3}
+              maxLength={120}
+              placeholder="Tuning, capo, or arrangement"
+              className={cn(fieldClassName, "min-h-20 resize-y")}
+            />
+          </label>
+        </div>
+      ) : (
+        <>
+          <input type="hidden" name="youtubeUrl" value="" />
+          <input type="hidden" name="description" value="" />
+        </>
+      )}
+
+      <div className="flex justify-end gap-2 border-t border-stone-200 pt-4">
         <button
           type="button"
           onClick={close}
