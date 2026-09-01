@@ -9,6 +9,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { normalizePracticeTags } from "@/lib/practice-tags";
 import {
   formatCompactLogDate,
+  formatTrackedTime,
   titleCaseSongName,
   type EntryRecord,
   type ItemRecord,
@@ -78,7 +79,12 @@ export function HomeSongPreviewModal({
                           {formatCompactLogDate(entry.created_at)}
                         </time>
                         <span className="font-medium tabular-nums text-stone-700">
-                          {entry.rating ? `${entry.rating}/10` : "Not rated"}
+                          {[
+                            entry.duration_seconds
+                              ? formatTrackedTime(entry.duration_seconds)
+                              : null,
+                            entry.rating ? `${entry.rating}/10` : null,
+                          ].filter(Boolean).join(" · ") || "Practice log"}
                         </span>
                       </div>
                       {tags.length ? (

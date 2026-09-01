@@ -101,7 +101,18 @@ export type EntryRecord = {
   content: string;
   rating: number | null;
   practice_part: string | null;
+  duration_seconds?: number | null;
   created_at: string;
+};
+
+export type PublicProfileRecord = {
+  username: string;
+  display_name: string;
+  bio: string;
+  tracked_seconds: number;
+  tracked_seconds_7d: number;
+  timed_sessions: number;
+  active_days_30?: number;
 };
 
 export type ActivitySummary = ActivityRecord & {
@@ -355,6 +366,16 @@ export function formatEntryDisplay(date: string, now = new Date()) {
 export function formatEntryMoment(date: string) {
   const display = formatEntryDisplay(date);
   return `${display.label} at ${display.time}`;
+}
+
+export function formatTrackedTime(seconds: number) {
+  const safeSeconds = Math.max(0, Math.floor(seconds));
+  const hours = Math.floor(safeSeconds / 3600);
+  const minutes = Math.floor((safeSeconds % 3600) / 60);
+
+  if (hours > 0) return minutes ? `${hours}h ${minutes}m` : `${hours}h`;
+  if (minutes > 0) return `${minutes}m`;
+  return safeSeconds > 0 ? "<1m" : "0m";
 }
 
 export function buildActivitySummary(activity: ActivityRecord, itemCount: number) {

@@ -2,6 +2,7 @@ import Link from "next/link";
 import {
   House,
   Library,
+  UsersRound,
   Waypoints,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -51,6 +52,7 @@ function Sidebar({ footer }: { footer?: React.ReactNode }) {
           Home
         </Link>
         <Link href="/songs" className="mt-1 flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-stone-700 transition hover:bg-stone-200 hover:text-stone-950 focus-visible:bg-stone-200"><Library className="size-4" aria-hidden="true" />All songs</Link>
+        <Link href="/community" className="mt-1 flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-stone-700 transition hover:bg-stone-200 hover:text-stone-950 focus-visible:bg-stone-200"><UsersRound className="size-4" aria-hidden="true" />Community</Link>
       </nav>
 
       <div className="mt-auto hidden pt-8 md:block">

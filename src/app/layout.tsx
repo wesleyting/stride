@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { PracticeTimerProvider } from "@/components/stride/practice-timer";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -9,7 +10,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className="h-full antialiased">
-      <body className="min-h-full bg-stone-100 text-stone-950">{children}</body>
+      <body className="min-h-full bg-stone-100 text-stone-950">
+        <PracticeTimerProvider>{children}</PracticeTimerProvider>
+      </body>
     </html>
   );
 }

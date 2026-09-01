@@ -77,6 +77,25 @@ const songWorkspaceSchema = z.object({
   description: z.string().trim().max(500, "Keep song notes under 500 characters."),
 });
 
+const timedPracticeSchema = z.object({
+  itemId: z.string().uuid(),
+  itemSlug: z.string().trim().min(1),
+  durationSeconds: z.coerce.number().int().min(1).max(43200),
+});
+
+const profileSchema = z.object({
+  username: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .min(3, "Use at least 3 characters for your username.")
+    .max(30)
+    .regex(/^[a-z0-9][a-z0-9_-]*$/, "Use lowercase letters, numbers, underscores, or hyphens."),
+  displayName: z.string().trim().min(2, "Add a display name.").max(50),
+  bio: z.string().trim().max(160, "Keep your bio under 160 characters."),
+  isPublic: z.boolean(),
+});
+
 const activityDescriptionFallbacks: Record<
   z.infer<typeof activitySchema>["kind"],
   string
@@ -374,6 +393,93 @@ export async function logPracticeAction(
   revalidatePath("/");
   revalidatePath("/songs");
   revalidatePath(`/songs/${parsed.data.itemSlug}`);
+  return mutationSuccess();
+}
+
+export async function saveTimedPracticeAction(input: {
+  itemId: string;
+  itemSlug: string;
+  durationSeconds: number;
+}): Promise<MutationState> {
+  const { supabase, user } = await getSignedInUser();
+  if (!user) return mutationError("You need to sign in first.");
+
+  const parsed = timedPracticeSchema.safeParse(input);
+  if (!parsed.success) return mutationError("That timed session could not be saved.");
+
+  const itemResult = await supabase
+    .from("items")
+    .select("id, activity_id")
+    .eq("id", parsed.data.itemId)
+    .eq("slug", parsed.data.itemSlug)
+    .eq("user_id", user.id)
+    .single();
+
+  if (itemResult.error || !itemResult.data) {
+    return mutationError("That song could not be found.");
+  }
+
+  const { error } = await supabase.from("entries").insert({
+    user_id: user.id,
+    activity_id: itemResult.data.activity_id,
+    item_id: itemResult.data.id,
+    content: "Timed practice session",
+    rating: null,
+    duration_seconds: parsed.data.durationSeconds,
+  });
+
+  if (error) {
+    return mutationError(
+      error.code === "42703" || error.code === "PGRST204"
+        ? "Run migration 0007_practice_time_and_public_profiles.sql before saving timed sessions."
+        : error.message,
+    );
+  }
+
+  revalidatePath("/");
+  revalidatePath("/songs");
+  revalidatePath(`/songs/${parsed.data.itemSlug}`);
+  return mutationSuccess();
+}
+
+export async function saveProfileAction(
+  _previousState: MutationState,
+  formData: FormData,
+): Promise<MutationState> {
+  const { supabase, user } = await getSignedInUser();
+  if (!user) return mutationError("You need to sign in first.");
+
+  const parsed = profileSchema.safeParse({
+    username: formData.get("username"),
+    displayName: formData.get("displayName"),
+    bio: formData.get("bio") ?? "",
+    isPublic: formData.get("isPublic") === "on",
+  });
+
+  if (!parsed.success) {
+    return mutationError(parsed.error.issues[0]?.message ?? "Check your profile details.");
+  }
+
+  const { error } = await supabase.from("profiles").upsert({
+    user_id: user.id,
+    username: parsed.data.username,
+    display_name: parsed.data.displayName,
+    bio: parsed.data.bio,
+    is_public: parsed.data.isPublic,
+  });
+
+  if (error) {
+    return mutationError(
+      error.code === "42P01"
+        ? "Run migration 0007_practice_time_and_public_profiles.sql first."
+        : error.code === "23505"
+          ? "That username is already taken."
+          : error.message,
+    );
+  }
+
+  revalidatePath("/community");
+  revalidatePath(`/people/${parsed.data.username}`);
   return mutationSuccess();
 }
 
