@@ -16,13 +16,18 @@ export default async function SongsPage() {
   if (activity.data) {
     const [base, extension, entryResult] = await Promise.all([
       supabase.from("items").select("id, activity_id, name, slug, description, focus, going_well, still_working_on, confidence, difficulty, sort_order, is_archived, created_at, updated_at").eq("user_id", user.id).eq("activity_id", activity.data.id).eq("is_archived", false).order("name"),
-      supabase.from("items").select("id, is_favorite, next_action, youtube_url").eq("user_id", user.id).eq("activity_id", activity.data.id),
+      supabase.from("items").select("id, is_favorite, pin_position, next_action, youtube_url, tuning, capo").eq("user_id", user.id).eq("activity_id", activity.data.id),
       supabase.from("entries").select("id, activity_id, item_id, content, rating, practice_part, created_at").eq("user_id", user.id).eq("activity_id", activity.data.id).order("created_at", { ascending: false }),
     ]);
     if (base.error) throw base.error;
     if (entryResult.error) throw entryResult.error;
-    const extended = new Map((extension.data ?? []).map((row) => [row.id, row]));
-    songs = (base.data ?? []).map((song) => ({ ...song, is_favorite: extended.get(song.id)?.is_favorite ?? false, next_action: extended.get(song.id)?.next_action ?? "", youtube_url: extended.get(song.id)?.youtube_url ?? "" })) as ItemRecord[];
+    let extensionRows = extension.data ?? [];
+    if (extension.error?.code === "42703") {
+      const fallback = await supabase.from("items").select("id, is_favorite, next_action, youtube_url").eq("user_id", user.id).eq("activity_id", activity.data.id);
+      extensionRows = (fallback.data ?? []).map((row) => ({ ...row, pin_position: null, tuning: "standard", capo: null }));
+    }
+    const extended = new Map(extensionRows.map((row) => [row.id, row]));
+    songs = (base.data ?? []).map((song) => ({ ...song, is_favorite: extended.get(song.id)?.is_favorite ?? false, pin_position: extended.get(song.id)?.pin_position ?? null, next_action: extended.get(song.id)?.next_action ?? "", youtube_url: extended.get(song.id)?.youtube_url ?? "", tuning: extended.get(song.id)?.tuning ?? "standard", capo: extended.get(song.id)?.capo ?? null })) as ItemRecord[];
     entries = (entryResult.data ?? []) as EntryRecord[];
   }
 

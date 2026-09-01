@@ -1,8 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { useRef, useState } from "react";
-import { Eye, FileAudio, FileImage, FileVideo, Lock, Trash2, Upload } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight, Download, Expand, Eye, FileAudio, FileImage, FileVideo, Lock, Trash2, Upload } from "lucide-react";
 import { DialogShell } from "@/components/stride/dialog-shell";
 import { buttonVariants } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
@@ -21,6 +21,18 @@ export function SongResources({ itemId, userId, initialResources }: { itemId: st
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const selectedPreviewRef = useRef<HTMLDivElement>(null);
+  const selectedIndex = selected ? resources.findIndex((resource) => resource.id === selected.id) : -1;
+
+  useEffect(() => {
+    if (!selected || confirmingDelete || resources.length < 2) return;
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "ArrowLeft") setSelected(resources[(selectedIndex - 1 + resources.length) % resources.length]);
+      if (event.key === "ArrowRight") setSelected(resources[(selectedIndex + 1) % resources.length]);
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [confirmingDelete, resources, selected, selectedIndex]);
 
   function chooseFile(file?: File) {
     if (inputRef.current) inputRef.current.value = "";
@@ -119,7 +131,7 @@ export function SongResources({ itemId, userId, initialResources }: { itemId: st
     </DialogShell>
 
     <DialogShell open={Boolean(selected)} onOpenChange={(open) => { if (!open) { setSelected(null); setConfirmingDelete(false); } }} title={confirmingDelete ? "Remove Practice Media?" : selected?.file_name ?? "Practice Media"} size={confirmingDelete ? "md" : "xl"}>
-      {selected ? confirmingDelete ? <div className="grid gap-5"><p className="text-sm leading-6 text-stone-600">This permanently removes <span className="font-medium text-stone-900">{selected.file_name}</span>.</p><div className="flex justify-end gap-2"><button type="button" onClick={() => setConfirmingDelete(false)} className={buttonVariants({ variant: "outline" })}>Cancel</button><button type="button" onClick={() => remove(selected)} className={buttonVariants({ variant: "destructive" })}><Trash2 data-icon="inline-start" aria-hidden="true" />Remove</button></div></div> : <div className="grid gap-4"><ResourcePreview resource={selected} /><div className="flex flex-wrap items-center justify-between gap-3"><button type="button" onClick={() => changeVisibility(selected)} className={buttonVariants({ variant: selected.is_public ? "outline" : "default" })}>{selected.is_public ? <Lock data-icon="inline-start" aria-hidden="true" /> : <Eye data-icon="inline-start" aria-hidden="true" />}{selected.is_public ? "Make Only Me" : "Make Public"}</button><button type="button" onClick={() => setConfirmingDelete(true)} className={buttonVariants({ variant: "destructive" })}><Trash2 data-icon="inline-start" aria-hidden="true" />Remove</button></div><p className="text-xs leading-5 text-stone-500">{selected.is_public ? "Public on your profile when Song Resources is enabled." : "Only you can see this file."}</p></div> : null}
+      {selected ? confirmingDelete ? <div className="grid gap-5"><p className="text-sm leading-6 text-stone-600">This permanently removes <span className="font-medium text-stone-900">{selected.file_name}</span>.</p><div className="flex justify-end gap-2"><button type="button" onClick={() => setConfirmingDelete(false)} className={buttonVariants({ variant: "outline" })}>Cancel</button><button type="button" onClick={() => remove(selected)} className={buttonVariants({ variant: "destructive" })}><Trash2 data-icon="inline-start" aria-hidden="true" />Remove</button></div></div> : <div className="grid gap-4"><div ref={selectedPreviewRef} className="relative overflow-hidden rounded-lg bg-stone-950"><ResourcePreview resource={selected} />{resources.length > 1 ? <><button type="button" onClick={() => setSelected(resources[(selectedIndex - 1 + resources.length) % resources.length])} aria-label="Previous media" className="absolute top-1/2 left-3 flex size-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80 focus-visible:ring-2 focus-visible:ring-white"><ChevronLeft className="size-5" aria-hidden="true" /></button><button type="button" onClick={() => setSelected(resources[(selectedIndex + 1) % resources.length])} aria-label="Next media" className="absolute top-1/2 right-3 flex size-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80 focus-visible:ring-2 focus-visible:ring-white"><ChevronRight className="size-5" aria-hidden="true" /></button></> : null}</div><div className="flex flex-wrap items-center justify-between gap-3"><p className="text-xs tabular-nums text-stone-500">{selectedIndex + 1} of {resources.length}{resources.length > 1 ? " · Use Left and Right arrow keys" : ""}</p><div className="flex gap-2">{selected.signed_url ? <a href={selected.signed_url} download={selected.file_name} className={buttonVariants({ variant: "outline", size: "sm" })}><Download data-icon="inline-start" aria-hidden="true" />Download</a> : null}<button type="button" onClick={() => void selectedPreviewRef.current?.requestFullscreen()} className={buttonVariants({ variant: "outline", size: "sm" })}><Expand data-icon="inline-start" aria-hidden="true" />Full Screen</button></div></div><div className="flex flex-wrap items-center justify-between gap-3"><button type="button" onClick={() => changeVisibility(selected)} className={buttonVariants({ variant: selected.is_public ? "outline" : "default" })}>{selected.is_public ? <Lock data-icon="inline-start" aria-hidden="true" /> : <Eye data-icon="inline-start" aria-hidden="true" />}{selected.is_public ? "Make Only Me" : "Make Public"}</button><button type="button" onClick={() => setConfirmingDelete(true)} className={buttonVariants({ variant: "destructive" })}><Trash2 data-icon="inline-start" aria-hidden="true" />Remove</button></div><p className="text-xs leading-5 text-stone-500">{selected.is_public ? "Public on your profile when Song Resources is enabled." : "Only you can see this file."}</p></div> : null}
     </DialogShell>
 
     <DialogShell open={Boolean(sharingCandidate)} onOpenChange={(open) => { if (!open) setSharingCandidate(null); }} title="Make This Media Public?" description="This file will become visible to other signed-in users on your public profile when Song Resources is enabled." size="md">
@@ -134,8 +146,8 @@ function ResourceCard({ resource, open, toggleVisibility }: { resource: SongReso
 }
 
 function ResourcePreview({ resource }: { resource: SongResourceRecord }) {
-  if (!resource.signed_url) return <div className="flex min-h-64 items-center justify-center rounded-lg bg-stone-100 text-sm text-stone-500">Preview unavailable</div>;
-  if (resource.mime_type.startsWith("video/")) return <video src={resource.signed_url} controls preload="metadata" className="max-h-[60vh] w-full rounded-lg bg-black" />;
-  if (resource.mime_type.startsWith("audio/")) return <div className="flex min-h-44 items-center justify-center rounded-lg bg-stone-100 px-6"><audio src={resource.signed_url} controls preload="metadata" className="w-full" /></div>;
-  return <div className="relative min-h-[45vh] overflow-hidden rounded-lg bg-stone-100"><Image src={resource.signed_url} alt={resource.file_name} fill unoptimized className="object-contain" /></div>;
+  if (!resource.signed_url) return <div className="fullscreen-media flex min-h-64 items-center justify-center rounded-lg bg-stone-100 text-sm text-stone-500">Preview unavailable</div>;
+  if (resource.mime_type.startsWith("video/")) return <video src={resource.signed_url} controls preload="metadata" className="fullscreen-media max-h-[60vh] w-full rounded-lg bg-black object-contain" />;
+  if (resource.mime_type.startsWith("audio/")) return <div className="fullscreen-media flex min-h-44 items-center justify-center rounded-lg bg-stone-100 px-6"><audio src={resource.signed_url} controls preload="metadata" className="w-full" /></div>;
+  return <div className="fullscreen-media relative min-h-[45vh] overflow-hidden rounded-lg bg-stone-100"><Image src={resource.signed_url} alt={resource.file_name} fill unoptimized className="object-contain" /></div>;
 }

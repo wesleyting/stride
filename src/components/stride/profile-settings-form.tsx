@@ -105,7 +105,7 @@ export function ProfileSettingsForm({
         </label>
 
         <div className="mt-3 grid gap-2">
-          <ShareOption name="shareSongLibrary" defaultChecked={profile?.share_song_library ?? true} icon={BookOpen} title="Song Library" description="Song names, difficulty, time practiced, and last practice date." />
+          <ShareOption name="shareSongLibrary" defaultChecked={profile?.share_song_library ?? true} icon={BookOpen} title="Song Library" description="Song names, difficulty, tuning, capo, time practiced, and last practice date." />
           <ShareOption name="sharePracticeLogs" defaultChecked={profile?.share_practice_logs} icon={NotebookPen} title="Practice History" description="Practice notes, worked-on tags, session ratings, dates, and duration." />
           <ShareOption name="shareSongResources" defaultChecked={profile?.share_song_resources ?? true} icon={Images} title="Song Resources" description="YouTube links and only the uploads you individually mark as shared." />
         </div>

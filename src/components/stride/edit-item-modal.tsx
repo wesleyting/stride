@@ -5,31 +5,32 @@ import { Pencil } from "lucide-react";
 import { updateItemAction, type MutationState } from "@/app/actions";
 import { DialogShell } from "@/components/stride/dialog-shell";
 import { buttonVariants } from "@/components/ui/button";
+import { DifficultyField, OptionalSongFields, songFieldClassName } from "@/components/stride/song-fields";
 import { cn } from "@/lib/utils";
 
 const initialState: MutationState = { success: false, error: null };
-const fieldClassName = "mt-1.5 w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-sm text-stone-950 shadow-sm outline-none transition placeholder:text-stone-400 hover:border-stone-400 focus:border-stone-500 focus:ring-2 focus:ring-stone-500/20";
+type EditItemModalProps = { itemId: string; itemSlug: string; activitySlug: string; itemName: string; difficulty: number; youtubeUrl: string; tuning?: string | null; capo?: number | null; showLabel?: boolean };
 
-export function EditItemModal({ itemId, itemSlug, activitySlug, itemName, description }: {
-  itemId: string; itemSlug: string; activitySlug: string; itemName: string; description: string;
-}) {
+export function EditItemModal(props: EditItemModalProps) {
   const [open, setOpen] = useState(false);
   return <>
-    <button type="button" onClick={() => setOpen(true)} aria-label={`Edit ${itemName}`} title={`Edit ${itemName}`} className={cn(buttonVariants({ variant: "ghost", size: "icon-sm" }), "text-stone-600 hover:text-stone-950")}><Pencil aria-hidden="true" /></button>
-    <DialogShell open={open} onOpenChange={setOpen} title={`Edit ${itemName}`} description="Update the song name or the note that describes it." size="md">
-      {open ? <EditItemForm itemId={itemId} itemSlug={itemSlug} activitySlug={activitySlug} itemName={itemName} description={description} close={() => setOpen(false)} /> : null}
+    <button type="button" onClick={() => setOpen(true)} aria-label={`Edit ${props.itemName}`} title={`Edit ${props.itemName}`} className={cn(buttonVariants({ variant: props.showLabel ? "outline" : "ghost", size: props.showLabel ? "default" : "icon-sm" }), "text-stone-600 hover:text-stone-950")}><Pencil data-icon={props.showLabel ? "inline-start" : undefined} aria-hidden="true" />{props.showLabel ? "Edit Song" : null}</button>
+    <DialogShell open={open} onOpenChange={setOpen} title="Edit Song" size="md">
+      {open ? <EditItemForm {...props} close={() => setOpen(false)} /> : null}
     </DialogShell>
   </>;
 }
 
-function EditItemForm({ itemId, itemSlug, activitySlug, itemName, description, close }: { itemId: string; itemSlug: string; activitySlug: string; itemName: string; description: string; close: () => void }) {
+function EditItemForm({ close, ...props }: EditItemModalProps & { close: () => void }) {
   const [state, formAction, pending] = useActionState(updateItemAction, initialState);
+  const [difficulty, setDifficulty] = useState(props.difficulty);
   useEffect(() => { if (state.success) close(); }, [close, state.success]);
-  return <form action={formAction} className="grid gap-4">
-    <input type="hidden" name="itemId" value={itemId} /><input type="hidden" name="itemSlug" value={itemSlug} /><input type="hidden" name="activitySlug" value={activitySlug} />
+  return <form action={formAction} className="grid gap-5">
+    <input type="hidden" name="itemId" value={props.itemId} /><input type="hidden" name="itemSlug" value={props.itemSlug} /><input type="hidden" name="activitySlug" value={props.activitySlug} />
     {state.error ? <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{state.error}</div> : null}
-    <label className="text-sm font-medium text-stone-700">Name<input name="name" required minLength={2} maxLength={60} defaultValue={itemName} className={fieldClassName} /></label>
-    <label className="text-sm font-medium text-stone-700">Description<textarea name="description" rows={3} maxLength={120} defaultValue={description} className={cn(fieldClassName, "min-h-24 resize-y")} /></label>
-    <div className="flex justify-end gap-2 border-t border-stone-200 pt-4"><button type="button" onClick={close} className={buttonVariants({ variant: "outline" })}>Cancel</button><button type="submit" disabled={pending} className={buttonVariants()}>{pending ? "Saving…" : "Save changes"}</button></div>
+    <label className="grid gap-2 text-sm font-semibold text-stone-900">Song Name<input name="name" required minLength={2} maxLength={60} defaultValue={props.itemName} className={songFieldClassName} /></label>
+    <DifficultyField value={difficulty} onChange={setDifficulty} />
+    <OptionalSongFields youtubeUrl={props.youtubeUrl} tuning={props.tuning ?? "standard"} capo={props.capo} />
+    <div className="flex justify-end gap-2 border-t border-stone-200 pt-4"><button type="button" onClick={close} className={buttonVariants({ variant: "outline" })}>Cancel</button><button type="submit" disabled={pending} className={buttonVariants()}>{pending ? "Saving…" : "Save Changes"}</button></div>
   </form>;
 }

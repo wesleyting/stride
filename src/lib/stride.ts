@@ -25,13 +25,35 @@ export type ItemRecord = {
   confidence: number;
   difficulty: number;
   is_favorite: boolean;
+  pin_position: number | null;
   next_action: string;
   youtube_url: string;
+  tuning: string;
+  capo: number | null;
   sort_order: number;
   is_archived: boolean;
   created_at: string;
   updated_at: string;
 };
+
+export const GUITAR_TUNINGS = [
+  { value: "standard", label: "Standard", notes: "E A D G B E" },
+  { value: "half-step-down", label: "Half Step Down", notes: "E♭ A♭ D♭ G♭ B♭ E♭" },
+  { value: "whole-step-down", label: "Whole Step Down", notes: "D G C F A D" },
+  { value: "drop-d", label: "Drop D", notes: "D A D G B E" },
+  { value: "double-drop-d", label: "Double Drop D", notes: "D A D G B D" },
+  { value: "dadgad", label: "DADGAD", notes: "D A D G A D" },
+  { value: "open-c", label: "Open C", notes: "C G C G C E" },
+  { value: "open-d", label: "Open D", notes: "D A D F♯ A D" },
+  { value: "open-e", label: "Open E", notes: "E B E G♯ B E" },
+  { value: "open-g", label: "Open G", notes: "D G D G B D" },
+] as const;
+
+export type GuitarTuning = (typeof GUITAR_TUNINGS)[number]["value"];
+
+export function formatTuning(value?: string | null) {
+  return GUITAR_TUNINGS.find((tuning) => tuning.value === value) ?? GUITAR_TUNINGS[0];
+}
 
 export type SongResourceRecord = {
   id: string;

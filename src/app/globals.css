@@ -1,4 +1,19 @@
 @import "tailwindcss";
+
+:fullscreen {
+  width: 100vw;
+  height: 100vh;
+  border-radius: 0;
+  background: #0c0a09;
+}
+
+:fullscreen .fullscreen-media {
+  width: 100vw;
+  height: 100vh;
+  min-height: 100vh;
+  max-height: 100vh;
+  border-radius: 0;
+}
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 

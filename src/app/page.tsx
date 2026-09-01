@@ -8,13 +8,14 @@ import { HomeSongPreviewModal } from "@/components/stride/home-song-preview-moda
 import { LogPracticeModal } from "@/components/stride/log-practice-modal";
 import { StartPracticeTimerButton } from "@/components/stride/practice-timer";
 import { SongWorkspaceModal } from "@/components/stride/song-workspace-modal";
+import { SongSetup } from "@/components/stride/song-setup";
 import { buttonVariants } from "@/components/ui/button";
 import { requireUser } from "@/lib/auth";
 import { calculatePracticeStreak, entriesWithinDays, formatCompactLogDate, formatTrackedTime, titleCaseSongName, type EntryRecord, type ItemRecord } from "@/lib/stride";
 import { signOutAction } from "./actions";
 
 export const dynamic = "force-dynamic";
-type ItemExtension = Pick<ItemRecord, "id" | "is_favorite" | "next_action" | "youtube_url">;
+type ItemExtension = Pick<ItemRecord, "id" | "is_favorite" | "pin_position" | "next_action" | "youtube_url" | "tuning" | "capo">;
 
 export default async function GuitarDashboard() {
   const { supabase, user } = await requireUser();
@@ -24,28 +25,35 @@ export default async function GuitarDashboard() {
   let songs: ItemRecord[] = [];
   let entries: EntryRecord[] = [];
   let workspaceReady = true;
+  let pinOrderingReady = true;
   let timeTrackingReady = true;
 
   if (guitar) {
     const [itemsResult, entriesResult, extensionResult, durationResult] = await Promise.all([
       supabase.from("items").select("id, activity_id, name, slug, description, focus, going_well, still_working_on, confidence, difficulty, sort_order, is_archived, created_at, updated_at").eq("user_id", user.id).eq("activity_id", guitar.id).eq("is_archived", false).order("sort_order"),
       supabase.from("entries").select("id, activity_id, item_id, content, rating, practice_part, created_at").eq("user_id", user.id).eq("activity_id", guitar.id).order("created_at", { ascending: false }),
-      supabase.from("items").select("id, is_favorite, next_action, youtube_url").eq("user_id", user.id).eq("activity_id", guitar.id),
+      supabase.from("items").select("id, is_favorite, pin_position, next_action, youtube_url, tuning, capo").eq("user_id", user.id).eq("activity_id", guitar.id),
       supabase.from("entries").select("id, duration_seconds").eq("user_id", user.id).eq("activity_id", guitar.id),
     ]);
     if (itemsResult.error) throw itemsResult.error;
     if (entriesResult.error) throw entriesResult.error;
-    workspaceReady = !extensionResult.error;
+    let extensionRows = extensionResult.data ?? [];
+    if (extensionResult.error?.code === "42703") {
+      const fallback = await supabase.from("items").select("id, is_favorite, next_action, youtube_url").eq("user_id", user.id).eq("activity_id", guitar.id);
+      extensionRows = (fallback.data ?? []).map((row) => ({ ...row, pin_position: null, tuning: "standard", capo: null }));
+      workspaceReady = !fallback.error;
+      pinOrderingReady = false;
+    } else workspaceReady = !extensionResult.error;
     timeTrackingReady = !durationResult.error;
-    const extensionById = new Map((extensionResult.data ?? []).map((row) => [row.id, row as ItemExtension]));
-    songs = (itemsResult.data ?? []).map((song) => ({ ...song, is_favorite: extensionById.get(song.id)?.is_favorite ?? false, next_action: extensionById.get(song.id)?.next_action ?? "", youtube_url: extensionById.get(song.id)?.youtube_url ?? "" })) as ItemRecord[];
+    const extensionById = new Map(extensionRows.map((row) => [row.id, row as ItemExtension]));
+    songs = (itemsResult.data ?? []).map((song) => ({ ...song, is_favorite: extensionById.get(song.id)?.is_favorite ?? false, pin_position: extensionById.get(song.id)?.pin_position ?? null, next_action: extensionById.get(song.id)?.next_action ?? "", youtube_url: extensionById.get(song.id)?.youtube_url ?? "", tuning: extensionById.get(song.id)?.tuning ?? "standard", capo: extensionById.get(song.id)?.capo ?? null })) as ItemRecord[];
     const durationById = new Map((durationResult.data ?? []).map((entry) => [entry.id, entry.duration_seconds]));
     entries = (entriesResult.data ?? []).map((entry) => ({ ...entry, duration_seconds: durationById.get(entry.id) ?? null })) as EntryRecord[];
   }
 
   const latestBySong = new Map<string, EntryRecord>();
   entries.forEach((entry) => { if (entry.item_id && !latestBySong.has(entry.item_id)) latestBySong.set(entry.item_id, entry); });
-  const favoriteSongs = songs.filter((song) => song.is_favorite);
+  const favoriteSongs = songs.filter((song) => song.is_favorite).sort((a, b) => (a.pin_position ?? Number.MAX_SAFE_INTEGER) - (b.pin_position ?? Number.MAX_SAFE_INTEGER));
   const weekEntries = entriesWithinDays(entries, 7);
   const streak = calculatePracticeStreak(entries.map((entry) => entry.created_at));
   const trackedSecondsThisWeek = weekEntries.reduce((total, entry) => total + (entry.duration_seconds ?? 0), 0);
@@ -60,6 +68,7 @@ export default async function GuitarDashboard() {
 
         <section className="mt-7 grid gap-3 sm:grid-cols-3" aria-label="Practice overview"><Metric icon={Flame} value={streak ? `${streak} day${streak === 1 ? "" : "s"}` : "Start today"} label="Current practice streak" /><Metric icon={CalendarDays} value={`${weekEntries.length}`} label="Sessions in the last 7 days" /><Metric icon={Clock3} value={formatTrackedTime(trackedSecondsThisWeek)} label="Tracked practice this week" /></section>
         {!workspaceReady ? <div className="mt-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">Run Supabase migration <code>0006_guitar_workspace.sql</code> to enable favorites, next steps, and song images.</div> : null}
+        {workspaceReady && !pinOrderingReady ? <div className="mt-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">Run Supabase migration <code>0013_pinned_song_order.sql</code> to save your custom pin order.</div> : null}
         {!timeTrackingReady ? <div className="mt-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">Run Supabase migration <code>0007_practice_time_and_public_profiles.sql</code> to save timer sessions and tracked practice time.</div> : null}
 
         <section className="mt-8" aria-labelledby="home-songs-heading">
@@ -74,7 +83,7 @@ export default async function GuitarDashboard() {
 
 function SongCard({ song, latest, entries }: { song: ItemRecord; latest?: EntryRecord; entries: EntryRecord[] }) {
   const parts = entries.filter((entry) => entry.item_id === song.id && entry.practice_part).map((entry) => entry.practice_part!);
-  return <article className="grid min-h-40 grid-rows-[auto_1fr] rounded-xl border border-stone-200 bg-white p-4 transition hover:border-stone-300 hover:shadow-sm focus-within:border-stone-400"><div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-stretch gap-3 border-b border-stone-100 pb-3"><Link href={`/songs/${song.slug}?from=home`} className="group/title -m-2 flex min-h-14 min-w-0 flex-col justify-center rounded-lg p-2 transition hover:bg-stone-50 focus-visible:ring-2 focus-visible:ring-stone-500"><h3 className="truncate text-base font-semibold text-stone-950 group-hover/title:underline">{titleCaseSongName(song.name)}</h3><p className="mt-1 truncate text-xs text-stone-500">{latest ? <><span className="font-medium text-stone-600">Last logged:</span> {formatCompactLogDate(latest.created_at)}</> : "Not logged yet"}</p></Link><div className="self-center justify-self-end">{song.youtube_url ? <a href={song.youtube_url} target="_blank" rel="noreferrer" title="Open YouTube" className={buttonVariants({ variant: "ghost", size: "sm" })}>YouTube<ExternalLink data-icon="inline-end" aria-hidden="true" /></a> : <SongWorkspaceModal itemId={song.id} itemSlug={song.slug} nextAction={song.next_action} youtubeUrl={song.youtube_url} description={song.description} mode="youtube" />}</div></div><div className="mt-3 grid content-end gap-3"><div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2"><StartPracticeTimerButton itemId={song.id} itemSlug={song.slug} itemName={titleCaseSongName(song.name)} compact /><DifficultyControl itemId={song.id} itemSlug={song.slug} activitySlug="guitar" value={song.difficulty} /><div className="justify-self-end"><HomeSongPreviewModal song={song} entries={entries} /></div></div><div className="[&>button]:w-full"><LogPracticeModal activitySlug="guitar" activityName="Guitar" activityKind="practice" itemSlug={song.slug} itemName={titleCaseSongName(song.name)} hasHistory={Boolean(latest)} previousParts={parts} currentYoutubeUrl={song.youtube_url} /></div></div></article>;
+  return <article className="grid min-h-40 grid-rows-[auto_1fr] rounded-xl border border-stone-200 bg-white p-4 transition hover:border-stone-300 hover:shadow-sm focus-within:border-stone-400"><div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-stretch gap-3 border-b border-stone-100 pb-3"><Link href={`/songs/${song.slug}?from=home`} className="group/title -m-2 flex min-h-14 min-w-0 flex-col justify-center rounded-lg p-2 transition hover:bg-stone-50 focus-visible:ring-2 focus-visible:ring-stone-500"><h3 className="truncate text-base font-semibold text-stone-950 group-hover/title:underline">{titleCaseSongName(song.name)}</h3><p className="mt-1 truncate text-xs text-stone-500">{latest ? <><span className="font-medium text-stone-600">Last logged:</span> {formatCompactLogDate(latest.created_at)}</> : "Not logged yet"}</p></Link><div className="self-center justify-self-end">{song.youtube_url ? <a href={song.youtube_url} target="_blank" rel="noreferrer" title="Open YouTube" className={buttonVariants({ variant: "ghost", size: "sm" })}>YouTube<ExternalLink data-icon="inline-end" aria-hidden="true" /></a> : <SongWorkspaceModal itemId={song.id} itemSlug={song.slug} youtubeUrl={song.youtube_url} />}</div></div><div className="mt-3 grid content-end gap-3"><div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-center"><div className="flex flex-wrap items-center gap-2"><StartPracticeTimerButton itemId={song.id} itemSlug={song.slug} itemName={titleCaseSongName(song.name)} compact /><SongSetup tuning={song.tuning} capo={song.capo} compact /></div><DifficultyControl itemId={song.id} itemSlug={song.slug} activitySlug="guitar" value={song.difficulty} /><div className="justify-self-end"><HomeSongPreviewModal song={song} entries={entries} /></div></div><div className="[&>button]:w-full"><LogPracticeModal activitySlug="guitar" activityName="Guitar" activityKind="practice" itemSlug={song.slug} itemName={titleCaseSongName(song.name)} hasHistory={Boolean(latest)} previousParts={parts} currentYoutubeUrl={song.youtube_url} /></div></div></article>;
 }
 
 function EmptyLibrary() {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useMemo, useState } from "react";
-import { Pin, Search } from "lucide-react";
+import { GripVertical, Pin, Search } from "lucide-react";
 import { setHomeSongsAction, type MutationState } from "@/app/actions";
 import { DialogShell } from "@/components/stride/dialog-shell";
 import { buttonVariants } from "@/components/ui/button";
@@ -9,21 +9,49 @@ import { titleCaseSongName } from "@/lib/stride";
 
 const initialState: MutationState = { success: false, error: null };
 
-export function HomeSongsModal({ songs }: { songs: Array<{ id: string; name: string; is_favorite: boolean }> }) {
+export function HomeSongsModal({ songs }: { songs: Array<{ id: string; name: string; is_favorite: boolean; pin_position?: number | null }> }) {
   const [open, setOpen] = useState(false);
   return <><button type="button" onClick={() => setOpen(true)} className={buttonVariants({ variant: "outline" })}><Pin data-icon="inline-start" aria-hidden="true" />Customize pins</button><DialogShell open={open} onOpenChange={setOpen} title="Customize pins" size="md">{open ? <HomeSongsForm songs={songs} close={() => setOpen(false)} /> : null}</DialogShell></>;
 }
 
-function HomeSongsForm({ songs, close }: { songs: Array<{ id: string; name: string; is_favorite: boolean }>; close: () => void }) {
+function HomeSongsForm({ songs, close }: { songs: Array<{ id: string; name: string; is_favorite: boolean; pin_position?: number | null }>; close: () => void }) {
   const [state, action, pending] = useActionState(setHomeSongsAction, initialState);
   const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState(() => new Set(songs.filter((song) => song.is_favorite).map((song) => song.id)));
+  const [selected, setSelected] = useState(() => songs
+    .filter((song) => song.is_favorite)
+    .sort((a, b) => (a.pin_position ?? Number.MAX_SAFE_INTEGER) - (b.pin_position ?? Number.MAX_SAFE_INTEGER))
+    .map((song) => song.id));
+  const selectedSet = useMemo(() => new Set(selected), [selected]);
   const filtered = useMemo(() => songs.filter((song) => song.name.toLowerCase().includes(query.trim().toLowerCase())), [query, songs]);
   useEffect(() => { if (state.success) close(); }, [close, state.success]);
 
   function toggle(id: string) {
-    setSelected((current) => { const next = new Set(current); if (next.has(id)) next.delete(id); else next.add(id); return next; });
+    setSelected((current) => current.includes(id) ? current.filter((songId) => songId !== id) : [...current, id]);
   }
 
-  return <form action={action} className="grid gap-4"><input type="hidden" name="itemIds" value={Array.from(selected).join(",")} />{state.error ? <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{state.error}</p> : null}<label className="relative block"><span className="sr-only">Filter songs</span><Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-stone-400" aria-hidden="true" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Filter songs" className="h-10 w-full rounded-lg border border-stone-300 pr-3 pl-9 text-sm shadow-sm focus:border-stone-500 focus:ring-2 focus:ring-stone-500/20" /></label><div className="max-h-80 overflow-y-auto rounded-lg border border-stone-200">{filtered.map((song) => <label key={song.id} className="flex cursor-pointer items-center gap-3 border-b border-stone-200 px-3 py-2.5 text-sm last:border-b-0 hover:bg-stone-50 focus-within:bg-stone-50"><input type="checkbox" checked={selected.has(song.id)} onChange={() => toggle(song.id)} className="size-4 accent-stone-900" /><span className="min-w-0 flex-1 truncate font-medium text-stone-900">{titleCaseSongName(song.name)}</span><Pin className={`size-4 ${selected.has(song.id) ? "fill-stone-700 text-stone-700" : "text-stone-300"}`} aria-hidden="true" /></label>)}{!filtered.length ? <p className="px-4 py-6 text-center text-sm text-stone-500">No matching songs.</p> : null}</div><div className="flex items-center justify-between gap-3 border-t border-stone-200 pt-4"><span className="text-xs text-stone-500">{selected.size} selected</span><div className="flex gap-2"><button type="button" onClick={close} className={buttonVariants({ variant: "outline" })}>Cancel</button><button type="submit" disabled={pending} className={buttonVariants()}>{pending ? "Saving…" : "Save"}</button></div></div></form>;
+  function move(id: string, targetId: string) {
+    if (id === targetId) return;
+    setSelected((current) => {
+      const from = current.indexOf(id);
+      const to = current.indexOf(targetId);
+      if (from < 0 || to < 0) return current;
+      const next = [...current];
+      next.splice(from, 1);
+      next.splice(to, 0, id);
+      return next;
+    });
+  }
+
+  function moveBy(id: string, direction: -1 | 1) {
+    setSelected((current) => {
+      const from = current.indexOf(id);
+      const to = from + direction;
+      if (from < 0 || to < 0 || to >= current.length) return current;
+      const next = [...current];
+      [next[from], next[to]] = [next[to], next[from]];
+      return next;
+    });
+  }
+
+  return <form action={action} className="grid gap-4"><input type="hidden" name="itemIds" value={selected.join(",")} />{state.error ? <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{state.error}</p> : null}<label className="relative block"><span className="sr-only">Filter songs</span><Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-stone-400" aria-hidden="true" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Filter songs" className="h-10 w-full rounded-lg border border-stone-300 pr-3 pl-9 text-sm shadow-sm focus:border-stone-500 focus:ring-2 focus:ring-stone-500/20" /></label><p className="text-xs leading-5 text-stone-500">Pinned songs appear on Home in this order. Drag a selected song by its handle to reorder it.</p><div className="max-h-80 overflow-y-auto rounded-lg border border-stone-200">{filtered.map((song) => { const rank = selected.indexOf(song.id); const isSelected = selectedSet.has(song.id); const name = titleCaseSongName(song.name); return <div key={song.id} onDragOver={(event) => { if (isSelected) event.preventDefault(); }} onDrop={(event) => { event.preventDefault(); move(event.dataTransfer.getData("text/plain"), song.id); }} className="grid grid-cols-[1.25rem_minmax(0,1fr)_2rem_2rem] items-center gap-2 border-b border-stone-200 px-3 py-2.5 text-sm last:border-b-0 hover:bg-stone-50 focus-within:bg-stone-50"><input type="checkbox" checked={isSelected} onChange={() => toggle(song.id)} aria-label={`${isSelected ? "Unpin" : "Pin"} ${name}`} className="size-4 cursor-pointer accent-stone-900" /><label className="min-w-0 cursor-pointer truncate font-medium text-stone-900" onClick={() => toggle(song.id)}>{name}</label><span className="text-center text-xs tabular-nums text-stone-400" aria-label={isSelected ? `Position ${rank + 1}` : "Not pinned"}>{isSelected ? rank + 1 : "—"}</span><button type="button" draggable={isSelected} disabled={!isSelected} onDragStart={(event) => { event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/plain", song.id); }} onKeyDown={(event) => { if (event.key === "ArrowUp") { event.preventDefault(); moveBy(song.id, -1); } if (event.key === "ArrowDown") { event.preventDefault(); moveBy(song.id, 1); } }} title={isSelected ? "Drag to reorder. Use Up or Down arrow keys for keyboard reordering." : "Pin this song before reordering it."} aria-label={isSelected ? `Reorder ${name}` : `${name} is not pinned`} className="cursor-grab rounded-md p-1 text-stone-500 transition hover:bg-stone-200 hover:text-stone-800 focus-visible:ring-2 focus-visible:ring-stone-500 active:cursor-grabbing disabled:cursor-not-allowed disabled:text-stone-300"><GripVertical className="size-4" aria-hidden="true" /></button></div>; })}{!filtered.length ? <p className="px-4 py-6 text-center text-sm text-stone-500">No matching songs.</p> : null}</div><div className="flex items-center justify-between gap-3 border-t border-stone-200 pt-4"><span className="text-xs text-stone-500">{selected.length} selected</span><div className="flex gap-2"><button type="button" onClick={close} className={buttonVariants({ variant: "outline" })}>Cancel</button><button type="submit" disabled={pending} className={buttonVariants()}>{pending ? "Saving…" : "Save Order"}</button></div></div></form>;
 }

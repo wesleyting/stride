@@ -16,7 +16,7 @@ $$;
 
 create or replace function public.get_public_profile_entries_page(
   profile_username text,
-  page_limit integer default 10,
+  page_limit integer default 5,
   page_offset integer default 0
 )
 returns table (
@@ -68,7 +68,7 @@ $$;
 create or replace function public.get_public_song_entries_page(
   profile_username text,
   public_song_slug text,
-  page_limit integer default 10,
+  page_limit integer default 5,
   page_offset integer default 0
 )
 returns table (
