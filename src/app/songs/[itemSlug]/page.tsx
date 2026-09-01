@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeft, Clock3 } from "lucide-react";
+import { ArrowLeft, ChevronDown, Clock3 } from "lucide-react";
 import { AppFrame } from "@/components/stride/app-frame";
 import { DeleteItemModal } from "@/components/stride/delete-item-modal";
 import { DifficultyControl } from "@/components/stride/difficulty-control";
@@ -57,10 +57,33 @@ export default async function SongPage({ params, searchParams }: PageProps<"/son
     </header>
 
     <div className="mt-6 grid items-start gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(18rem,0.65fr)]">
-      <section className="overflow-hidden rounded-xl border border-stone-200 bg-white" aria-labelledby="practice-log-heading"><div className="border-b border-stone-200 px-4 py-4 sm:px-5"><h2 id="practice-log-heading" className="text-sm font-semibold text-stone-950">Practice Log</h2></div>{entries.length ? entries.map((entry) => { const date = formatEntryDisplay(entry.created_at); return <article key={entry.id} className="grid gap-5 border-b border-stone-200 px-4 py-5 last:border-b-0 sm:grid-cols-[7rem_minmax(0,1fr)_7rem] sm:px-5"><div><p className="text-[0.6875rem] font-semibold tracking-wide text-stone-400 uppercase">When</p><p className="mt-1.5 text-sm font-semibold text-stone-900">{date.label}</p><p className="mt-0.5 text-xs text-stone-500">{date.time}</p></div><div><p className="text-[0.6875rem] font-semibold tracking-wide text-stone-400 uppercase">Notes</p>{entry.practice_part ? <div className="mt-1.5 mb-2 flex flex-wrap gap-1">{normalizePracticeTags(entry.practice_part).map((tag) => <span key={tag} className="rounded-md bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-600">{tag}</span>)}</div> : null}{entry.duration_seconds ? <p className="mt-1.5 inline-flex rounded-md bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-600">{formatTrackedTime(entry.duration_seconds)} timed</p> : null}<p className="mt-1.5 text-sm leading-6 text-stone-700">{entry.content}</p></div><div className="sm:text-right"><p className="text-[0.6875rem] font-semibold tracking-wide text-stone-400 uppercase">Session Rating</p><p className="mt-1.5 text-sm font-semibold tabular-nums text-stone-900">{entry.rating ? `${entry.rating} / 10` : "Not rated"}</p></div></article>; }) : <div className="px-5 py-8"><p className="text-sm font-semibold text-stone-900">No practice logs yet</p><p className="mt-1 text-sm leading-6 text-stone-500">Your first log creates a useful starting point for the next session.</p></div>}</section>
+      <PracticeLog entries={entries} />
       <div className="grid gap-5"><PracticeTimeSummary totalSeconds={totalTrackedSeconds} weekSeconds={weekTrackedSeconds} ready={!durationResult.error} />{item.youtube_url ? <YoutubeReference url={item.youtube_url} /> : <section className="rounded-xl border border-dashed border-stone-300 bg-stone-50 px-4 py-4"><SongWorkspaceModal itemId={item.id} itemSlug={item.slug} nextAction={item.next_action} youtubeUrl={item.youtube_url} description={item.description} mode="youtube" /></section>}<SongResources itemId={item.id} userId={user.id} initialResources={resources} />{item.description ? <section className="rounded-xl border border-stone-200 bg-white px-4 py-4"><h2 className="text-sm font-semibold text-stone-950">Notes</h2><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-stone-600">{item.description}</p></section> : null}</div>
     </div>
   </main></AppFrame>;
+}
+
+function PracticeLog({ entries }: { entries: EntryRecord[] }) {
+  const groups = groupEntriesByDay(entries);
+
+  return <section className="overflow-hidden rounded-xl border border-stone-200 bg-white" aria-labelledby="practice-log-heading"><div className="border-b border-stone-200 px-4 py-4 sm:px-5"><h2 id="practice-log-heading" className="text-sm font-semibold text-stone-950">Practice Log</h2></div>{groups.length ? groups.map((group, index) => { const trackedSeconds = group.entries.reduce((total, entry) => total + (entry.duration_seconds ?? 0), 0); return <details key={group.key} open={index === 0} className="group/day border-b border-stone-200 last:border-b-0"><summary className="flex cursor-pointer list-none items-center justify-between gap-4 bg-stone-50 px-4 py-3 transition hover:bg-stone-100 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-stone-500 sm:px-5"><div><p className="text-sm font-semibold text-stone-900">{group.label}</p><p className="mt-0.5 text-xs text-stone-500">{group.entries.length} {group.entries.length === 1 ? "session" : "sessions"}</p></div><div className="flex items-center gap-3">{trackedSeconds ? <span className="text-sm font-semibold tabular-nums text-stone-700">{formatTrackedTime(trackedSeconds)} total</span> : null}<ChevronDown className="size-4 text-stone-400 transition-transform group-open/day:rotate-180" aria-hidden="true" /></div></summary><div className="divide-y divide-stone-100 border-t border-stone-200">{group.entries.map((entry) => <PracticeLogEntry key={entry.id} entry={entry} />)}</div></details>; }) : <div className="px-5 py-8"><p className="text-sm font-semibold text-stone-900">No practice logs yet</p><p className="mt-1 text-sm leading-6 text-stone-500">Your first log creates a useful starting point for the next session.</p></div>}</section>;
+}
+
+function PracticeLogEntry({ entry }: { entry: EntryRecord }) {
+  const date = formatEntryDisplay(entry.created_at);
+  return <article className="grid gap-5 px-4 py-5 sm:grid-cols-[7rem_minmax(0,1fr)_7rem] sm:px-5"><div><p className="text-[0.6875rem] font-semibold tracking-wide text-stone-400 uppercase">Time</p><p className="mt-1.5 text-sm font-semibold text-stone-900">{date.time}</p>{entry.duration_seconds ? <p className="mt-0.5 text-xs text-stone-500">{formatTrackedTime(entry.duration_seconds)} tracked</p> : null}</div><div><p className="text-[0.6875rem] font-semibold tracking-wide text-stone-400 uppercase">Notes</p>{entry.practice_part ? <div className="mt-1.5 mb-2 flex flex-wrap gap-1">{normalizePracticeTags(entry.practice_part).map((tag) => <span key={tag} className="rounded-md bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-600">{tag}</span>)}</div> : null}<p className="mt-1.5 text-sm leading-6 text-stone-700">{entry.content}</p></div><div className="sm:text-right"><p className="text-[0.6875rem] font-semibold tracking-wide text-stone-400 uppercase">Session Rating</p><p className="mt-1.5 text-sm font-semibold tabular-nums text-stone-900">{entry.rating ? `${entry.rating} / 10` : "Not rated"}</p></div></article>;
+}
+
+function groupEntriesByDay(entries: EntryRecord[]) {
+  const groups = new Map<string, { key: string; label: string; entries: EntryRecord[] }>();
+  entries.forEach((entry) => {
+    const date = new Date(entry.created_at);
+    const key = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+    const existing = groups.get(key);
+    if (existing) existing.entries.push(entry);
+    else groups.set(key, { key, label: formatEntryDisplay(entry.created_at).label, entries: [entry] });
+  });
+  return Array.from(groups.values());
 }
 
 function PracticeTimeSummary({ totalSeconds, weekSeconds, ready }: { totalSeconds: number; weekSeconds: number; ready: boolean }) {

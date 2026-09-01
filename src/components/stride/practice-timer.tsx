@@ -4,11 +4,13 @@ import {
   createContext,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from "react";
-import { Clock3, Pause, Play, Square, TimerReset, X } from "lucide-react";
+import { Clock3, Gauge, Minus, Pause, Play, Plus, Square, TimerReset, X } from "lucide-react";
 import { saveTimedPracticeAction } from "@/app/actions";
 import { DialogShell } from "@/components/stride/dialog-shell";
+import { PracticeTagInput } from "@/components/stride/practice-tag-input";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -25,7 +27,7 @@ type SongTimerTarget = Pick<TimerSession, "itemId" | "itemSlug" | "itemName">;
 type TimerContextValue = {
   timer: TimerSession | null;
   elapsedSeconds: number;
-  start: (target: SongTimerTarget) => void;
+  start: (target: SongTimerTarget, timestamp: number) => void;
 };
 
 const timerStorageKey = "stride-practice-timer-v1";
@@ -41,6 +43,11 @@ export function PracticeTimerProvider({ children }: { children: React.ReactNode 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [showDetails, setShowDetails] = useState(false);
+  const [note, setNote] = useState("");
+  const [rating, setRating] = useState<number | null>(null);
+  const [detailsResetSignal, setDetailsResetSignal] = useState(0);
+  const finishFormRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
     let storedTimer: TimerSession | null = null;
@@ -82,12 +89,12 @@ export function PracticeTimerProvider({ children }: { children: React.ReactNode 
       (timer.startedAt ? Math.max(0, Math.floor((now - timer.startedAt) / 1000)) : 0)
     : 0;
 
-  function start(target: SongTimerTarget) {
+  function start(target: SongTimerTarget, timestamp: number) {
     if (timer) return;
-    const timestamp = Date.now();
     setNow(timestamp);
     setTimer({ ...target, startedAt: timestamp, accumulatedSeconds: 0 });
     setError("");
+    resetDetails();
   }
 
   function pause() {
@@ -130,15 +137,27 @@ export function PracticeTimerProvider({ children }: { children: React.ReactNode 
     setResumeAfterCancel(false);
   }
 
+  function resumeFromFinish() {
+    const timestamp = Date.now();
+    setFinishOpen(false);
+    setResumeAfterCancel(false);
+    setNow(timestamp);
+    setTimer((current) => current ? { ...current, startedAt: timestamp } : current);
+  }
+
   async function saveSession() {
     if (!timer) return;
     setSaving(true);
     setError("");
     const durationSeconds = Math.max(1, timer.accumulatedSeconds);
+    const details = finishFormRef.current ? new FormData(finishFormRef.current) : null;
     const result = await saveTimedPracticeAction({
       itemId: timer.itemId,
       itemSlug: timer.itemSlug,
       durationSeconds,
+      note,
+      rating,
+      practicePart: String(details?.get("practicePart") ?? ""),
     });
     setSaving(false);
 
@@ -150,6 +169,7 @@ export function PracticeTimerProvider({ children }: { children: React.ReactNode 
     setFinishOpen(false);
     setResumeAfterCancel(false);
     setTimer(null);
+    resetDetails();
     setNotice(`${formatStopwatch(durationSeconds)} saved to ${timer.itemName}.`);
   }
 
@@ -159,6 +179,14 @@ export function PracticeTimerProvider({ children }: { children: React.ReactNode 
     setResumeAfterCancel(false);
     setTimer(null);
     setError("");
+    resetDetails();
+  }
+
+  function resetDetails() {
+    setShowDetails(false);
+    setNote("");
+    setRating(null);
+    setDetailsResetSignal((value) => value + 1);
   }
 
   const contextValue = { timer, elapsedSeconds, start };
@@ -232,7 +260,14 @@ export function PracticeTimerProvider({ children }: { children: React.ReactNode 
       ) : null}
 
       <DialogShell open={finishOpen} onOpenChange={(next) => next ? setFinishOpen(true) : cancelFinish()} title="Finish Practice?" size="md">
-        <div className="grid gap-5">
+        <form
+          ref={finishFormRef}
+          onSubmit={(event) => {
+            event.preventDefault();
+            void saveSession();
+          }}
+          className="grid gap-5"
+        >
           <div className="rounded-xl border border-stone-200 bg-stone-50 px-4 py-5 text-center">
             <TimerReset className="mx-auto size-5 text-stone-500" aria-hidden="true" />
             <p className="mt-2 text-3xl font-semibold tabular-nums text-stone-950">
@@ -242,16 +277,82 @@ export function PracticeTimerProvider({ children }: { children: React.ReactNode 
               This will add a timed entry to {timer?.itemName}.
             </p>
           </div>
+          <div className="border-t border-stone-200 pt-4">
+            <button
+              type="button"
+              onClick={() => setShowDetails((visible) => !visible)}
+              aria-expanded={showDetails}
+              className={buttonVariants({ variant: "ghost", size: "sm" })}
+            >
+              {showDetails ? <Minus data-icon="inline-start" aria-hidden="true" /> : <Plus data-icon="inline-start" aria-hidden="true" />}
+              {showDetails ? "Hide Details" : "Add Details"}
+            </button>
+          </div>
+          {showDetails ? (
+            <div className="grid gap-5 rounded-xl border border-stone-200 bg-stone-50 p-4">
+              <label className="text-sm font-semibold text-stone-900">
+                Practice Note <span className="font-normal text-stone-500">Optional</span>
+                <textarea
+                  value={note}
+                  onChange={(event) => setNote(event.target.value)}
+                  rows={3}
+                  maxLength={500}
+                  placeholder="What improved, what was difficult, or anything worth remembering…"
+                  className="mt-1.5 w-full resize-y rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-sm leading-6 text-stone-950 shadow-sm outline-none transition placeholder:text-stone-400 hover:border-stone-400 focus:border-stone-500 focus:ring-2 focus:ring-stone-500/20"
+                />
+              </label>
+              <fieldset className="rounded-xl border border-stone-200 bg-white px-4 py-3">
+                <label className="flex cursor-pointer items-center justify-between gap-3">
+                  <span className="flex items-center gap-2 text-sm font-semibold text-stone-900">
+                    <Gauge className="size-4 text-stone-500" aria-hidden="true" />
+                    Session Rating
+                    <span className="font-normal text-stone-500">Optional</span>
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={rating !== null}
+                    onChange={(event) => setRating(event.target.checked ? 6 : null)}
+                    className="size-4 accent-stone-900"
+                  />
+                </label>
+                {rating !== null ? (
+                  <div className="mt-3 border-t border-stone-100 pt-3">
+                    <div className="flex items-baseline justify-end">
+                      <output className="text-xl font-semibold tabular-nums text-stone-950">
+                        {rating}<span className="text-xs font-normal text-stone-400">/10</span>
+                      </output>
+                    </div>
+                    <input
+                      type="range"
+                      min="1"
+                      max="10"
+                      step="1"
+                      value={rating}
+                      onChange={(event) => setRating(Number(event.target.value))}
+                      aria-label="Session rating out of 10"
+                      className="mt-2 h-2 w-full cursor-pointer accent-stone-900"
+                    />
+                    <div className="mt-1 flex justify-between text-[0.7rem] text-stone-400">
+                      <span>Tough</span>
+                      <span>Great</span>
+                    </div>
+                  </div>
+                ) : null}
+              </fieldset>
+              <PracticeTagInput key={detailsResetSignal} name="practicePart" suggestions={[]} optional />
+            </div>
+          ) : null}
           {error ? <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{error}</p> : null}
           <div className="flex justify-end gap-2 border-t border-stone-200 pt-4">
-            <button type="button" onClick={cancelFinish} className={buttonVariants({ variant: "outline" })}>
-              Keep Timing
+            <button type="button" onClick={resumeFromFinish} className={cn(buttonVariants({ variant: "secondary" }), "bg-amber-100 text-amber-950 hover:bg-amber-200")}>
+              <Play data-icon="inline-start" aria-hidden="true" />
+              Resume Timer
             </button>
-            <button type="button" onClick={saveSession} disabled={saving} className={buttonVariants()}>
+            <button type="submit" disabled={saving} className={buttonVariants()}>
               {saving ? "Saving…" : "Save Session"}
             </button>
           </div>
-        </div>
+        </form>
       </DialogShell>
 
       <DialogShell open={discardOpen} onOpenChange={setDiscardOpen} title="Discard Timer?" size="md">
@@ -286,7 +387,7 @@ export function StartPracticeTimerButton({
   return (
     <button
       type="button"
-      onClick={() => context.start({ itemId, itemSlug, itemName })}
+      onClick={() => context.start({ itemId, itemSlug, itemName }, Date.now())}
       disabled={Boolean(context.timer)}
       title={
         sameSong

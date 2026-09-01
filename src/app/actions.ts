@@ -81,6 +81,9 @@ const timedPracticeSchema = z.object({
   itemId: z.string().uuid(),
   itemSlug: z.string().trim().min(1),
   durationSeconds: z.coerce.number().int().min(1).max(43200),
+  note: z.string().trim().max(500).optional().or(z.literal("")),
+  rating: z.number().int().min(1).max(10).nullable().optional(),
+  practicePart: z.string().trim().max(160).optional().or(z.literal("")),
 });
 
 const profileSchema = z.object({
@@ -400,6 +403,9 @@ export async function saveTimedPracticeAction(input: {
   itemId: string;
   itemSlug: string;
   durationSeconds: number;
+  note?: string;
+  rating?: number | null;
+  practicePart?: string;
 }): Promise<MutationState> {
   const { supabase, user } = await getSignedInUser();
   if (!user) return mutationError("You need to sign in first.");
@@ -423,8 +429,9 @@ export async function saveTimedPracticeAction(input: {
     user_id: user.id,
     activity_id: itemResult.data.activity_id,
     item_id: itemResult.data.id,
-    content: "Timed practice session",
-    rating: null,
+    content: parsed.data.note?.trim() || "Timed practice session",
+    rating: parsed.data.rating ?? null,
+    practice_part: serializePracticeTags(parsed.data.practicePart ?? "") || null,
     duration_seconds: parsed.data.durationSeconds,
   });
 

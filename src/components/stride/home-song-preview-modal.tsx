@@ -48,9 +48,10 @@ export function HomeSongPreviewModal({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="min-w-0 cursor-pointer truncate rounded-md text-left text-base font-semibold text-stone-950 transition hover:underline focus-visible:ring-2 focus-visible:ring-stone-500"
+        className={buttonVariants({ variant: "ghost", size: "sm" })}
       >
-        {songName}
+        Preview Logs
+        <ChevronRight data-icon="inline-end" aria-hidden="true" />
       </button>
 
       <DialogShell open={open} onOpenChange={setOpen} title={songName} size="md">

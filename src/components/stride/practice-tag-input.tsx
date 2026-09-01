@@ -7,9 +7,11 @@ import { normalizePracticeTags, serializePracticeTags } from "@/lib/practice-tag
 export function PracticeTagInput({
   name,
   suggestions,
+  optional = false,
 }: {
   name: string;
   suggestions: string[];
+  optional?: boolean;
 }) {
   const inputId = useId();
   const [tags, setTags] = useState<string[]>([]);
@@ -38,6 +40,7 @@ export function PracticeTagInput({
       >
         <Tag className="size-4 text-stone-500" aria-hidden="true" />
         What did you work on?
+        {optional ? <span className="font-normal text-stone-500">Optional</span> : null}
       </label>
       <div
         className="mt-1.5 flex min-h-11 flex-wrap items-center gap-1.5 rounded-lg border border-stone-300 bg-white px-2.5 py-2 shadow-sm transition hover:border-stone-400 focus-within:border-stone-500 focus-within:ring-2 focus-within:ring-stone-500/20"
