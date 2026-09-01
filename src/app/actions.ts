@@ -86,6 +86,23 @@ const timedPracticeSchema = z.object({
   practicePart: z.string().trim().max(160).optional().or(z.literal("")),
 });
 
+const editPracticeSchema = z.object({
+  entryId: z.string().uuid(),
+  itemSlug: z.string().trim().min(1),
+  note: z.string().trim().max(500),
+  rating: z.preprocess(
+    (value) => value === "" || value === null ? null : Number(value),
+    z.number().int().min(1).max(10).nullable(),
+  ),
+  practicePart: z.string().trim().max(160).optional().or(z.literal("")),
+});
+
+const songVisibilitySchema = z.object({
+  itemId: z.string().uuid(),
+  itemSlug: z.string().trim().min(1),
+  isPublic: z.boolean(),
+});
+
 const profileSchema = z.object({
   username: z
     .string()
@@ -97,6 +114,9 @@ const profileSchema = z.object({
   displayName: z.string().trim().min(2, "Add a display name.").max(50),
   bio: z.string().trim().max(160, "Keep your bio under 160 characters."),
   isPublic: z.boolean(),
+  shareSongLibrary: z.boolean(),
+  sharePracticeLogs: z.boolean(),
+  shareSongResources: z.boolean(),
 });
 
 const activityDescriptionFallbacks: Record<
@@ -449,6 +469,77 @@ export async function saveTimedPracticeAction(input: {
   return mutationSuccess();
 }
 
+export async function editPracticeEntryAction(
+  _previousState: MutationState,
+  formData: FormData,
+): Promise<MutationState> {
+  const { supabase, user } = await getSignedInUser();
+  if (!user) return mutationError("You need to sign in first.");
+
+  const parsed = editPracticeSchema.safeParse({
+    entryId: formData.get("entryId"),
+    itemSlug: formData.get("itemSlug"),
+    note: formData.get("note") ?? "",
+    rating: formData.get("rating") ?? "",
+    practicePart: formData.get("practicePart") ?? "",
+  });
+  if (!parsed.success) return mutationError(parsed.error.issues[0]?.message ?? "Check the practice details.");
+
+  const item = await supabase
+    .from("items")
+    .select("id")
+    .eq("user_id", user.id)
+    .eq("slug", parsed.data.itemSlug)
+    .single();
+  if (item.error || !item.data) return mutationError("That song could not be found.");
+
+  const { error } = await supabase
+    .from("entries")
+    .update({
+      content: parsed.data.note || "Practice session",
+      rating: parsed.data.rating,
+      practice_part: serializePracticeTags(parsed.data.practicePart ?? "") || null,
+    })
+    .eq("id", parsed.data.entryId)
+    .eq("item_id", item.data.id)
+    .eq("user_id", user.id);
+  if (error) return mutationError(error.message);
+
+  revalidatePath("/");
+  revalidatePath("/songs");
+  revalidatePath(`/songs/${parsed.data.itemSlug}`);
+  revalidatePath("/community");
+  return mutationSuccess();
+}
+
+export async function setSongVisibilityAction(input: {
+  itemId: string;
+  itemSlug: string;
+  isPublic: boolean;
+}): Promise<MutationState> {
+  const { supabase, user } = await getSignedInUser();
+  if (!user) return mutationError("You need to sign in first.");
+  const parsed = songVisibilitySchema.safeParse(input);
+  if (!parsed.success) return mutationError("That song could not be shared.");
+
+  const { error } = await supabase
+    .from("items")
+    .update({ is_public: parsed.data.isPublic })
+    .eq("id", parsed.data.itemId)
+    .eq("slug", parsed.data.itemSlug)
+    .eq("user_id", user.id);
+  if (error) return mutationError(
+    error.code === "42703" || error.code === "PGRST204"
+      ? "Run migration 0011_public_song_links.sql before sharing songs."
+      : error.message,
+  );
+
+  revalidatePath(`/songs/${parsed.data.itemSlug}`);
+  revalidatePath("/settings");
+  revalidatePath("/community");
+  return mutationSuccess();
+}
+
 export async function saveProfileAction(
   _previousState: MutationState,
   formData: FormData,
@@ -461,6 +552,9 @@ export async function saveProfileAction(
     displayName: formData.get("displayName"),
     bio: formData.get("bio") ?? "",
     isPublic: formData.get("isPublic") === "on",
+    shareSongLibrary: formData.get("shareSongLibrary") === "on",
+    sharePracticeLogs: formData.get("sharePracticeLogs") === "on",
+    shareSongResources: formData.get("shareSongResources") === "on",
   });
 
   if (!parsed.success) {
@@ -473,11 +567,16 @@ export async function saveProfileAction(
     display_name: parsed.data.displayName,
     bio: parsed.data.bio,
     is_public: parsed.data.isPublic,
+    share_song_library: parsed.data.shareSongLibrary,
+    share_practice_logs: parsed.data.sharePracticeLogs,
+    share_song_resources: parsed.data.shareSongResources,
   });
 
   if (error) {
     return mutationError(
-      error.code === "42P01"
+      error.code === "42703" || error.code === "PGRST204"
+        ? "Run migration 0008_public_profile_sharing.sql before saving sharing settings."
+        : error.code === "42P01"
         ? "Run migration 0007_practice_time_and_public_profiles.sql first."
         : error.code === "23505"
           ? "That username is already taken."
@@ -486,6 +585,7 @@ export async function saveProfileAction(
   }
 
   revalidatePath("/community");
+  revalidatePath("/settings");
   revalidatePath(`/people/${parsed.data.username}`);
   return mutationSuccess();
 }

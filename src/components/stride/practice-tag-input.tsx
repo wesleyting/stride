@@ -8,13 +8,15 @@ export function PracticeTagInput({
   name,
   suggestions,
   optional = false,
+  initialValue = "",
 }: {
   name: string;
   suggestions: string[];
   optional?: boolean;
+  initialValue?: string;
 }) {
   const inputId = useId();
-  const [tags, setTags] = useState<string[]>([]);
+  const [tags, setTags] = useState<string[]>(() => normalizePracticeTags(initialValue));
   const [draft, setDraft] = useState("");
   const normalizedSuggestions = normalizePracticeTags(suggestions.join(","));
 

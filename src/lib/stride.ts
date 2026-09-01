@@ -39,6 +39,7 @@ export type SongResourceRecord = {
   storage_path: string;
   file_name: string;
   mime_type: string;
+  is_public?: boolean;
   created_at: string;
   signed_url?: string;
 };
@@ -109,6 +110,9 @@ export type PublicProfileRecord = {
   username: string;
   display_name: string;
   bio: string;
+  share_song_library?: boolean;
+  share_practice_logs?: boolean;
+  share_song_resources?: boolean;
   tracked_seconds: number;
   tracked_seconds_7d: number;
   timed_sessions: number;
