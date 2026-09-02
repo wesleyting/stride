@@ -59,9 +59,12 @@ Password recovery uses `/auth/callback?next=/reset-password`. Keep the Supabase 
 2. Add `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` to Production and Preview.
 3. Add `NEXT_PUBLIC_SITE_URL` to Production using the final HTTPS domain. Preview deployments can omit it and use Vercel's generated deployment URL.
 4. Deploy, then add the final `/auth/callback` URL to Supabase's allowed redirect URLs.
-5. Redeploy after changing environment variables.
+5. Enable **Web Analytics** and **Speed Insights** in the Vercel project dashboard.
+6. Redeploy after changing environment variables.
 
 The app includes its favicon, web manifest, social preview image, security headers, robots rules, sitemap, canonical metadata for public pages, and authenticated-route `noindex` defaults.
+
+For a clean production launch, use a separate Supabase production project and run all migrations in order. Keep the existing project as development/staging rather than resetting it in place. Migration `0016_remove_legacy_item_state.sql` removes the unused generic-MVP item state columns from the final schema.
 
 ## Verification
 

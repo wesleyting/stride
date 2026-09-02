@@ -9,7 +9,6 @@ import { serializePracticeTags } from "@/lib/practice-tags";
 import {
   clampRating,
   ensureSeedData,
-  inferCurrentState,
   slugify,
   titleCaseSongName,
 } from "@/lib/stride";
@@ -59,7 +58,6 @@ const practiceSchema = z.object({
   note: z.string().trim().min(1, "Add a short note about your practice.").max(500),
   rating: z.coerce.number().int().min(1).max(10),
   practicePart: z.string().trim().max(160, "Keep the practice tags under 160 characters.").optional().or(z.literal("")),
-  nextAction: z.string().trim().max(180, "Keep the next step under 180 characters.").optional().or(z.literal("")),
   youtubeUrl: z.string().trim().max(500).refine(
     (value) => !value || /^https:\/\/(www\.)?(youtube\.com|youtu\.be)\//i.test(value),
     "Use a YouTube or youtu.be link.",
@@ -344,11 +342,6 @@ export async function createItemAction(
     activity_id: activity.id,
     name: normalizedName,
     slug,
-    description: "",
-    focus: "",
-    going_well: "",
-    still_working_on: "",
-    confidence: 3,
     difficulty: parsed.data.difficulty,
     ...(parsed.data.youtubeUrl ? { youtube_url: parsed.data.youtubeUrl } : {}),
     tuning: parsed.data.tuning || "standard",
@@ -379,7 +372,6 @@ export async function logPracticeAction(
     note: formData.get("note"),
     rating: formData.get("rating"),
     practicePart: formData.get("practicePart") ?? "",
-    nextAction: formData.get("nextAction") ?? "",
     youtubeUrl: formData.get("youtubeUrl") ?? "",
     activitySlug: formData.get("activitySlug"),
     itemSlug: formData.get("itemSlug"),
@@ -403,9 +395,7 @@ export async function logPracticeAction(
 
   const { data: item, error: itemError } = await supabase
     .from("items")
-    .select(
-      "id, activity_id, slug, focus, going_well, still_working_on, confidence",
-    )
+    .select("id, activity_id, slug")
     .eq("user_id", user.id)
     .eq("activity_id", activity.id)
     .eq("slug", parsed.data.itemSlug)
@@ -417,12 +407,6 @@ export async function logPracticeAction(
 
   const normalizedNote = parsed.data.note.trim();
   const normalizedPracticeParts = serializePracticeTags(parsed.data.practicePart ?? "");
-  const updatedState = inferCurrentState(normalizedNote, {
-    focus: item.focus,
-    going_well: item.going_well,
-    still_working_on: item.still_working_on,
-    confidence: item.confidence,
-  });
 
   const { error: entryError } = await supabase.from("entries").insert({
     user_id: user.id,
@@ -437,20 +421,14 @@ export async function logPracticeAction(
     return mutationError(entryError.message);
   }
 
-  const { error: updateError } = await supabase
-    .from("items")
-    .update({
-      focus: normalizedPracticeParts || updatedState.focus,
-      going_well: updatedState.going_well,
-      still_working_on: updatedState.still_working_on,
-      ...(parsed.data.nextAction ? { next_action: parsed.data.nextAction } : {}),
-      ...(parsed.data.youtubeUrl ? { youtube_url: parsed.data.youtubeUrl } : {}),
-    })
-    .eq("id", item.id)
-    .eq("user_id", user.id);
+  if (parsed.data.youtubeUrl) {
+    const { error: updateError } = await supabase
+      .from("items")
+      .update({ youtube_url: parsed.data.youtubeUrl })
+      .eq("id", item.id)
+      .eq("user_id", user.id);
 
-  if (updateError) {
-    return mutationError(updateError.message);
+    if (updateError) return mutationError(updateError.message);
   }
 
   revalidatePath(`/${parsed.data.activitySlug}`);

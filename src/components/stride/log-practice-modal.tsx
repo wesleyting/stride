@@ -180,7 +180,6 @@ function PracticeForm({
       </div>
 
       <div ref={areasRef} className={showAreas ? "block" : "hidden"}><PracticeTagInput key={resetSignal} name="practicePart" suggestions={previousParts} /></div>
-      <input type="hidden" name="nextAction" value="" />
 
       <div ref={youtubeRef} className={showYoutube ? "block" : "hidden"}>
         <label htmlFor="practice-youtube" className="text-sm font-semibold text-stone-950">YouTube link</label>

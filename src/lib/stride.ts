@@ -18,15 +18,9 @@ export type ItemRecord = {
   activity_id: string;
   name: string;
   slug: string;
-  description: string;
-  focus: string;
-  going_well: string;
-  still_working_on: string;
-  confidence: number;
   difficulty: number;
   is_favorite: boolean;
   pin_position: number | null;
-  next_action: string;
   youtube_url: string;
   tuning: string;
   capo: number | null;
@@ -160,13 +154,6 @@ export type ItemDetail = {
   entries: EntryRecord[];
 };
 
-type StateSource = {
-  focus: string;
-  going_well: string;
-  still_working_on: string;
-  confidence: number;
-};
-
 const millisecondsPerDay = 1000 * 60 * 60 * 24;
 
 const seedActivities = [
@@ -212,44 +199,24 @@ const seedItems = [
     activitySlug: "guitar",
     name: "Blackbird",
     slug: "blackbird",
-    description: "Working on the second section",
-    focus: "Second section / picking pattern",
-    going_well: "Picking pattern is becoming more consistent",
-    still_working_on: "Transition into the second section",
-    confidence: 3,
     sort_order: 0,
   },
   {
     activitySlug: "guitar",
     name: "Tears in Heaven",
     slug: "tears-in-heaven",
-    description: "Learning the intro",
-    focus: "Learning the intro",
-    going_well: "Chord changes are smoother",
-    still_working_on: "Clean hammer-ons in the intro",
-    confidence: 2,
     sort_order: 1,
   },
   {
     activitySlug: "guitar",
     name: "Fast Car",
     slug: "fast-car",
-    description: "Getting comfortable singing while playing",
-    focus: "Singing while playing",
-    going_well: "Chord changes stay steady",
-    still_working_on: "Breath control through the chorus",
-    confidence: 3,
     sort_order: 2,
   },
   {
     activitySlug: "guitar",
     name: "House of the Rising Sun",
     slug: "house-of-the-rising-sun",
-    description: "On the back burner",
-    focus: "Keeping the groove even",
-    going_well: "Bass notes are clear",
-    still_working_on: "Strumming consistency",
-    confidence: 2,
     sort_order: 3,
   },
 ];
@@ -417,71 +384,6 @@ export function buildActivitySummary(activity: ActivityRecord, itemCount: number
   return activity.description;
 }
 
-export function inferCurrentState(note: string, previous: StateSource) {
-  const lower = note.toLowerCase();
-  const clauses = note
-    .split(/[.!?]+/)
-    .flatMap((sentence) => sentence.split(/\b(?:but|although|however)\b/i))
-    .map((clause) =>
-      clause
-        .trim()
-        .replace(/^[,;:\s-]+|[,;:\s-]+$/g, "")
-        .replace(/^the\s+/i, "")
-        .replace(/\s+/g, " "),
-    )
-    .filter(Boolean);
-
-  let focus = previous.focus;
-  if (lower.includes("second section") && lower.includes("picking")) {
-    focus = "Second section / picking pattern";
-  } else if (lower.includes("transition") && lower.includes("second section")) {
-    focus = "Transition into the second section";
-  } else if (lower.includes("picking")) {
-    focus = "Picking pattern";
-  } else {
-    const focusClause = clauses.find((clause) =>
-      [/worked on/i, /practiced/i, /focused on/i, /working on/i].some((pattern) =>
-        pattern.test(clause),
-      ),
-    );
-
-    if (focusClause) {
-      focus = focusClause.charAt(0).toUpperCase() + focusClause.slice(1);
-    }
-  }
-
-  const positiveClause = clauses.find((clause) =>
-    [
-      /felt smoother/i,
-      /went well/i,
-      /better/i,
-      /comfortable/i,
-      /improved/i,
-      /cleaner/i,
-      /coming along/i,
-      /steadier/i,
-    ].some((pattern) => pattern.test(clause)),
-  );
-
-  const challengeClause = clauses.find((clause) =>
-    [
-      /still/i,
-      /hard/i,
-      /awkward/i,
-      /struggl/i,
-      /difficult/i,
-      /rough/i,
-      /needs work/i,
-    ].some((pattern) => pattern.test(clause)),
-  );
-
-  return {
-    focus,
-    going_well: positiveClause ?? previous.going_well,
-    still_working_on: challengeClause ?? previous.still_working_on,
-  };
-}
-
 export async function ensureSeedData(supabase: SupabaseClient, userId: string) {
   const { data: existingActivities, error } = await supabase
     .from("activities")
@@ -532,11 +434,7 @@ export async function ensureSeedData(supabase: SupabaseClient, userId: string) {
         activity_id: activityId,
         name: item.name,
         slug: item.slug,
-        description: item.description,
-        focus: item.focus,
-        going_well: item.going_well,
-        still_working_on: item.still_working_on,
-        confidence: item.confidence,
+        difficulty: 3,
         sort_order: item.sort_order,
       })
       .select("id, slug")

@@ -14,7 +14,7 @@ import { calculatePracticeStreak, entriesWithinDays, formatCompactLogDate, forma
 import { signOutAction } from "./actions";
 
 export const dynamic = "force-dynamic";
-type ItemExtension = Pick<ItemRecord, "id" | "is_favorite" | "pin_position" | "next_action" | "youtube_url" | "tuning" | "capo">;
+type ItemExtension = Pick<ItemRecord, "id" | "is_favorite" | "pin_position" | "youtube_url" | "tuning" | "capo">;
 
 export default async function GuitarDashboard() {
   const { supabase, user } = await requireUser();
@@ -29,23 +29,23 @@ export default async function GuitarDashboard() {
 
   if (guitar) {
     const [itemsResult, entriesResult, extensionResult, durationResult] = await Promise.all([
-      supabase.from("items").select("id, activity_id, name, slug, description, focus, going_well, still_working_on, confidence, difficulty, sort_order, is_archived, created_at, updated_at").eq("user_id", user.id).eq("activity_id", guitar.id).eq("is_archived", false).order("sort_order"),
+      supabase.from("items").select("id, activity_id, name, slug, difficulty, sort_order, is_archived, created_at, updated_at").eq("user_id", user.id).eq("activity_id", guitar.id).eq("is_archived", false).order("sort_order"),
       supabase.from("entries").select("id, activity_id, item_id, content, rating, practice_part, created_at").eq("user_id", user.id).eq("activity_id", guitar.id).order("created_at", { ascending: false }),
-      supabase.from("items").select("id, is_favorite, pin_position, next_action, youtube_url, tuning, capo").eq("user_id", user.id).eq("activity_id", guitar.id),
+      supabase.from("items").select("id, is_favorite, pin_position, youtube_url, tuning, capo").eq("user_id", user.id).eq("activity_id", guitar.id),
       supabase.from("entries").select("id, duration_seconds").eq("user_id", user.id).eq("activity_id", guitar.id),
     ]);
     if (itemsResult.error) throw itemsResult.error;
     if (entriesResult.error) throw entriesResult.error;
     let extensionRows = extensionResult.data ?? [];
     if (extensionResult.error?.code === "42703") {
-      const fallback = await supabase.from("items").select("id, is_favorite, next_action, youtube_url").eq("user_id", user.id).eq("activity_id", guitar.id);
+      const fallback = await supabase.from("items").select("id, is_favorite, youtube_url").eq("user_id", user.id).eq("activity_id", guitar.id);
       extensionRows = (fallback.data ?? []).map((row) => ({ ...row, pin_position: null, tuning: "standard", capo: null }));
       workspaceReady = !fallback.error;
       pinOrderingReady = false;
     } else workspaceReady = !extensionResult.error;
     timeTrackingReady = !durationResult.error;
     const extensionById = new Map(extensionRows.map((row) => [row.id, row as ItemExtension]));
-    songs = (itemsResult.data ?? []).map((song) => ({ ...song, is_favorite: extensionById.get(song.id)?.is_favorite ?? false, pin_position: extensionById.get(song.id)?.pin_position ?? null, next_action: extensionById.get(song.id)?.next_action ?? "", youtube_url: extensionById.get(song.id)?.youtube_url ?? "", tuning: extensionById.get(song.id)?.tuning ?? "standard", capo: extensionById.get(song.id)?.capo ?? null })) as ItemRecord[];
+    songs = (itemsResult.data ?? []).map((song) => ({ ...song, is_favorite: extensionById.get(song.id)?.is_favorite ?? false, pin_position: extensionById.get(song.id)?.pin_position ?? null, youtube_url: extensionById.get(song.id)?.youtube_url ?? "", tuning: extensionById.get(song.id)?.tuning ?? "standard", capo: extensionById.get(song.id)?.capo ?? null })) as ItemRecord[];
     const durationById = new Map((durationResult.data ?? []).map((entry) => [entry.id, entry.duration_seconds]));
     entries = (entriesResult.data ?? []).map((entry) => ({ ...entry, duration_seconds: durationById.get(entry.id) ?? null })) as EntryRecord[];
   }

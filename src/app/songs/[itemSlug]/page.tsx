@@ -31,16 +31,16 @@ export default async function SongPage({ params, searchParams }: PageProps<"/son
   if (activity.error || !activity.data) redirect("/");
 
   const [base, extension] = await Promise.all([
-    supabase.from("items").select("id, activity_id, name, slug, description, focus, going_well, still_working_on, confidence, difficulty, sort_order, is_archived, created_at, updated_at").eq("user_id", user.id).eq("activity_id", activity.data.id).eq("slug", itemSlug).single(),
-    supabase.from("items").select("id, is_favorite, next_action, youtube_url, tuning, capo").eq("user_id", user.id).eq("activity_id", activity.data.id).eq("slug", itemSlug).maybeSingle(),
+    supabase.from("items").select("id, activity_id, name, slug, difficulty, sort_order, is_archived, created_at, updated_at").eq("user_id", user.id).eq("activity_id", activity.data.id).eq("slug", itemSlug).single(),
+    supabase.from("items").select("id, is_favorite, youtube_url, tuning, capo").eq("user_id", user.id).eq("activity_id", activity.data.id).eq("slug", itemSlug).maybeSingle(),
   ]);
   if (base.error || !base.data) redirect("/songs");
   let extensionData = extension.data;
   if (extension.error?.code === "42703") {
-    const fallback = await supabase.from("items").select("id, is_favorite, next_action, youtube_url").eq("user_id", user.id).eq("activity_id", activity.data.id).eq("slug", itemSlug).maybeSingle();
+    const fallback = await supabase.from("items").select("id, is_favorite, youtube_url").eq("user_id", user.id).eq("activity_id", activity.data.id).eq("slug", itemSlug).maybeSingle();
     extensionData = fallback.data ? { ...fallback.data, tuning: "standard", capo: null } : null;
   }
-  const item = { ...base.data, is_favorite: extensionData?.is_favorite ?? false, pin_position: null, next_action: extensionData?.next_action ?? "", youtube_url: extensionData?.youtube_url ?? "", tuning: extensionData?.tuning ?? "standard", capo: extensionData?.capo ?? null } as ItemRecord;
+  const item = { ...base.data, is_favorite: extensionData?.is_favorite ?? false, pin_position: null, youtube_url: extensionData?.youtube_url ?? "", tuning: extensionData?.tuning ?? "standard", capo: extensionData?.capo ?? null } as ItemRecord;
 
   const [entriesResult, resourcesResult, durationResult, visibilityResult, profileResult] = await Promise.all([
     supabase.from("entries").select("id, activity_id, item_id, content, rating, practice_part, created_at").eq("user_id", user.id).eq("item_id", item.id).order("created_at", { ascending: false }),
