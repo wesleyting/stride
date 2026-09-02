@@ -1,4 +1,3 @@
-import { Music2 } from "lucide-react";
 import { formatTuning } from "@/lib/stride";
 import { cn } from "@/lib/utils";
 
@@ -16,18 +15,24 @@ export function SongSetup({
   return (
     <div
       className={cn(
-        "flex flex-wrap items-center gap-1.5 text-stone-600",
+        "flex flex-wrap items-center gap-2 text-stone-500",
         compact ? "text-xs" : "text-sm",
       )}
       aria-label={`${selectedTuning.label} tuning${capo ? `, capo ${capo}` : ", no capo"}`}
     >
-      <span className="inline-flex items-center gap-1.5 rounded-md bg-stone-100 px-2 py-1 font-medium">
-        <Music2 className="size-3.5 text-stone-500" aria-hidden="true" />
-        {selectedTuning.label}
-      </span>
+      <span>{selectedTuning.label} tuning</span>
       {capo ? (
-        <span className="rounded-md bg-stone-100 px-2 py-1 font-medium">Capo {capo}</span>
+        <><span aria-hidden="true">·</span><span>Capo on {ordinal(capo)} fret</span></>
       ) : null}
     </div>
   );
+}
+
+function ordinal(value: number) {
+  const remainder = value % 100;
+  if (remainder >= 11 && remainder <= 13) return `${value}th`;
+  if (value % 10 === 1) return `${value}st`;
+  if (value % 10 === 2) return `${value}nd`;
+  if (value % 10 === 3) return `${value}rd`;
+  return `${value}th`;
 }

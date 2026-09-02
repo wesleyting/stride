@@ -12,7 +12,8 @@ export async function GET(request: Request) {
     if (!error) return NextResponse.redirect(new URL(next, requestUrl.origin));
   }
 
-  return NextResponse.redirect(new URL("/sign-in?error=Could%20not%20confirm%20your%20account.", requestUrl.origin));
+  const errorPath = next === "/reset-password" ? "/forgot-password?error=That%20reset%20link%20is%20invalid%20or%20has%20expired." : "/sign-in?error=Could%20not%20complete%20that%20email%20link.";
+  return NextResponse.redirect(new URL(errorPath, requestUrl.origin));
 }
 
 function safeNextPath(value: string | null) {

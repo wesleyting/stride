@@ -1,6 +1,7 @@
 "use client";
 
 import { Star } from "lucide-react";
+import { CustomSelect } from "@/components/ui/custom-select";
 import { GUITAR_TUNINGS } from "@/lib/stride";
 import { cn } from "@/lib/utils";
 
@@ -32,19 +33,14 @@ export function OptionalSongFields({ youtubeUrl = "", tuning = "standard", capo 
         <input name="youtubeUrl" type="url" maxLength={500} defaultValue={youtubeUrl} placeholder="https://www.youtube.com/watch?v=…" className={songFieldClassName} />
       </label>
       <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_9rem]">
-        <label className="grid gap-2 text-sm font-semibold text-stone-900">
+        <div className="grid gap-2 text-sm font-semibold text-stone-900">
           <span>Tuning <span className="font-normal text-stone-500">Optional</span></span>
-          <select name="tuning" defaultValue={tuning || "standard"} className={cn(songFieldClassName, "cursor-pointer")}>
-            {GUITAR_TUNINGS.map((option) => <option key={option.value} value={option.value}>{option.label} · {option.notes}</option>)}
-          </select>
-        </label>
-        <label className="grid gap-2 text-sm font-semibold text-stone-900">
+          <CustomSelect name="tuning" defaultValue={tuning || "standard"} ariaLabel="Tuning" options={GUITAR_TUNINGS.map((option) => ({ value: option.value, label: `${option.label} · ${option.notes}` }))} />
+        </div>
+        <div className="grid gap-2 text-sm font-semibold text-stone-900">
           <span>Capo <span className="font-normal text-stone-500">Optional</span></span>
-          <select name="capo" defaultValue={capo ?? ""} className={cn(songFieldClassName, "cursor-pointer")}>
-            <option value="">No capo</option>
-            {Array.from({ length: 12 }, (_, index) => index + 1).map((fret) => <option key={fret} value={fret}>Fret {fret}</option>)}
-          </select>
-        </label>
+          <CustomSelect name="capo" defaultValue={capo ? String(capo) : "none"} ariaLabel="Capo" options={[{ value: "none", label: "No capo" }, ...Array.from({ length: 12 }, (_, index) => index + 1).map((fret) => ({ value: String(fret), label: `Fret ${fret}` }))]} />
+        </div>
       </div>
     </div>
   );

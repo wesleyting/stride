@@ -24,6 +24,12 @@ const authSchema = z.object({
   password: z.string().min(8, "Use at least 8 characters."),
 });
 
+const emailSchema = z.object({ email: z.string().trim().email("Enter a valid email address.") });
+const newPasswordSchema = z.object({
+  password: z.string().min(8, "Use at least 8 characters."),
+  confirmPassword: z.string(),
+}).refine((values) => values.password === values.confirmPassword, { message: "The passwords do not match.", path: ["confirmPassword"] });
+
 const activitySchema = z.object({
   name: z.string().trim().min(2, "Activity names need at least 2 characters.").max(60),
   kind: z.enum(["practice", "journal", "fitness", "projects"]),
@@ -44,7 +50,7 @@ const itemSchema = z.object({
   ).optional().or(z.literal("")),
   tuning: z.enum(["standard", "half-step-down", "whole-step-down", "drop-d", "double-drop-d", "dadgad", "open-c", "open-d", "open-e", "open-g"]).default("standard"),
   capo: z.preprocess(
-    (value) => value === "" || value === null ? null : Number(value),
+    (value) => value === "" || value === "none" || value === null ? null : Number(value),
     z.number().int().min(1).max(12).nullable(),
   ),
 });
@@ -207,6 +213,32 @@ export async function signOutAction() {
   const { supabase } = await getSignedInUser();
   await supabase.auth.signOut();
   redirect("/sign-in");
+}
+
+export async function requestPasswordResetAction(formData: FormData) {
+  const parsed = emailSchema.safeParse({ email: formData.get("email") });
+  if (!parsed.success) redirect(`/forgot-password${errorQuery(parsed.error.issues[0]?.message ?? "Enter a valid email address.")}`);
+
+  const supabase = await createClient();
+  const redirectTo = new URL("/auth/callback?next=/reset-password", getSiteUrl()).toString();
+  const { error } = await supabase.auth.resetPasswordForEmail(parsed.data.email, { redirectTo });
+  if (error) redirect(`/forgot-password${errorQuery(error.message)}`);
+
+  redirect(`/forgot-password?message=${encodeURIComponent("If an account exists for that email, a password reset link is on its way.")}`);
+}
+
+export async function updatePasswordAction(formData: FormData) {
+  const parsed = newPasswordSchema.safeParse({ password: formData.get("password"), confirmPassword: formData.get("confirmPassword") });
+  if (!parsed.success) redirect(`/reset-password${errorQuery(parsed.error.issues[0]?.message ?? "Check the new password.")}`);
+
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getUser();
+  if (!data.user) redirect(`/forgot-password${errorQuery("That reset link is invalid or has expired. Request a new one.")}`);
+
+  const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
+  if (error) redirect(`/reset-password${errorQuery(error.message)}`);
+  await supabase.auth.signOut();
+  redirect(`/sign-in?message=${encodeURIComponent("Password updated. Sign in with your new password.")}`);
 }
 
 export async function createActivityAction(

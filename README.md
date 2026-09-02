@@ -51,6 +51,8 @@ For the current server-side confirmation template, the confirmation link can use
 {{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email
 ```
 
+Password recovery uses `/auth/callback?next=/reset-password`. Keep the Supabase recovery email template's confirmation URL in place, and make sure the production `/auth/callback` URL is allowed in **Authentication → URL Configuration**.
+
 ## Deploying to Vercel
 
 1. Import the Git repository into Vercel.
