@@ -55,8 +55,11 @@ const itemSchema = z.object({
 });
 
 const practiceSchema = z.object({
-  note: z.string().trim().min(1, "Add a short note about your practice.").max(500),
-  rating: z.coerce.number().int().min(1).max(10),
+  note: z.string().trim().max(500),
+  rating: z.preprocess(
+    (value) => value === "" || value === null ? null : Number(value),
+    z.number().int().min(1).max(10).nullable(),
+  ),
   practicePart: z.string().trim().max(160, "Keep the practice tags under 160 characters.").optional().or(z.literal("")),
   youtubeUrl: z.string().trim().max(500).refine(
     (value) => !value || /^https:\/\/(www\.)?(youtube\.com|youtu\.be)\//i.test(value),
@@ -64,7 +67,10 @@ const practiceSchema = z.object({
   ).optional().or(z.literal("")),
   activitySlug: z.string().trim().min(1),
   itemSlug: z.string().trim().min(1),
-});
+}).refine(
+  (value) => Boolean(value.note || value.rating !== null || value.practicePart),
+  { message: "Add a note, session rating, or what you worked on." },
+);
 
 const songWorkspaceSchema = z.object({
   itemId: z.string().uuid(),
@@ -86,6 +92,7 @@ const editSongSchema = itemSchema.extend({
 });
 
 const timedPracticeSchema = z.object({
+  sessionId: z.string().uuid(),
   itemId: z.string().uuid(),
   itemSlug: z.string().trim().min(1),
   durationSeconds: z.coerce.number().int().min(1).max(43200),
@@ -378,7 +385,7 @@ export async function logPracticeAction(
   });
 
   if (!parsed.success) {
-    const message = parsed.error.issues[0]?.message ?? "Add a note before saving.";
+    const message = parsed.error.issues[0]?.message ?? "Add something about this practice before saving.";
     return mutationError(message);
   }
 
@@ -413,7 +420,7 @@ export async function logPracticeAction(
     activity_id: activity.id,
     item_id: item.id,
     content: normalizedNote,
-    rating: clampRating(parsed.data.rating, 10),
+    rating: parsed.data.rating === null ? null : clampRating(parsed.data.rating, 10),
     practice_part: normalizedPracticeParts || null,
   });
 
@@ -440,6 +447,7 @@ export async function logPracticeAction(
 }
 
 export async function saveTimedPracticeAction(input: {
+  sessionId: string;
   itemId: string;
   itemSlug: string;
   durationSeconds: number;
@@ -473,12 +481,14 @@ export async function saveTimedPracticeAction(input: {
     rating: parsed.data.rating ?? null,
     practice_part: serializePracticeTags(parsed.data.practicePart ?? "") || null,
     duration_seconds: parsed.data.durationSeconds,
+    client_session_id: parsed.data.sessionId,
   });
 
   if (error) {
+    if (error.code === "23505") return mutationSuccess();
     return mutationError(
       error.code === "42703" || error.code === "PGRST204"
-        ? "Run migration 0007_practice_time_and_public_profiles.sql before saving timed sessions."
+        ? "Run migrations 0007 and 0017 before saving timed sessions."
         : error.message,
     );
   }

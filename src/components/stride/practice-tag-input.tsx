@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { Plus, Tag, X } from "lucide-react";
 import { normalizePracticeTags, serializePracticeTags } from "@/lib/practice-tags";
 
@@ -9,16 +9,22 @@ export function PracticeTagInput({
   suggestions,
   optional = false,
   initialValue = "",
+  onValueChange,
 }: {
   name: string;
   suggestions: string[];
   optional?: boolean;
   initialValue?: string;
+  onValueChange?: (value: string) => void;
 }) {
   const inputId = useId();
   const [tags, setTags] = useState<string[]>(() => normalizePracticeTags(initialValue));
   const [draft, setDraft] = useState("");
   const normalizedSuggestions = normalizePracticeTags(suggestions.join(","));
+
+  useEffect(() => {
+    onValueChange?.(serializePracticeTags([...tags, draft].join(",")));
+  }, [draft, onValueChange, tags]);
 
   function addTags(values: string[]) {
     setTags(normalizePracticeTags([...tags, ...values].join(",")));

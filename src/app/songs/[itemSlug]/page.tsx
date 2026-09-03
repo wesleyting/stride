@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, ChevronDown, Clock3 } from "lucide-react";
 import { AppFrame } from "@/components/stride/app-frame";
 import { DeleteItemModal } from "@/components/stride/delete-item-modal";
@@ -34,7 +34,7 @@ export default async function SongPage({ params, searchParams }: PageProps<"/son
     supabase.from("items").select("id, activity_id, name, slug, difficulty, sort_order, is_archived, created_at, updated_at").eq("user_id", user.id).eq("activity_id", activity.data.id).eq("slug", itemSlug).single(),
     supabase.from("items").select("id, is_favorite, youtube_url, tuning, capo").eq("user_id", user.id).eq("activity_id", activity.data.id).eq("slug", itemSlug).maybeSingle(),
   ]);
-  if (base.error || !base.data) redirect("/songs");
+  if (base.error || !base.data) notFound();
   let extensionData = extension.data;
   if (extension.error?.code === "42703") {
     const fallback = await supabase.from("items").select("id, is_favorite, youtube_url").eq("user_id", user.id).eq("activity_id", activity.data.id).eq("slug", itemSlug).maybeSingle();
@@ -61,7 +61,7 @@ export default async function SongPage({ params, searchParams }: PageProps<"/son
   const totalTrackedSeconds = entries.reduce((total, entry) => total + (entry.duration_seconds ?? 0), 0);
   const weekTrackedSeconds = entriesWithinDays(entries, 7).reduce((total, entry) => total + (entry.duration_seconds ?? 0), 0);
 
-  return <AppFrame><main className="px-4 py-6 sm:px-7 sm:py-8">
+  return <AppFrame showSidebar><main className="min-w-0 flex-1 px-4 py-6 sm:px-7 sm:py-8">
     <header className="border-b border-stone-200 pb-6">
       <Link href={returnHref} className="inline-flex items-center gap-1.5 rounded-md text-sm text-stone-500 transition hover:text-stone-950 focus-visible:ring-2 focus-visible:ring-stone-500"><ArrowLeft className="size-4" aria-hidden="true" />{returnLabel}</Link>
       <div className="mt-4 flex flex-wrap items-start justify-between gap-4">

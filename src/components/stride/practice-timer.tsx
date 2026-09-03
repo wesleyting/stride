@@ -15,6 +15,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 type TimerSession = {
+  sessionId: string;
   itemId: string;
   itemSlug: string;
   itemName: string;
@@ -50,20 +51,26 @@ export function PracticeTimerProvider({ children }: { children: React.ReactNode 
   const finishFormRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
-    let storedTimer: TimerSession | null = null;
-    try {
-      const stored = window.localStorage.getItem(timerStorageKey);
-      if (stored) {
-        const parsed = JSON.parse(stored) as TimerSession;
-        if (parsed.itemId && parsed.itemSlug && parsed.itemName) storedTimer = parsed;
-      }
-    } catch {
-      window.localStorage.removeItem(timerStorageKey);
-    }
+    const storedTimer = readStoredTimer();
     queueMicrotask(() => {
       setTimer(storedTimer);
       setHydrated(true);
     });
+  }, []);
+
+  useEffect(() => {
+    function syncTimer(event: StorageEvent) {
+      if (event.key !== timerStorageKey) return;
+      const nextTimer = parseStoredTimer(event.newValue);
+      setTimer(nextTimer);
+      setNow(Date.now());
+      setFinishOpen(false);
+      setDiscardOpen(false);
+      setError("");
+    }
+
+    window.addEventListener("storage", syncTimer);
+    return () => window.removeEventListener("storage", syncTimer);
   }, []);
 
   useEffect(() => {
@@ -90,9 +97,16 @@ export function PracticeTimerProvider({ children }: { children: React.ReactNode 
     : 0;
 
   function start(target: SongTimerTarget, timestamp: number) {
-    if (timer) return;
+    const existingTimer = readStoredTimer();
+    if (timer || existingTimer) {
+      if (!timer && existingTimer) setTimer(existingTimer);
+      setNotice(`Finish ${timer?.itemName ?? existingTimer?.itemName ?? "the current song"} before starting another timer.`);
+      return;
+    }
+    const nextTimer = { ...target, sessionId: crypto.randomUUID(), startedAt: timestamp, accumulatedSeconds: 0 };
     setNow(timestamp);
-    setTimer({ ...target, startedAt: timestamp, accumulatedSeconds: 0 });
+    window.localStorage.setItem(timerStorageKey, JSON.stringify(nextTimer));
+    setTimer(nextTimer);
     setError("");
     resetDetails();
   }
@@ -152,6 +166,7 @@ export function PracticeTimerProvider({ children }: { children: React.ReactNode 
     const durationSeconds = Math.max(1, timer.accumulatedSeconds);
     const details = finishFormRef.current ? new FormData(finishFormRef.current) : null;
     const result = await saveTimedPracticeAction({
+      sessionId: timer.sessionId,
       itemId: timer.itemId,
       itemSlug: timer.itemSlug,
       durationSeconds,
@@ -422,4 +437,28 @@ function formatStopwatch(seconds: number) {
   return hours
     ? `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(remainingSeconds).padStart(2, "0")}`
     : `${String(minutes).padStart(2, "0")}:${String(remainingSeconds).padStart(2, "0")}`;
+}
+
+function parseStoredTimer(value: string | null): TimerSession | null {
+  if (!value) return null;
+  try {
+    const parsed = JSON.parse(value) as Partial<TimerSession>;
+    if (!parsed.itemId || !parsed.itemSlug || !parsed.itemName) return null;
+    return {
+      sessionId: parsed.sessionId || crypto.randomUUID(),
+      itemId: parsed.itemId,
+      itemSlug: parsed.itemSlug,
+      itemName: parsed.itemName,
+      startedAt: typeof parsed.startedAt === "number" ? parsed.startedAt : null,
+      accumulatedSeconds: typeof parsed.accumulatedSeconds === "number" ? Math.max(0, parsed.accumulatedSeconds) : 0,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function readStoredTimer() {
+  const timer = parseStoredTimer(window.localStorage.getItem(timerStorageKey));
+  if (!timer) window.localStorage.removeItem(timerStorageKey);
+  return timer;
 }

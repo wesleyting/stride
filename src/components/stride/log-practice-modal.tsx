@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useActionState, useCallback, useEffect, useRef, useState } from "react";
 import { Gauge, Link2, Plus, Tags } from "lucide-react";
 import { logPracticeAction, type MutationState } from "@/app/actions";
 import { DialogShell } from "@/components/stride/dialog-shell";
@@ -11,6 +11,15 @@ import { cn } from "@/lib/utils";
 const initialState: MutationState = { success: false, error: null };
 const fieldClassName =
   "mt-1.5 w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-sm text-stone-950 shadow-sm outline-none transition placeholder:text-stone-400 hover:border-stone-400 focus:border-stone-500 focus:ring-2 focus:ring-stone-500/20";
+
+type PracticeDraft = {
+  note: string;
+  rating: number | null;
+  practicePart: string;
+  youtubeUrl: string;
+  showAreas: boolean;
+  showYoutube: boolean;
+};
 
 type LogPracticeModalProps = {
   activitySlug: string;
@@ -92,26 +101,69 @@ function PracticeForm({
     logPracticeAction,
     initialState,
   );
-  const [rating, setRating] = useState(6);
+  const [note, setNote] = useState("");
+  const [rating, setRating] = useState<number | null>(null);
+  const [practicePart, setPracticePart] = useState("");
+  const [youtubeUrl, setYoutubeUrl] = useState(currentYoutubeUrl);
   const [showAreas, setShowAreas] = useState(false);
   const [showYoutube, setShowYoutube] = useState(false);
   const [resetSignal, setResetSignal] = useState(0);
+  const [draftReady, setDraftReady] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const areasRef = useRef<HTMLDivElement>(null);
   const youtubeRef = useRef<HTMLDivElement>(null);
+  const draftKey = `stride-practice-draft:${itemSlug}`;
+
+  useEffect(() => {
+    let draft: Partial<PracticeDraft> | null = null;
+    try {
+      const stored = window.sessionStorage.getItem(draftKey);
+      if (stored) draft = JSON.parse(stored) as Partial<PracticeDraft>;
+    } catch {
+      window.sessionStorage.removeItem(draftKey);
+    }
+    queueMicrotask(() => {
+      if (draft) {
+        setNote(typeof draft.note === "string" ? draft.note : "");
+        setRating(typeof draft.rating === "number" ? draft.rating : null);
+        setPracticePart(typeof draft.practicePart === "string" ? draft.practicePart : "");
+        setYoutubeUrl(typeof draft.youtubeUrl === "string" ? draft.youtubeUrl : currentYoutubeUrl);
+        setShowAreas(Boolean(draft.showAreas || draft.practicePart));
+        setShowYoutube(Boolean(draft.showYoutube || draft.youtubeUrl && draft.youtubeUrl !== currentYoutubeUrl));
+        setResetSignal((value) => value + 1);
+      }
+      setDraftReady(true);
+    });
+  }, [currentYoutubeUrl, draftKey]);
+
+  useEffect(() => {
+    if (!draftReady) return;
+    const draft: PracticeDraft = { note, rating, practicePart, youtubeUrl, showAreas, showYoutube };
+    const hasDraft = Boolean(note.trim() || rating !== null || practicePart.trim() || youtubeUrl !== currentYoutubeUrl);
+    if (hasDraft) window.sessionStorage.setItem(draftKey, JSON.stringify(draft));
+    else window.sessionStorage.removeItem(draftKey);
+  }, [currentYoutubeUrl, draftKey, draftReady, note, practicePart, rating, showAreas, showYoutube, youtubeUrl]);
+
+  const handlePracticePartChange = useCallback((value: string) => {
+    setPracticePart(value);
+  }, []);
 
   useEffect(() => {
     if (state.success) {
       formRef.current?.reset();
       queueMicrotask(() => {
-        setRating(6);
+        window.sessionStorage.removeItem(draftKey);
+        setNote("");
+        setRating(null);
+        setPracticePart("");
+        setYoutubeUrl(currentYoutubeUrl);
         setShowAreas(false);
         setShowYoutube(false);
         setResetSignal((value) => value + 1);
       });
       close();
     }
-  }, [close, state.success]);
+  }, [close, currentYoutubeUrl, draftKey, state.success]);
 
   return (
     <form ref={formRef} action={formAction} className="grid gap-6">
@@ -135,7 +187,8 @@ function PracticeForm({
           id="practice-note"
           name="note"
           rows={4}
-          required
+          value={note}
+          onChange={(event) => setNote(event.target.value)}
           maxLength={500}
           placeholder="What improved, what was difficult, or anything you want to remember…"
           className={cn(fieldClassName, "min-h-24 resize-y py-3 leading-6")}
@@ -143,32 +196,19 @@ function PracticeForm({
       </div>
 
       <fieldset className="rounded-xl border border-stone-200 bg-white px-4 py-3">
-          <legend className="px-1 text-sm font-semibold text-stone-900">
-            <span className="flex items-center gap-2">
+          <label className="flex cursor-pointer items-center justify-between gap-3">
+            <span className="flex items-center gap-2 text-sm font-semibold text-stone-900">
               <Gauge className="size-4 text-stone-500" aria-hidden="true" />
               Session rating
+              <span className="font-normal text-stone-500">Optional</span>
             </span>
-          </legend>
-          <div className="mt-1 flex items-baseline justify-end">
-            <output className="text-2xl font-semibold tabular-nums text-stone-950">
-              {rating}<span className="text-sm font-normal text-stone-400">/10</span>
-            </output>
-          </div>
-          <input
-            type="range"
-            name="rating"
-            min="1"
-            max="10"
-            step="1"
-            value={rating}
-            onChange={(event) => setRating(Number(event.target.value))}
-            aria-label="Session rating out of 10"
-            className="mt-3 h-2 w-full cursor-pointer accent-stone-900"
-          />
-          <div className="mt-1 flex justify-between text-[0.7rem] text-stone-400">
-            <span>Tough</span>
-            <span>Great</span>
-          </div>
+            <input type="checkbox" checked={rating !== null} onChange={(event) => setRating(event.target.checked ? 6 : null)} className="size-4 accent-stone-900" />
+          </label>
+          {rating !== null ? <div className="mt-3 border-t border-stone-100 pt-3">
+            <div className="flex items-baseline justify-end"><output className="text-2xl font-semibold tabular-nums text-stone-950">{rating}<span className="text-sm font-normal text-stone-400">/10</span></output></div>
+            <input type="range" name="rating" min="1" max="10" step="1" value={rating} onChange={(event) => setRating(Number(event.target.value))} aria-label="Session rating out of 10" className="mt-3 h-2 w-full cursor-pointer accent-stone-900" />
+            <div className="mt-1 flex justify-between text-[0.7rem] text-stone-400"><span>Tough</span><span>Great</span></div>
+          </div> : <input type="hidden" name="rating" value="" />}
       </fieldset>
 
       <div className="border-t border-stone-200 pt-5">
@@ -179,11 +219,11 @@ function PracticeForm({
         </div>
       </div>
 
-      <div ref={areasRef} className={showAreas ? "block" : "hidden"}><PracticeTagInput key={resetSignal} name="practicePart" suggestions={previousParts} /></div>
+      <div ref={areasRef} className={showAreas ? "block" : "hidden"}><PracticeTagInput key={resetSignal} name="practicePart" suggestions={previousParts} optional initialValue={practicePart} onValueChange={handlePracticePartChange} /></div>
 
       <div ref={youtubeRef} className={showYoutube ? "block" : "hidden"}>
         <label htmlFor="practice-youtube" className="text-sm font-semibold text-stone-950">YouTube link</label>
-        <input id="practice-youtube" name="youtubeUrl" type="url" maxLength={500} defaultValue={currentYoutubeUrl} placeholder="https://www.youtube.com/watch?v=…" className={fieldClassName} />
+        <input id="practice-youtube" name="youtubeUrl" type="url" maxLength={500} value={youtubeUrl} onChange={(event) => setYoutubeUrl(event.target.value)} placeholder="https://www.youtube.com/watch?v=…" className={fieldClassName} />
       </div>
 
       <div className="flex flex-col-reverse gap-2 border-t border-stone-200 pt-4 sm:flex-row sm:justify-end">
