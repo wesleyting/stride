@@ -84,8 +84,11 @@ function PartialStar({ fill, className }: { fill: number; className: string }) {
   return (
     <span className={cn("relative block shrink-0", className)} aria-hidden="true">
       <Star className="absolute inset-0 size-full fill-transparent text-stone-300" strokeWidth={1.8} />
-      <span className="absolute inset-y-0 left-0 overflow-hidden" style={{ width: `${percentage}%` }}>
-        <Star className="absolute inset-0 size-full fill-amber-400 text-amber-500" strokeWidth={1.8} />
+      <span
+        className="absolute inset-0"
+        style={{ clipPath: `inset(0 ${100 - percentage}% 0 0)` }}
+      >
+        <Star className="size-full fill-amber-400 text-amber-500" strokeWidth={1.8} />
       </span>
     </span>
   );
