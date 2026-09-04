@@ -16,7 +16,7 @@ export function AuthShell({
   children: React.ReactNode;
 }) {
   return (
-    <main className="min-h-screen bg-stone-100 px-4 py-6 sm:px-6 sm:py-10">
+    <main className="stride-auth-enter min-h-screen bg-stone-100 px-4 py-6 sm:px-6 sm:py-10">
       <div className="mx-auto grid min-h-[calc(100vh-3rem)] max-w-5xl overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm md:min-h-[42rem] md:grid-cols-[minmax(0,0.9fr)_minmax(24rem,1.1fr)]">
         <section className="hidden border-r border-stone-200 bg-stone-950 p-9 text-white md:flex md:flex-col">
           <Link href="/" className="flex w-fit items-center gap-2 rounded-md text-lg font-semibold focus-visible:ring-2 focus-visible:ring-white">

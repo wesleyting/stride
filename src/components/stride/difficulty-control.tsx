@@ -1,9 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Star } from "lucide-react";
 import { updateItemDifficultyAction } from "@/app/actions";
-import { cn } from "@/lib/utils";
+import { StarRating } from "@/components/stride/star-rating";
 
 export function DifficultyControl({
   itemId,
@@ -19,10 +18,8 @@ export function DifficultyControl({
   compact?: boolean;
 }) {
   const [difficulty, setDifficulty] = useState(value);
-  const [preview, setPreview] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-  const visibleValue = preview ?? difficulty;
 
   function updateDifficulty(nextDifficulty: number) {
     const previousDifficulty = difficulty;
@@ -46,40 +43,7 @@ export function DifficultyControl({
 
   return (
     <div className="relative inline-flex shrink-0 items-center gap-1.5">
-      <div
-        className={cn("flex items-center", pending && "opacity-60")}
-        role="radiogroup"
-        aria-label="Song difficulty"
-        onMouseLeave={() => setPreview(null)}
-      >
-        {[1, 2, 3, 4, 5].map((star) => (
-          <button
-            key={star}
-            type="button"
-            role="radio"
-            aria-checked={difficulty === star}
-            aria-label={`Set difficulty to ${star} out of 5`}
-            title={`Set difficulty to ${star} out of 5`}
-            disabled={pending}
-            onMouseEnter={() => setPreview(star)}
-            onFocus={() => setPreview(star)}
-            onBlur={() => setPreview(null)}
-            onClick={() => updateDifficulty(star)}
-            className="cursor-pointer rounded-sm p-0.5 transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1 disabled:cursor-wait"
-          >
-            <Star
-              className={cn(
-                compact ? "size-3.5" : "size-4",
-                star <= visibleValue
-                  ? "fill-amber-400 text-amber-500"
-                  : "fill-transparent text-stone-300",
-              )}
-              strokeWidth={1.8}
-              aria-hidden="true"
-            />
-          </button>
-        ))}
-      </div>
+      <StarRating value={difficulty} onChange={updateDifficulty} disabled={pending} size={compact ? "sm" : "md"} />
       {error ? (
         <span
           role="alert"

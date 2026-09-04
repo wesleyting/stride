@@ -1,12 +1,13 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { ArrowLeft, BookOpen, CalendarDays, ChevronDown, ChevronRight, Clock3, ExternalLink, FileImage, LockKeyhole, NotebookPen, Play, Settings, Star, TimerReset } from "lucide-react";
+import { ArrowLeft, BookOpen, CalendarDays, ChevronDown, ChevronRight, Clock3, ExternalLink, FileImage, LockKeyhole, NotebookPen, Play, Settings, TimerReset } from "lucide-react";
 import { AppFrame } from "@/components/stride/app-frame";
 import { CopyLinkButton } from "@/components/stride/copy-link-button";
 import { PublicHistoryPagination } from "@/components/stride/public-history-pagination";
 import { PublicMediaGallery } from "@/components/stride/public-media-gallery";
 import { SessionSidebarFooter } from "@/components/stride/session-sidebar-footer";
+import { StarRating } from "@/components/stride/star-rating";
 import { createClient } from "@/lib/supabase/server";
 import { normalizePracticeTags } from "@/lib/practice-tags";
 import { formatCompactLogDate, formatTrackedTime, titleCaseSongName, type PublicProfileRecord } from "@/lib/stride";
@@ -136,7 +137,7 @@ function PrivacySummary({ profile, isOwner }: { profile: PublicProfileRecord; is
   return <section className="mt-8 rounded-xl border border-stone-200 bg-stone-50 px-4 py-4"><div className="flex items-start gap-3"><LockKeyhole className="mt-0.5 size-4 shrink-0 text-stone-500" aria-hidden="true" /><div className="min-w-0"><h2 className="text-sm font-semibold text-stone-900">Not Shared</h2><p className="mt-1 text-sm leading-6 text-stone-600">{hidden.map((item) => item.label).join(", ")} {hidden.length === 1 ? "is" : "are"} private on this profile.</p>{isOwner ? <Link href="/settings" className="mt-2 inline-flex text-sm font-semibold text-stone-800 underline underline-offset-4 hover:text-stone-950">Choose what to share</Link> : null}</div></div></section>;
 }
 
-function Difficulty({ value }: { value: number | null }) { return <span className="flex gap-0.5" aria-label={`Difficulty ${value} out of 5`}>{Array.from({ length: 5 }, (_, index) => <Star key={index} className={`size-3.5 ${index < Number(value) ? "fill-amber-400 text-amber-400" : "text-stone-300"}`} aria-hidden="true" />)}</span>; }
+function Difficulty({ value }: { value: number | null }) { return <StarRating value={Number(value)} size="sm" />; }
 function EmptyShared({ label }: { label: string }) { return <p className="mt-3 rounded-xl border border-dashed border-stone-300 bg-stone-50 px-4 py-6 text-center text-sm text-stone-500">{label}</p>; }
 function ProfileMetric({ icon: Icon, value, label }: { icon: typeof Clock3; value: string; label: string }) { return <div className="rounded-xl border border-stone-200 bg-white px-4 py-4"><Icon className="size-4 text-stone-500" aria-hidden="true" /><p className="mt-3 text-xl font-semibold tabular-nums text-stone-950">{value}</p><p className="mt-0.5 text-xs text-stone-500">{label}</p></div>; }
 function parsePage(value: string | string[] | undefined) { const parsed = Number(Array.isArray(value) ? value[0] : value); return Number.isInteger(parsed) && parsed > 0 ? parsed : null; }

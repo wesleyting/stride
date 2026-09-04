@@ -1,3 +1,4 @@
+import { ViewTransition } from "react";
 import { DesktopNavigation, MobileNavigation } from "@/components/stride/app-navigation";
 import { cn } from "@/lib/utils";
 
@@ -19,7 +20,15 @@ export function AppFrame({
         )}
       >
         {showSidebar ? <DesktopNavigation footer={sidebarFooter} /> : null}
-        {children}
+        <ViewTransition
+          name="stride-page-content"
+          share="stride-page"
+          enter="stride-page-enter"
+          exit="stride-page-exit"
+          default="none"
+        >
+          {children}
+        </ViewTransition>
       </div>
       {showSidebar ? <MobileNavigation /> : null}
     </div>

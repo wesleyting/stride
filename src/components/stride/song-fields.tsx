@@ -1,9 +1,8 @@
 "use client";
 
-import { Star } from "lucide-react";
 import { CustomSelect } from "@/components/ui/custom-select";
+import { StarRating } from "@/components/stride/star-rating";
 import { GUITAR_TUNINGS } from "@/lib/stride";
-import { cn } from "@/lib/utils";
 
 export const songFieldClassName =
   "w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-sm text-stone-950 shadow-sm outline-none transition placeholder:text-stone-400 hover:border-stone-400 focus:border-stone-500 focus:ring-2 focus:ring-stone-500/20";
@@ -12,13 +11,10 @@ export function DifficultyField({ value, onChange }: { value: number; onChange: 
   return (
     <fieldset>
       <legend className="text-sm font-semibold text-stone-900">Difficulty</legend>
-      <div className="mt-2 flex w-48 items-center justify-between" role="radiogroup">
-        {[1, 2, 3, 4, 5].map((difficulty) => (
-          <label key={difficulty} className="cursor-pointer rounded-md p-1 transition-colors hover:bg-stone-100 focus-within:ring-2 focus-within:ring-stone-500 focus-within:ring-offset-2" title={`Difficulty ${difficulty} out of 5`}>
-            <input type="radio" name="difficulty" value={difficulty} checked={value === difficulty} onChange={() => onChange(difficulty)} className="sr-only" aria-label={`Difficulty ${difficulty} out of 5`} />
-            <Star className={cn("size-6 transition-colors", difficulty <= value ? "fill-amber-400 text-amber-500" : "fill-transparent text-stone-300")} strokeWidth={1.7} aria-hidden="true" />
-          </label>
-        ))}
+      <input type="hidden" name="difficulty" value={value} />
+      <div className="mt-2 flex w-48 items-center">
+        <StarRating value={value} onChange={onChange} size="lg" />
+        <output className="ml-3 min-w-8 text-sm font-semibold tabular-nums text-stone-700">{Number.isInteger(value) ? value : value.toFixed(1)}</output>
       </div>
       <div className="mt-1 flex w-48 justify-between text-xs text-stone-500"><span>Easy</span><span>Hard</span></div>
     </fieldset>

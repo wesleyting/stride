@@ -41,9 +41,14 @@ const activitySchema = z.object({
     .or(z.literal("")),
 });
 
+const difficultySchema = z.coerce.number().min(0.5).max(5).refine(
+  (value) => Number.isInteger(value * 2),
+  "Choose a difficulty in half-star steps.",
+);
+
 const itemSchema = z.object({
   name: z.string().trim().min(2, "Item names need at least 2 characters.").max(60),
-  difficulty: z.coerce.number().int().min(1).max(5),
+  difficulty: difficultySchema,
   youtubeUrl: z.string().trim().max(500).refine(
     (value) => !value || /^https:\/\/(www\.)?(youtube\.com|youtu\.be)\//i.test(value),
     "Use a YouTube or youtu.be link.",
@@ -221,7 +226,7 @@ export async function signUpAction(formData: FormData) {
     redirect(next);
   }
 
-  redirect(authRedirectPath("/sign-in", next, "message", "Account created. Check your email to finish signing in."));
+  redirect(authRedirectPath("/sign-up", next, "message", "Check your inbox to confirm your email, then Stride will bring you back to where you left off."));
 }
 
 export async function signOutAction() {
@@ -638,7 +643,7 @@ export async function updateItemDifficultyAction(formData: FormData) {
     itemId: z.string().uuid(),
     itemSlug: z.string().trim().min(1),
     activitySlug: z.string().trim().min(1),
-    difficulty: z.coerce.number().int().min(1).max(5),
+    difficulty: difficultySchema,
   }).safeParse({
     itemId: formData.get("itemId"),
     itemSlug: formData.get("itemSlug"),
@@ -646,7 +651,7 @@ export async function updateItemDifficultyAction(formData: FormData) {
     difficulty: formData.get("difficulty"),
   });
 
-  if (!parsed.success) return mutationError("Choose a difficulty from 1 to 5.");
+  if (!parsed.success) return mutationError("Choose a difficulty from 0.5 to 5 in half-star steps.");
 
   const { error } = await supabase
     .from("items")
