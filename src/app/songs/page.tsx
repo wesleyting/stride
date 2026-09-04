@@ -8,7 +8,7 @@ import { signOutAction } from "@/app/actions";
 export const dynamic = "force-dynamic";
 
 export default async function SongsPage() {
-  const { supabase, user } = await requireUser();
+  const { supabase, user } = await requireUser("/songs");
   const activity = await supabase.from("activities").select("id").eq("user_id", user.id).eq("slug", "guitar").maybeSingle();
   if (activity.error) throw activity.error;
   let songs: ItemRecord[] = [];

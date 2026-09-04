@@ -4,10 +4,19 @@ test("authentication entry points are usable on a small screen", async ({ page }
   await page.setViewportSize({ width: 375, height: 760 });
   await page.goto("/sign-in");
 
-  await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Continue Your Practice" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Forgot password?" })).toHaveAttribute("href", "/forgot-password");
-  await expect(page.getByRole("link", { name: "Create an account" })).toHaveAttribute("href", "/sign-up");
+  await expect(page.getByRole("link", { name: "Create an account" })).toHaveAttribute("href", "/sign-up?next=%2F");
   await expect(page.locator("body")).toHaveJSProperty("scrollWidth", 375);
+});
+
+test("signed-out visitors can preview the dashboard before creating an account", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: "Guitar" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Add Your First Song" }).first()).toBeVisible();
+  await page.getByRole("button", { name: "Add Song" }).first().click();
+  await expect(page.getByRole("dialog", { name: "Start Your Guitar Log" })).toBeVisible();
+  await expect(page.getByRole("dialog").getByRole("link", { name: "Create Account" })).toHaveAttribute("href", /next=%2F%3Faction%3Dadd-song/);
 });
 
 test("a signed-in user can create a song, log practice, and still see it after reload", async ({ page }) => {

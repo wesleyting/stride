@@ -26,7 +26,7 @@ export default async function SongPage({ params, searchParams }: PageProps<"/son
   const openedFromHome = from === "home";
   const returnHref = openedFromHome ? "/" : "/songs";
   const returnLabel = openedFromHome ? "Home" : "All Songs";
-  const { supabase, user } = await requireUser();
+  const { supabase, user } = await requireUser(`/songs/${itemSlug}${openedFromHome ? "?from=home" : ""}`);
   const activity = await supabase.from("activities").select("id").eq("user_id", user.id).eq("slug", "guitar").maybeSingle();
   if (activity.error || !activity.data) redirect("/");
 

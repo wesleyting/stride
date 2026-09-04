@@ -7,6 +7,7 @@ import { CopyLinkButton } from "@/components/stride/copy-link-button";
 import { PublicHistoryPagination } from "@/components/stride/public-history-pagination";
 import { PublicMediaGallery } from "@/components/stride/public-media-gallery";
 import { SongSetup } from "@/components/stride/song-setup";
+import { SessionSidebarFooter } from "@/components/stride/session-sidebar-footer";
 import { normalizePracticeTags } from "@/lib/practice-tags";
 import { createClient } from "@/lib/supabase/server";
 import { formatCompactLogDate, formatTrackedTime, titleCaseSongName } from "@/lib/stride";
@@ -48,6 +49,7 @@ export default async function PublicSongPage({
   const query = await searchParams;
   const requestedPage = parsePage(query.historyPage);
   const supabase = await createClient();
+  const { data: authData } = await supabase.auth.getUser();
   const songResult = await supabase.rpc("get_public_song", { profile_username: username.toLowerCase(), public_song_slug: songSlug });
   if (songResult.error || !songResult.data?.length) notFound();
   const song = songResult.data[0] as PublicSong;
@@ -93,7 +95,7 @@ export default async function PublicSongPage({
 
   const totalPages = Math.max(1, Math.ceil(entryCount / ENTRIES_PER_PAGE));
 
-  return <AppFrame showSidebar><main className="min-w-0 flex-1 px-4 py-6 sm:px-7 sm:py-8">
+  return <AppFrame showSidebar sidebarFooter={<SessionSidebarFooter signedIn={Boolean(authData.user)} next={path} />}><main className="min-w-0 flex-1 px-4 py-6 sm:px-7 sm:py-8">
     <p className="mb-4 text-xs font-semibold tracking-wide text-stone-500 uppercase">Viewing @{song.username}&apos;s public song</p>
     <nav className="flex flex-wrap items-center gap-1.5 text-sm text-stone-500" aria-label="Breadcrumb"><Link href={`/people/${song.username}`} className="rounded-md hover:text-stone-950 focus-visible:ring-2 focus-visible:ring-stone-500">{song.display_name}</Link><ChevronRight className="size-3.5" aria-hidden="true" /><span className="text-stone-700">{titleCaseSongName(song.song_name)}</span></nav>
     <header className="mt-5 flex flex-wrap items-start justify-between gap-4 border-b border-stone-200 pb-6"><div><span className="inline-flex rounded-full bg-stone-100 px-2.5 py-1 text-xs font-semibold text-stone-600">Shared Song</span><h1 className="mt-3 text-3xl font-semibold tracking-tight text-stone-950">{titleCaseSongName(song.song_name)}</h1><Link href={`/people/${song.username}`} className="mt-1 inline-flex text-sm text-stone-500 hover:text-stone-900">by {song.display_name} · @{song.username}</Link></div><CopyLinkButton path={path} label="Copy Song Link" /></header>

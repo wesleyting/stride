@@ -7,7 +7,7 @@ import { requireUser } from "@/lib/auth";
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
-  const { supabase, user } = await requireUser();
+  const { supabase, user } = await requireUser("/settings");
   const result = await supabase
     .from("profiles")
     .select("username, display_name, bio, is_public, share_song_library, share_practice_logs, share_song_resources")

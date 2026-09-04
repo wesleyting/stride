@@ -7,11 +7,12 @@ type UserResult = {
   user: User | null;
 };
 
-export async function requireUser() {
+export async function requireUser(next = "/") {
   const result = await getUser();
 
   if (!result.user) {
-    redirect("/sign-in");
+    const params = new URLSearchParams({ next });
+    redirect(`/sign-in?${params.toString()}`);
   }
 
   return result as { supabase: UserResult["supabase"]; user: User };

@@ -8,16 +8,21 @@ import { HomeSongPreviewModal } from "@/components/stride/home-song-preview-moda
 import { LogPracticeModal } from "@/components/stride/log-practice-modal";
 import { StartPracticeTimerButton } from "@/components/stride/practice-timer";
 import { SongWorkspaceModal } from "@/components/stride/song-workspace-modal";
+import { SignedOutDashboard } from "@/components/stride/signed-out-dashboard";
 import { buttonVariants } from "@/components/ui/button";
-import { requireUser } from "@/lib/auth";
+import { getUser } from "@/lib/auth";
 import { calculatePracticeStreak, entriesWithinDays, formatCompactLogDate, formatTrackedTime, titleCaseSongName, type EntryRecord, type ItemRecord } from "@/lib/stride";
 import { signOutAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 type ItemExtension = Pick<ItemRecord, "id" | "is_favorite" | "pin_position" | "youtube_url" | "tuning" | "capo">;
 
-export default async function GuitarDashboard() {
-  const { supabase, user } = await requireUser();
+export default async function GuitarDashboard({ searchParams }: PageProps<"/">) {
+  const auth = await getUser();
+  if (!auth.user) return <SignedOutDashboard />;
+  const { supabase, user } = auth;
+  const query = await searchParams;
+  const openAddSong = query.action === "add-song";
   const activityResult = await supabase.from("activities").select("id, name, slug, kind").eq("user_id", user.id).eq("slug", "guitar").maybeSingle();
   if (activityResult.error) throw activityResult.error;
   const guitar = activityResult.data;
@@ -62,7 +67,7 @@ export default async function GuitarDashboard() {
       <main className="min-w-0 flex-1 px-4 py-6 sm:px-7 sm:py-8">
         <header className="flex flex-wrap items-start justify-between gap-4">
           <h1 className="text-2xl font-semibold tracking-tight text-stone-950">Guitar</h1>
-          <CreateItemModal activitySlug="guitar" activityKind="practice" />
+          <CreateItemModal activitySlug="guitar" activityKind="practice" defaultOpen={openAddSong} />
         </header>
 
         <section className="mt-7 grid gap-3 sm:grid-cols-3" aria-label="Practice overview"><Metric icon={Flame} value={streak ? `${streak} day${streak === 1 ? "" : "s"}` : "Start today"} label="Current practice streak" /><Metric icon={CalendarDays} value={`${weekEntries.length}`} label="Sessions in the last 7 days" /><Metric icon={Clock3} value={formatTrackedTime(trackedSecondsThisWeek)} label="Tracked practice this week" /></section>

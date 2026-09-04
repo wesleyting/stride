@@ -6,6 +6,7 @@ import { AppFrame } from "@/components/stride/app-frame";
 import { CopyLinkButton } from "@/components/stride/copy-link-button";
 import { PublicHistoryPagination } from "@/components/stride/public-history-pagination";
 import { PublicMediaGallery } from "@/components/stride/public-media-gallery";
+import { SessionSidebarFooter } from "@/components/stride/session-sidebar-footer";
 import { createClient } from "@/lib/supabase/server";
 import { normalizePracticeTags } from "@/lib/practice-tags";
 import { formatCompactLogDate, formatTrackedTime, titleCaseSongName, type PublicProfileRecord } from "@/lib/stride";
@@ -95,7 +96,7 @@ export default async function PublicProfilePage({
 
   const totalPages = Math.max(1, Math.ceil(entryCount / ENTRIES_PER_PAGE));
 
-  return <AppFrame showSidebar><main className="min-w-0 flex-1 px-4 py-6 sm:px-7 sm:py-8">
+  return <AppFrame showSidebar sidebarFooter={<SessionSidebarFooter signedIn={Boolean(authData.user)} next={`/people/${profile.username}`} />}><main className="min-w-0 flex-1 px-4 py-6 sm:px-7 sm:py-8">
     <p className="mb-4 text-xs font-semibold tracking-wide text-stone-500 uppercase">Viewing @{profile.username}&apos;s public profile</p>
     <Link href="/community" className="inline-flex items-center gap-1.5 rounded-md text-sm text-stone-500 transition hover:text-stone-950 focus-visible:ring-2 focus-visible:ring-stone-500"><ArrowLeft className="size-4" aria-hidden="true" />Community</Link>
     <header className="mt-5 flex flex-wrap items-start justify-between gap-4 border-b border-stone-200 pb-6">

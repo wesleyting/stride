@@ -14,7 +14,8 @@ export async function GET(request: Request) {
     if (!error) return NextResponse.redirect(new URL(next, requestUrl.origin));
   }
 
-  return NextResponse.redirect(new URL("/sign-in?error=Could%20not%20confirm%20your%20account.", requestUrl.origin));
+  const params = new URLSearchParams({ error: "Could not confirm your account.", next });
+  return NextResponse.redirect(new URL(`/sign-in?${params.toString()}`, requestUrl.origin));
 }
 
 function safeNextPath(value: string | null) {

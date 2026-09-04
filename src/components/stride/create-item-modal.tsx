@@ -15,11 +15,19 @@ const initialState: MutationState = {
 export function CreateItemModal({
   activitySlug,
   activityKind,
+  defaultOpen = false,
 }: {
   activitySlug: string;
   activityKind: "practice" | "journal" | "fitness" | "projects";
+  defaultOpen?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
+
+  useEffect(() => {
+    if (defaultOpen && window.location.search.includes("action=add-song")) {
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+  }, [defaultOpen]);
 
   const actionLabel =
     activityKind === "practice"

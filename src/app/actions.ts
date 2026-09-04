@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getSiteUrl } from "@/lib/site";
+import { safeReturnPath } from "@/lib/return-path";
 import { serializePracticeTags } from "@/lib/practice-tags";
 import {
   clampRating,
@@ -148,6 +149,11 @@ function errorQuery(message: string) {
   return `?error=${encodeURIComponent(message)}`;
 }
 
+function authRedirectPath(path: "/sign-in" | "/sign-up", next: string, key: "error" | "message", message: string) {
+  const params = new URLSearchParams({ [key]: message, next });
+  return `${path}?${params.toString()}`;
+}
+
 function mutationError(message: string): MutationState {
   return { success: false, error: message };
 }
@@ -168,56 +174,60 @@ async function getSignedInUser() {
 }
 
 export async function signInAction(formData: FormData) {
+  const next = safeReturnPath(formData.get("next"));
   const parsed = authSchema.safeParse({
     email: formData.get("email"),
     password: formData.get("password"),
   });
 
   if (!parsed.success) {
-    redirect(`/sign-in${errorQuery(parsed.error.issues[0]?.message ?? "Check your email and password.")}`);
+    redirect(authRedirectPath("/sign-in", next, "error", parsed.error.issues[0]?.message ?? "Check your email and password."));
   }
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword(parsed.data);
 
   if (error) {
-    redirect(`/sign-in${errorQuery("Could not sign you in. Check your email and password.")}`);
+    redirect(authRedirectPath("/sign-in", next, "error", "Could not sign you in. Check your email and password."));
   }
 
-  redirect("/");
+  redirect(next);
 }
 
 export async function signUpAction(formData: FormData) {
+  const next = safeReturnPath(formData.get("next"));
   const parsed = authSchema.safeParse({
     email: formData.get("email"),
     password: formData.get("password"),
   });
 
   if (!parsed.success) {
-    redirect(`/sign-up${errorQuery(parsed.error.issues[0]?.message ?? "Check your email and password.")}`);
+    redirect(authRedirectPath("/sign-up", next, "error", parsed.error.issues[0]?.message ?? "Check your email and password."));
   }
 
   const supabase = await createClient();
+  const emailRedirect = new URL("/auth/callback", getSiteUrl());
+  emailRedirect.searchParams.set("next", next);
   const { data, error } = await supabase.auth.signUp({
     ...parsed.data,
-    options: { emailRedirectTo: new URL("/auth/callback", getSiteUrl()).toString() },
+    options: { emailRedirectTo: emailRedirect.toString() },
   });
 
   if (error) {
-    redirect(`/sign-up${errorQuery(error.message)}`);
+    redirect(authRedirectPath("/sign-up", next, "error", error.message));
   }
 
   if (data.session) {
-    redirect("/");
+    redirect(next);
   }
 
-  redirect(`/sign-in?message=${encodeURIComponent("Account created. Check your email if confirmation is enabled.")}`);
+  redirect(authRedirectPath("/sign-in", next, "message", "Account created. Check your email to finish signing in."));
 }
 
 export async function signOutAction() {
   const { supabase } = await getSignedInUser();
   await supabase.auth.signOut();
-  redirect("/sign-in");
+  redirect("/");
 }
 
 export async function requestPasswordResetAction(formData: FormData) {

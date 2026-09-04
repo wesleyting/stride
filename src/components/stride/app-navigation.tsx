@@ -22,7 +22,7 @@ export function DesktopNavigation({ footer }: { footer?: React.ReactNode }) {
   const pathname = usePathname();
 
   return (
-    <aside className="hidden w-52 shrink-0 flex-col border-r border-stone-200 bg-stone-50 px-3 py-5 md:flex">
+    <aside className="hidden w-52 shrink-0 flex-col border-r border-stone-200 bg-stone-50 px-3 py-5 md:flex xl:w-56">
       <Link
         href="/"
         className="flex items-center gap-2 rounded-md px-2 py-1.5 text-base font-semibold text-stone-950 focus-visible:ring-2 focus-visible:ring-stone-500"
