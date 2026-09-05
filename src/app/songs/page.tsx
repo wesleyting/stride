@@ -1,9 +1,9 @@
 import { AppFrame } from "@/components/stride/app-frame";
 import { CreateItemModal } from "@/components/stride/create-item-modal";
 import { SongLibrary } from "@/components/stride/song-library";
+import { SessionSidebarFooter } from "@/components/stride/session-sidebar-footer";
 import { requireUser } from "@/lib/auth";
 import type { EntryRecord, ItemRecord } from "@/lib/stride";
-import { signOutAction } from "@/app/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -31,5 +31,6 @@ export default async function SongsPage() {
     entries = (entryResult.data ?? []) as EntryRecord[];
   }
 
-  return <AppFrame showSidebar sidebarFooter={<form action={signOutAction}><button type="submit" className="w-full rounded-md px-3 py-2 text-left text-sm text-stone-500 transition hover:bg-stone-100">Sign out</button></form>}><main className="min-w-0 flex-1 px-4 py-6 sm:px-7 sm:py-8"><header className="flex items-start justify-between gap-4"><h1 className="text-2xl font-semibold tracking-tight text-stone-950">All songs</h1><CreateItemModal activitySlug="guitar" activityKind="practice" /></header><SongLibrary songs={songs} entries={entries} /></main></AppFrame>;
+  const isGuest = user.is_anonymous === true;
+  return <AppFrame showSidebar sidebarFooter={<SessionSidebarFooter signedIn isGuest={isGuest} next="/songs" />}><main className="min-w-0 flex-1 px-4 py-6 sm:px-7 sm:py-8"><header className="flex items-start justify-between gap-4"><h1 className="text-2xl font-semibold tracking-tight text-stone-950">All songs</h1><CreateItemModal activitySlug="guitar" activityKind="practice" isGuest={isGuest} /></header><SongLibrary songs={songs} entries={entries} /></main></AppFrame>;
 }

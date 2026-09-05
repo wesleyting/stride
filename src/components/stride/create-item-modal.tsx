@@ -1,7 +1,8 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
-import { Plus } from "lucide-react";
+import Link from "next/link";
+import { Eye, Lock, Plus } from "lucide-react";
 import { createItemAction, type MutationState } from "@/app/actions";
 import { DialogShell } from "@/components/stride/dialog-shell";
 import { DifficultyField, OptionalSongFields, songFieldClassName } from "@/components/stride/song-fields";
@@ -16,10 +17,14 @@ export function CreateItemModal({
   activitySlug,
   activityKind,
   defaultOpen = false,
+  createdFrom = "songs",
+  isGuest = false,
 }: {
   activitySlug: string;
   activityKind: "practice" | "journal" | "fitness" | "projects";
   defaultOpen?: boolean;
+  createdFrom?: "home" | "songs";
+  isGuest?: boolean;
 }) {
   const [open, setOpen] = useState(defaultOpen);
 
@@ -60,6 +65,8 @@ export function CreateItemModal({
             activitySlug={activitySlug}
             activityKind={activityKind}
             actionLabel={actionLabel}
+            createdFrom={createdFrom}
+            isGuest={isGuest}
             close={() => setOpen(false)}
           />
         ) : null}
@@ -72,11 +79,15 @@ function ItemForm({
   activitySlug,
   activityKind,
   actionLabel,
+  createdFrom,
+  isGuest,
   close,
 }: {
   activitySlug: string;
   activityKind: "practice" | "journal" | "fitness" | "projects";
   actionLabel: string;
+  createdFrom: "home" | "songs";
+  isGuest: boolean;
   close: () => void;
 }) {
   const [state, formAction, pending] = useActionState(
@@ -84,6 +95,7 @@ function ItemForm({
     initialState,
   );
   const [difficulty, setDifficulty] = useState(3);
+  const [isPublic, setIsPublic] = useState(false);
 
   useEffect(() => {
     if (state.success) {
@@ -94,6 +106,7 @@ function ItemForm({
   return (
     <form action={formAction} className="grid gap-5 text-left">
       <input type="hidden" name="activitySlug" value={activitySlug} />
+      <input type="hidden" name="createdFrom" value={createdFrom} />
 
       {state.error ? (
         <div
@@ -124,6 +137,8 @@ function ItemForm({
 
       {activityKind === "practice" ? <OptionalSongFields /> : null}
 
+      {activityKind === "practice" ? <VisibilityField isPublic={isPublic} setIsPublic={setIsPublic} isGuest={isGuest} /> : null}
+
       <div className="flex justify-end gap-2 border-t border-stone-200 pt-4">
         <button
           type="button"
@@ -137,5 +152,25 @@ function ItemForm({
         </button>
       </div>
     </form>
+  );
+}
+
+function VisibilityField({ isPublic, setIsPublic, isGuest }: { isPublic: boolean; setIsPublic: (value: boolean) => void; isGuest: boolean }) {
+  return (
+    <fieldset className="border-t border-stone-200 pt-4">
+      <legend className="text-sm font-semibold text-stone-900">Visibility</legend>
+      <input type="hidden" name="isPublic" value={String(isPublic)} />
+      <div className="mt-2 grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Song visibility">
+        <button type="button" role="radio" aria-checked={!isPublic} onClick={() => setIsPublic(false)} className={`flex items-start gap-3 rounded-xl border px-4 py-3 text-left transition focus-visible:ring-2 focus-visible:ring-stone-500 ${!isPublic ? "border-stone-900 bg-stone-50 ring-1 ring-stone-900" : "border-stone-200 hover:border-stone-300"}`}>
+          <Lock className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+          <span><span className="block text-sm font-semibold">Only Me</span><span className="mt-0.5 block text-xs leading-5 text-stone-500">Private by default</span></span>
+        </button>
+        <button type="button" role="radio" aria-checked={isPublic} onClick={() => { if (!isGuest) setIsPublic(true); }} aria-disabled={isGuest} className={`flex items-start gap-3 rounded-xl border px-4 py-3 text-left transition focus-visible:ring-2 focus-visible:ring-stone-500 ${isPublic ? "border-stone-900 bg-stone-50 ring-1 ring-stone-900" : isGuest ? "cursor-not-allowed border-stone-200 bg-stone-50 text-stone-400" : "border-stone-200 hover:border-stone-300"}`}>
+          <Eye className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+          <span><span className="block text-sm font-semibold">Public</span><span className="mt-0.5 block text-xs leading-5 text-stone-500">Share from your profile</span></span>
+        </button>
+      </div>
+      {isGuest ? <p className="mt-2 text-xs leading-5 text-stone-500"><Link href="/sign-up" className="font-semibold text-stone-800 underline-offset-4 hover:underline">Save your progress</Link> to publish songs. You can keep using every private practice feature as a guest.</p> : null}
+    </fieldset>
   );
 }

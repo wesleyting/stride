@@ -13,9 +13,10 @@ Stride is a guitar-practice tracker that helps you resume each song with useful 
 
 1. Create a Supabase project.
 2. In the Supabase SQL Editor, run every file in `supabase/migrations/` in numeric order.
-3. Copy `.env.example` to `.env.local`.
-4. Fill in the three environment variables described below.
-5. Install dependencies and start the app:
+3. In **Authentication → Providers → Anonymous Sign-Ins**, enable anonymous sign-ins.
+4. Copy `.env.example` to `.env.local`.
+5. Fill in the three environment variables described below.
+6. Install dependencies and start the app:
 
 ```bash
 corepack pnpm install
@@ -52,6 +53,12 @@ For the current server-side confirmation template, the confirmation link can use
 ```
 
 Password recovery uses `/auth/callback?next=/reset-password`. Keep the Supabase recovery email template's confirmation URL in place, and make sure the production `/auth/callback` URL is allowed in **Authentication → URL Configuration**.
+
+Keep the **Change email address** template's `{{ .ConfirmationURL }}` link intact. Stride supplies an allowed `/auth/callback` redirect so a guest returns to the password step after confirming their email.
+
+Guest visitors receive an anonymous Supabase user only when they choose **Add Song**. They can use the complete private practice workflow and later attach an email and password without changing ownership of their data. Public profiles, public songs, and media uploads require a permanent account. Before opening guest access broadly, add Cloudflare Turnstile or another supported CAPTCHA token to the guest-start flow, then enable the matching CAPTCHA integration in Supabase.
+
+Supabase does not automatically remove abandoned anonymous users. Periodically remove old guest accounts after choosing an appropriate retention window; application records are deleted with them through the existing foreign-key cascades.
 
 ## Deploying to Vercel
 

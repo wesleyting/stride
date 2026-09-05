@@ -15,7 +15,16 @@ export async function requireUser(next = "/") {
     redirect(`/sign-in?${params.toString()}`);
   }
 
+  if (isAccountSetupPending(result.user)) {
+    const params = new URLSearchParams({ next });
+    redirect(`/finish-sign-up?${params.toString()}`);
+  }
+
   return result as { supabase: UserResult["supabase"]; user: User };
+}
+
+export function isAccountSetupPending(user: User) {
+  return user.user_metadata?.stride_account_setup_pending === true;
 }
 
 export async function getUser(): Promise<UserResult> {

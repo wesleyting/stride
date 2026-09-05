@@ -97,7 +97,7 @@ export default async function PublicProfilePage({
 
   const totalPages = Math.max(1, Math.ceil(entryCount / ENTRIES_PER_PAGE));
 
-  return <AppFrame showSidebar sidebarFooter={<SessionSidebarFooter signedIn={Boolean(authData.user)} next={`/people/${profile.username}`} />}><main className="min-w-0 flex-1 px-4 py-6 sm:px-7 sm:py-8">
+  return <AppFrame showSidebar sidebarFooter={<SessionSidebarFooter signedIn={Boolean(authData.user)} isGuest={authData.user?.is_anonymous === true} next={`/people/${profile.username}`} />}><main className="min-w-0 flex-1 px-4 py-6 sm:px-7 sm:py-8">
     <p className="mb-4 text-xs font-semibold tracking-wide text-stone-500 uppercase">Viewing @{profile.username}&apos;s public profile</p>
     <Link href="/community" className="inline-flex items-center gap-1.5 rounded-md text-sm text-stone-500 transition hover:text-stone-950 focus-visible:ring-2 focus-visible:ring-stone-500"><ArrowLeft className="size-4" aria-hidden="true" />Community</Link>
     <header className="mt-5 flex flex-wrap items-start justify-between gap-4 border-b border-stone-200 pb-6">

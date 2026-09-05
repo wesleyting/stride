@@ -1,13 +1,17 @@
-import { signOutAction } from "@/app/actions";
 import { AppFrame } from "@/components/stride/app-frame";
+import { GuestSavePrompt } from "@/components/stride/guest-save-prompt";
 import { ProfileSettingsForm, type ProfileSettings } from "@/components/stride/profile-settings-form";
 import { CopyLinkButton } from "@/components/stride/copy-link-button";
+import { SessionSidebarFooter } from "@/components/stride/session-sidebar-footer";
 import { requireUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
   const { supabase, user } = await requireUser("/settings");
+  if (user.is_anonymous) {
+    return <AppFrame showSidebar sidebarFooter={<SessionSidebarFooter signedIn isGuest next="/settings" />}><main className="min-w-0 flex-1 px-4 py-6 sm:px-7 sm:py-8"><div className="mx-auto w-full max-w-3xl"><header className="border-b border-stone-200 pb-5"><h1 className="text-2xl font-semibold tracking-tight text-stone-950">Settings</h1><p className="mt-1 text-sm text-stone-500">Your private guest practice is ready to use.</p></header><div className="mt-6"><GuestSavePrompt next="/settings" /></div><section className="mt-6 rounded-xl border border-stone-200 bg-white px-5 py-5"><h2 className="text-sm font-semibold text-stone-950">Sharing and profile settings</h2><p className="mt-1 text-sm leading-6 text-stone-500">Create an account before publishing a profile, sharing songs, or uploading practice media. Songs, notes, timers, and YouTube references remain available in guest mode.</p></section></div></main></AppFrame>;
+  }
   const result = await supabase
     .from("profiles")
     .select("username, display_name, bio, is_public, share_song_library, share_practice_logs, share_song_resources")
@@ -32,7 +36,7 @@ export default async function SettingsPage() {
   }
 
   return (
-    <AppFrame showSidebar sidebarFooter={<form action={signOutAction}><button type="submit" className="w-full rounded-md px-3 py-2 text-left text-sm text-stone-500 transition hover:bg-stone-100 hover:text-stone-900">Sign out</button></form>}>
+    <AppFrame showSidebar sidebarFooter={<SessionSidebarFooter signedIn next="/settings" />}>
       <main className="min-w-0 flex-1 px-4 py-6 sm:px-7 sm:py-8">
         <div className="mx-auto w-full max-w-3xl">
           <header className="border-b border-stone-200 pb-5">

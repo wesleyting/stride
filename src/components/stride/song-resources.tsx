@@ -1,18 +1,20 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Download, Expand, Eye, FileAudio, FileImage, FileVideo, Lock, Trash2, Upload } from "lucide-react";
 import { DialogShell } from "@/components/stride/dialog-shell";
 import { buttonVariants } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import type { SongResourceRecord } from "@/lib/stride";
+import { authHref } from "@/lib/return-path";
 
 const acceptedTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "video/mp4", "video/webm", "video/quicktime", "audio/mpeg", "audio/mp4", "audio/x-m4a", "audio/wav", "audio/webm"]);
 const accept = Array.from(acceptedTypes).join(",");
 type PendingMedia = { file: File; previewUrl: string; isPublic: boolean };
 
-export function SongResources({ itemId, userId, initialResources }: { itemId: string; userId: string; initialResources: SongResourceRecord[] }) {
+export function SongResources({ itemId, itemSlug, userId, initialResources, isGuest = false }: { itemId: string; itemSlug: string; userId: string; initialResources: SongResourceRecord[]; isGuest?: boolean }) {
   const [resources, setResources] = useState(initialResources);
   const [pendingMedia, setPendingMedia] = useState<PendingMedia | null>(null);
   const [selected, setSelected] = useState<SongResourceRecord | null>(null);
@@ -20,6 +22,7 @@ export function SongResources({ itemId, userId, initialResources }: { itemId: st
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [guestGateOpen, setGuestGateOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const selectedPreviewRef = useRef<HTMLDivElement>(null);
   const selectedIndex = selected ? resources.findIndex((resource) => resource.id === selected.id) : -1;
@@ -102,6 +105,10 @@ export function SongResources({ itemId, userId, initialResources }: { itemId: st
   }
 
   function changeVisibility(resource: SongResourceRecord) {
+    if (isGuest && !resource.is_public) {
+      setGuestGateOpen(true);
+      return;
+    }
     if (resource.is_public) void toggleVisibility(resource);
     else {
       setSelected(null);
@@ -122,9 +129,13 @@ export function SongResources({ itemId, userId, initialResources }: { itemId: st
   }
 
   return <section className="rounded-xl border border-stone-200 bg-white" aria-labelledby="resources-heading">
-    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 px-4 py-3 sm:px-5"><div><h2 id="resources-heading" className="text-sm font-semibold text-stone-950">Practice Media</h2><p className="mt-0.5 text-xs text-stone-500">Preview each file and choose who can see it.</p></div><label className={buttonVariants({ variant: "outline", size: "sm" })}><Upload data-icon="inline-start" aria-hidden="true" />Add Media<input ref={inputRef} type="file" accept={accept} className="sr-only" onChange={(event) => chooseFile(event.target.files?.[0])} /></label></div>
+    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 px-4 py-3 sm:px-5"><div><h2 id="resources-heading" className="text-sm font-semibold text-stone-950">Practice Media</h2><p className="mt-0.5 text-xs text-stone-500">Preview each file and choose who can see it.</p></div>{isGuest ? <button type="button" onClick={() => setGuestGateOpen(true)} className={buttonVariants({ variant: "outline", size: "sm" })}><Upload data-icon="inline-start" aria-hidden="true" />Add Media</button> : <label className={buttonVariants({ variant: "outline", size: "sm" })}><Upload data-icon="inline-start" aria-hidden="true" />Add Media<input ref={inputRef} type="file" accept={accept} className="sr-only" onChange={(event) => chooseFile(event.target.files?.[0])} /></label>}</div>
     {error && !pendingMedia ? <p role="alert" className="mx-4 mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800 sm:mx-5">{error}</p> : null}
-    {resources.length ? <div className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-3 sm:p-5">{resources.map((resource) => <ResourceCard key={resource.id} resource={resource} open={() => setSelected(resource)} toggleVisibility={() => changeVisibility(resource)} />)}</div> : <button type="button" onClick={() => inputRef.current?.click()} className="m-4 flex w-[calc(100%-2rem)] items-center gap-3 rounded-lg border border-dashed border-stone-300 px-4 py-5 text-left transition hover:border-stone-400 hover:bg-stone-50 focus-visible:ring-2 focus-visible:ring-stone-500 sm:m-5 sm:w-[calc(100%-2.5rem)]"><span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-stone-100"><Upload className="size-5 text-stone-600" aria-hidden="true" /></span><span><span className="block text-sm font-semibold text-stone-900">Add Your First Recording</span><span className="mt-0.5 block text-xs text-stone-500">Video, audio, or a screenshot</span></span></button>}
+    {resources.length ? <div className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-3 sm:p-5">{resources.map((resource) => <ResourceCard key={resource.id} resource={resource} open={() => setSelected(resource)} toggleVisibility={() => changeVisibility(resource)} />)}</div> : <button type="button" onClick={() => isGuest ? setGuestGateOpen(true) : inputRef.current?.click()} className="m-4 flex w-[calc(100%-2rem)] items-center gap-3 rounded-lg border border-dashed border-stone-300 px-4 py-5 text-left transition hover:border-stone-400 hover:bg-stone-50 focus-visible:ring-2 focus-visible:ring-stone-500 sm:m-5 sm:w-[calc(100%-2.5rem)]"><span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-stone-100"><Upload className="size-5 text-stone-600" aria-hidden="true" /></span><span><span className="block text-sm font-semibold text-stone-900">Add Your First Recording</span><span className="mt-0.5 block text-xs text-stone-500">Video, audio, or a screenshot</span></span></button>}
+
+    <DialogShell open={guestGateOpen} onOpenChange={setGuestGateOpen} title="Save Your Progress to Add Media" description="Guest practice stays fully usable, but an account is required for file storage and sharing." size="md">
+      <div className="grid gap-5"><div className="rounded-xl border border-stone-200 bg-stone-50 px-4 py-3"><p className="text-sm font-semibold text-stone-900">Your songs and logs will stay in place</p><p className="mt-1 text-sm leading-6 text-stone-500">After confirming your email, you can upload recordings, screenshots, and audio from this song.</p></div><div className="flex justify-end"><Link href={authHref("/sign-up", `/songs/${itemSlug}`)} className={buttonVariants()}>Save Your Progress</Link></div></div>
+    </DialogShell>
 
     <DialogShell open={Boolean(pendingMedia)} onOpenChange={(open) => { if (!open) closePreview(); }} title="Preview Practice Media" description="Make sure this is the right file, then choose who can see it." size="lg">
       {pendingMedia ? <div className="grid gap-5"><ResourcePreview resource={{ id: "preview", item_id: itemId, storage_path: "", file_name: pendingMedia.file.name, mime_type: pendingMedia.file.type, created_at: "", signed_url: pendingMedia.previewUrl }} /><fieldset><legend className="text-sm font-semibold text-stone-900">Who can see this?</legend><div className="mt-2 grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Media visibility"><button type="button" role="radio" aria-checked={pendingMedia.isPublic} onClick={() => setPendingMedia({ ...pendingMedia, isPublic: true })} className={`flex items-start gap-3 rounded-xl border px-4 py-3 text-left transition focus-visible:ring-2 focus-visible:ring-stone-500 ${pendingMedia.isPublic ? "border-stone-900 bg-stone-50 ring-1 ring-stone-900" : "border-stone-200 hover:border-stone-300"}`}><Eye className="mt-0.5 size-4" aria-hidden="true" /><span><span className="block text-sm font-semibold">Public</span><span className="mt-0.5 block text-xs leading-5 text-stone-500">Shown on your profile when Song Resources is enabled.</span></span></button><button type="button" role="radio" aria-checked={!pendingMedia.isPublic} onClick={() => setPendingMedia({ ...pendingMedia, isPublic: false })} className={`flex items-start gap-3 rounded-xl border px-4 py-3 text-left transition focus-visible:ring-2 focus-visible:ring-stone-500 ${!pendingMedia.isPublic ? "border-stone-900 bg-stone-50 ring-1 ring-stone-900" : "border-stone-200 hover:border-stone-300"}`}><Lock className="mt-0.5 size-4" aria-hidden="true" /><span><span className="block text-sm font-semibold">Only Me</span><span className="mt-0.5 block text-xs leading-5 text-stone-500">Kept privately on this song.</span></span></button></div></fieldset>{error ? <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{error}</p> : null}<div className="flex justify-end gap-2 border-t border-stone-200 pt-4"><button type="button" onClick={closePreview} disabled={busy} className={buttonVariants({ variant: "outline" })}>Cancel</button><button type="button" onClick={upload} disabled={busy} className={buttonVariants()}>{busy ? "Uploading…" : pendingMedia.isPublic ? "Upload Publicly" : "Upload Privately"}</button></div></div> : null}

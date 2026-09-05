@@ -49,6 +49,7 @@ const difficultySchema = z.coerce.number().min(0.5).max(5).refine(
 const itemSchema = z.object({
   name: z.string().trim().min(2, "Item names need at least 2 characters.").max(60),
   difficulty: difficultySchema,
+  isPublic: z.boolean().default(false),
   youtubeUrl: z.string().trim().max(500).refine(
     (value) => !value || /^https:\/\/(www\.)?(youtube\.com|youtu\.be)\//i.test(value),
     "Use a YouTube or youtu.be link.",
@@ -199,6 +200,21 @@ export async function signInAction(formData: FormData) {
   redirect(next);
 }
 
+export async function startGuestAction(formData: FormData) {
+  const next = safeReturnPath(formData.get("next"));
+  const supabase = await createClient();
+  const { data: current } = await supabase.auth.getUser();
+
+  if (!current.user) {
+    const { error } = await supabase.auth.signInAnonymously();
+    if (error) {
+      redirect(`/?guest=unavailable`);
+    }
+  }
+
+  redirect(next);
+}
+
 export async function signUpAction(formData: FormData) {
   const next = safeReturnPath(formData.get("next"));
   const parsed = authSchema.safeParse({
@@ -227,6 +243,68 @@ export async function signUpAction(formData: FormData) {
   }
 
   redirect(authRedirectPath("/sign-up", next, "message", "Check your inbox to confirm your email, then Stride will bring you back to where you left off."));
+}
+
+export async function beginGuestUpgradeAction(formData: FormData) {
+  const next = safeReturnPath(formData.get("next"));
+  const parsed = emailSchema.safeParse({ email: formData.get("email") });
+  if (!parsed.success) {
+    redirect(authRedirectPath("/sign-up", next, "error", parsed.error.issues[0]?.message ?? "Enter a valid email address."));
+  }
+
+  const { supabase, user } = await getSignedInUser();
+  if (!user) redirect(authRedirectPath("/sign-up", next, "error", "Start as a guest before saving your progress."));
+  if (!user.is_anonymous) redirect(next);
+
+  const finishParams = new URLSearchParams({ next });
+  const emailRedirect = new URL("/auth/callback", getSiteUrl());
+  emailRedirect.searchParams.set("next", `/finish-sign-up?${finishParams.toString()}`);
+  const { data, error } = await supabase.auth.updateUser(
+    { email: parsed.data.email, data: { ...user.user_metadata, stride_account_setup_pending: true } },
+    { emailRedirectTo: emailRedirect.toString() },
+  );
+
+  if (error) {
+    const message = error.message.toLowerCase().includes("already")
+      ? "That email already has an account. Guest progress cannot be merged into an existing account yet."
+      : error.message;
+    redirect(authRedirectPath("/sign-up", next, "error", message));
+  }
+
+  if (data.user && !data.user.is_anonymous) {
+    redirect(`/finish-sign-up?${finishParams.toString()}`);
+  }
+
+  redirect(authRedirectPath("/sign-up", next, "message", "Check your inbox to confirm your email. Your guest songs will stay here."));
+}
+
+export async function finishGuestUpgradeAction(formData: FormData) {
+  const next = safeReturnPath(formData.get("next"));
+  const parsed = newPasswordSchema.safeParse({
+    password: formData.get("password"),
+    confirmPassword: formData.get("confirmPassword"),
+  });
+  if (!parsed.success) {
+    const params = new URLSearchParams({ next, error: parsed.error.issues[0]?.message ?? "Check your password." });
+    redirect(`/finish-sign-up?${params.toString()}`);
+  }
+
+  const { supabase, user } = await getSignedInUser();
+  if (!user || user.is_anonymous) {
+    redirect(authRedirectPath("/sign-up", next, "error", "Confirm your email before choosing a password."));
+  }
+  if (user.user_metadata?.stride_account_setup_pending !== true) redirect(next);
+
+  const { error } = await supabase.auth.updateUser({
+    password: parsed.data.password,
+    data: { ...user.user_metadata, stride_account_setup_pending: false },
+  });
+  if (error) {
+    const params = new URLSearchParams({ next, error: error.message });
+    redirect(`/finish-sign-up?${params.toString()}`);
+  }
+
+  redirect(next);
 }
 
 export async function signOutAction() {
@@ -314,18 +392,24 @@ export async function createItemAction(
   const parsed = itemSchema.safeParse({
     name: formData.get("name"),
     difficulty: formData.get("difficulty"),
+    isPublic: formData.get("isPublic") === "true",
     youtubeUrl: formData.get("youtubeUrl") ?? "",
     tuning: formData.get("tuning") ?? "standard",
     capo: formData.get("capo") ?? "",
   });
 
   const activitySlug = String(formData.get("activitySlug") ?? "").trim();
+  const createdFromHome = formData.get("createdFrom") === "home";
 
   if (!parsed.success || !activitySlug) {
     const firstIssue = parsed.success ? null : parsed.error.issues[0];
     return mutationError(
       firstIssue?.message ?? "Choose an activity and give the item a name.",
     );
+  }
+
+  if (user.is_anonymous && parsed.data.isPublic) {
+    return mutationError("Create an account before sharing a song publicly.");
   }
 
   let { data: activity, error: activityError } = await supabase
@@ -365,6 +449,7 @@ export async function createItemAction(
     name: normalizedName,
     slug,
     difficulty: parsed.data.difficulty,
+    is_public: parsed.data.isPublic,
     ...(parsed.data.youtubeUrl ? { youtube_url: parsed.data.youtubeUrl } : {}),
     tuning: parsed.data.tuning || "standard",
     capo: parsed.data.capo,
@@ -378,7 +463,8 @@ export async function createItemAction(
   revalidatePath(`/${activitySlug}`);
   revalidatePath("/");
   revalidatePath("/songs");
-  return mutationSuccess();
+  revalidatePath(`/songs/${slug}`);
+  redirect(`/songs/${slug}${createdFromHome ? "?from=home" : ""}`);
 }
 
 export async function logPracticeAction(
@@ -566,6 +652,9 @@ export async function setSongVisibilityAction(input: {
   if (!user) return mutationError("You need to sign in first.");
   const parsed = songVisibilitySchema.safeParse(input);
   if (!parsed.success) return mutationError("That song could not be shared.");
+  if (user.is_anonymous && parsed.data.isPublic) {
+    return mutationError("Create an account before sharing a song publicly.");
+  }
 
   const { error } = await supabase
     .from("items")
@@ -591,6 +680,7 @@ export async function saveProfileAction(
 ): Promise<MutationState> {
   const { supabase, user } = await getSignedInUser();
   if (!user) return mutationError("You need to sign in first.");
+  if (user.is_anonymous) return mutationError("Create an account before publishing a profile.");
 
   const parsed = profileSchema.safeParse({
     username: formData.get("username"),
