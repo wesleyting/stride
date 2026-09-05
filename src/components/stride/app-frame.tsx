@@ -16,7 +16,7 @@ export function AppFrame({
       <div
         className={cn(
           "mx-auto min-h-screen overflow-hidden bg-background md:min-h-[calc(100vh-3rem)] md:rounded-lg md:border md:border-stone-300 md:shadow-sm",
-          showSidebar ? "max-w-[90rem] md:flex" : "max-w-6xl",
+          showSidebar ? "max-w-[82rem] md:flex" : "max-w-6xl",
         )}
       >
         {showSidebar ? <DesktopNavigation footer={sidebarFooter} /> : null}

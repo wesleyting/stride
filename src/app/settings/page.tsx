@@ -34,14 +34,16 @@ export default async function SettingsPage() {
   return (
     <AppFrame showSidebar sidebarFooter={<form action={signOutAction}><button type="submit" className="w-full rounded-md px-3 py-2 text-left text-sm text-stone-500 transition hover:bg-stone-100 hover:text-stone-900">Sign out</button></form>}>
       <main className="min-w-0 flex-1 px-4 py-6 sm:px-7 sm:py-8">
-        <header className="border-b border-stone-200 pb-5">
-          <h1 className="text-2xl font-semibold tracking-tight text-stone-950">Settings</h1>
-          <p className="mt-1 text-sm text-stone-500">Manage your profile and what you share with the Stride community.</p>
-        </header>
-        {sharingMigrationMissing ? <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">Run Supabase migration <code>0008_public_profile_sharing.sql</code> before saving these sharing controls.</div> : null}
-        <div className="mt-6 max-w-2xl">
-          {profile?.is_public ? <section className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-stone-200 bg-stone-50 px-4 py-4"><div><h2 className="text-sm font-semibold text-stone-950">Your Public Profile</h2><p className="mt-1 text-xs text-stone-500">Anyone with this link can view what you chose to share.</p></div><CopyLinkButton path={`/people/${profile.username}`} label="Copy Profile Link" /></section> : <section className="mb-6 rounded-xl border border-dashed border-stone-300 bg-stone-50 px-4 py-4"><h2 className="text-sm font-semibold text-stone-900">Profile Link</h2><p className="mt-1 text-sm leading-6 text-stone-500">Turn on Show Me in Community and save to create a shareable profile link.</p></section>}
-          <ProfileSettingsForm profile={profile} />
+        <div className="mx-auto w-full max-w-3xl">
+          <header className="border-b border-stone-200 pb-5">
+            <h1 className="text-2xl font-semibold tracking-tight text-stone-950">Settings</h1>
+            <p className="mt-1 text-sm text-stone-500">Manage your profile and what you share with the Stride community.</p>
+          </header>
+          {sharingMigrationMissing ? <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">Run Supabase migration <code>0008_public_profile_sharing.sql</code> before saving these sharing controls.</div> : null}
+          <div className="mt-6">
+            {profile?.is_public ? <section className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-stone-200 bg-stone-50 px-4 py-4"><div><h2 className="text-sm font-semibold text-stone-950">Your Public Profile</h2><p className="mt-1 text-xs text-stone-500">Anyone with this link can view what you chose to share.</p></div><CopyLinkButton path={`/people/${profile.username}`} label="Copy Profile Link" /></section> : <section className="mb-6 rounded-xl border border-dashed border-stone-300 bg-stone-50 px-4 py-4"><h2 className="text-sm font-semibold text-stone-900">Profile Link</h2><p className="mt-1 text-sm leading-6 text-stone-500">Turn on Show Me in Community and save to create a shareable profile link.</p></section>}
+            <ProfileSettingsForm profile={profile} />
+          </div>
         </div>
       </main>
     </AppFrame>
