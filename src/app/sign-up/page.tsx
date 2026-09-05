@@ -22,7 +22,7 @@ export default async function SignUpPage({ searchParams }: PageProps<"/sign-up">
   const message = typeof params.message === "string" ? params.message : "";
 
   return (
-    <AuthShell eyebrow={upgradingGuest ? "Save your progress" : "Create your account"} title={upgradingGuest ? "Save Your Progress" : "Make Practice Easier to Return To"} description={upgradingGuest ? "Use your practice log on any device." : "Start with one song. Add notes, references, and tracked time only when they help."}>
+    <AuthShell eyebrow="Stride" title={upgradingGuest ? "Keep Your Progress" : "Create Your Account"} description={upgradingGuest ? "Use Stride on any device." : "Keep your songs and practice history together."}>
       <div className="space-y-5">
         {error || message ? <div role={error ? "alert" : "status"} className={`rounded-lg border px-4 py-3 text-sm leading-6 ${error ? "border-red-200 bg-red-50 text-red-800" : "border-stone-200 bg-stone-50 text-stone-700"}`}>{error || message}</div> : null}
         {!message && upgradingGuest ? <form action={beginGuestUpgradeAction} className="space-y-4">

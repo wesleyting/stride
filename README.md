@@ -58,7 +58,7 @@ Keep the **Change email address** template's `{{ .ConfirmationURL }}` link intac
 
 Guest visitors receive an anonymous Supabase user only when they choose **Add Song**. They can use the complete private practice workflow and later attach an email and password without changing ownership of their data. Public profiles, public songs, and media uploads require a permanent account. Before opening guest access broadly, add Cloudflare Turnstile or another supported CAPTCHA token to the guest-start flow, then enable the matching CAPTCHA integration in Supabase.
 
-Supabase does not automatically remove abandoned anonymous users. Periodically remove old guest accounts after choosing an appropriate retention window; application records are deleted with them through the existing foreign-key cascades.
+Supabase does not automatically remove abandoned anonymous users. Migration `0020_anonymous_user_cleanup.sql` enables Supabase Cron and removes anonymous accounts after 90 days without a sign-in or Stride write; application records are deleted with them through the existing foreign-key cascades. Review runs in **Integrations → Cron → Jobs**. For public guest access, also enable CAPTCHA or Cloudflare Turnstile in Supabase to reduce automated anonymous-user creation.
 
 ## Deploying to Vercel
 

@@ -19,8 +19,10 @@ type TimerSession = {
   itemId: string;
   itemSlug: string;
   itemName: string;
+  createdAt: number;
   startedAt: number | null;
   accumulatedSeconds: number;
+  stoppedAtLimit?: boolean;
 };
 
 type SongTimerTarget = Pick<TimerSession, "itemId" | "itemSlug" | "itemName">;
@@ -32,6 +34,8 @@ type TimerContextValue = {
 };
 
 const timerStorageKey = "stride-practice-timer-v1";
+const maxTimerSeconds = 4 * 60 * 60;
+const timerRetentionMilliseconds = 7 * 24 * 60 * 60 * 1000;
 const TimerContext = createContext<TimerContextValue | null>(null);
 
 export function PracticeTimerProvider({ children }: { children: React.ReactNode }) {
@@ -49,11 +53,21 @@ export function PracticeTimerProvider({ children }: { children: React.ReactNode 
   const [rating, setRating] = useState<number | null>(null);
   const [detailsResetSignal, setDetailsResetSignal] = useState(0);
   const finishFormRef = useRef<HTMLFormElement>(null);
+  const elapsedSeconds = timer
+    ? Math.min(
+        maxTimerSeconds,
+        timer.accumulatedSeconds +
+          (timer.startedAt ? Math.max(0, Math.floor((now - timer.startedAt) / 1000)) : 0),
+      )
+    : 0;
 
   useEffect(() => {
     const storedTimer = readStoredTimer();
     queueMicrotask(() => {
       setTimer(storedTimer);
+      if (storedTimer?.stoppedAtLimit) {
+        setNotice("Timer paused at 4 hours. Review and save the session when you are ready.");
+      }
       setHydrated(true);
     });
   }, []);
@@ -81,20 +95,32 @@ export function PracticeTimerProvider({ children }: { children: React.ReactNode 
 
   useEffect(() => {
     if (!timer?.startedAt) return;
-    const interval = window.setInterval(() => setNow(Date.now()), 1000);
+    const interval = window.setInterval(() => {
+      const timestamp = Date.now();
+      const nextElapsed = timer.accumulatedSeconds +
+        Math.max(0, Math.floor((timestamp - timer.startedAt!) / 1000));
+
+      if (nextElapsed >= maxTimerSeconds) {
+        setTimer({
+          ...timer,
+          startedAt: null,
+          accumulatedSeconds: maxTimerSeconds,
+          stoppedAtLimit: true,
+        });
+        setNotice("Timer paused at 4 hours. Review and save the session when you are ready.");
+        return;
+      }
+
+      setNow(timestamp);
+    }, 1000);
     return () => window.clearInterval(interval);
-  }, [timer?.startedAt]);
+  }, [timer]);
 
   useEffect(() => {
     if (!notice) return;
     const timeout = window.setTimeout(() => setNotice(""), 4000);
     return () => window.clearTimeout(timeout);
   }, [notice]);
-
-  const elapsedSeconds = timer
-    ? timer.accumulatedSeconds +
-      (timer.startedAt ? Math.max(0, Math.floor((now - timer.startedAt) / 1000)) : 0)
-    : 0;
 
   function start(target: SongTimerTarget, timestamp: number) {
     const existingTimer = readStoredTimer();
@@ -103,7 +129,7 @@ export function PracticeTimerProvider({ children }: { children: React.ReactNode 
       setNotice(`Finish ${timer?.itemName ?? existingTimer?.itemName ?? "the current song"} before starting another timer.`);
       return;
     }
-    const nextTimer = { ...target, sessionId: crypto.randomUUID(), startedAt: timestamp, accumulatedSeconds: 0 };
+    const nextTimer = { ...target, sessionId: crypto.randomUUID(), createdAt: timestamp, startedAt: timestamp, accumulatedSeconds: 0, stoppedAtLimit: false };
     setNow(timestamp);
     window.localStorage.setItem(timerStorageKey, JSON.stringify(nextTimer));
     setTimer(nextTimer);
@@ -117,16 +143,24 @@ export function PracticeTimerProvider({ children }: { children: React.ReactNode 
     setTimer({
       ...timer,
       accumulatedSeconds:
-        timer.accumulatedSeconds + Math.max(0, Math.floor((timestamp - timer.startedAt) / 1000)),
+        Math.min(
+          maxTimerSeconds,
+          timer.accumulatedSeconds + Math.max(0, Math.floor((timestamp - timer.startedAt) / 1000)),
+        ),
       startedAt: null,
+      stoppedAtLimit: false,
     });
     setNow(timestamp);
   }
 
   function resume() {
     if (!timer || timer.startedAt) return;
+    if (timer.accumulatedSeconds >= maxTimerSeconds) {
+      setNotice("This timer reached the 4-hour safety limit. Finish or discard it to continue.");
+      return;
+    }
     const timestamp = Date.now();
-    setTimer({ ...timer, startedAt: timestamp });
+    setTimer({ ...timer, startedAt: timestamp, stoppedAtLimit: false });
     setNow(timestamp);
   }
 
@@ -145,7 +179,9 @@ export function PracticeTimerProvider({ children }: { children: React.ReactNode 
       const timestamp = Date.now();
       setNow(timestamp);
       setTimer((current) =>
-        current && !current.startedAt ? { ...current, startedAt: timestamp } : current,
+        current && !current.startedAt && current.accumulatedSeconds < maxTimerSeconds
+          ? { ...current, startedAt: timestamp, stoppedAtLimit: false }
+          : current,
       );
     }
     setResumeAfterCancel(false);
@@ -156,7 +192,9 @@ export function PracticeTimerProvider({ children }: { children: React.ReactNode 
     setFinishOpen(false);
     setResumeAfterCancel(false);
     setNow(timestamp);
-    setTimer((current) => current ? { ...current, startedAt: timestamp } : current);
+    setTimer((current) => current && current.accumulatedSeconds < maxTimerSeconds
+      ? { ...current, startedAt: timestamp, stoppedAtLimit: false }
+      : current);
   }
 
   async function saveSession() {
@@ -221,7 +259,11 @@ export function PracticeTimerProvider({ children }: { children: React.ReactNode 
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold">{timer.itemName}</p>
               <p className="text-[0.6875rem] text-stone-400">
-                {timer.startedAt ? "Practice timer running" : "Practice timer paused"}
+                {timer.startedAt
+                  ? "Practice timer running"
+                  : timer.stoppedAtLimit
+                    ? "Paused at the 4-hour safety limit"
+                    : "Practice timer paused"}
               </p>
             </div>
             <output
@@ -359,10 +401,16 @@ export function PracticeTimerProvider({ children }: { children: React.ReactNode 
           ) : null}
           {error ? <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{error}</p> : null}
           <div className="flex justify-end gap-2 border-t border-stone-200 pt-4">
-            <button type="button" onClick={resumeFromFinish} className={cn(buttonVariants({ variant: "secondary" }), "bg-amber-100 text-amber-950 hover:bg-amber-200")}>
-              <Play data-icon="inline-start" aria-hidden="true" />
-              Resume Timer
-            </button>
+            {timer?.stoppedAtLimit ? (
+              <button type="button" onClick={cancelFinish} className={buttonVariants({ variant: "outline" })}>
+                Review Later
+              </button>
+            ) : (
+              <button type="button" onClick={resumeFromFinish} className={cn(buttonVariants({ variant: "secondary" }), "bg-amber-100 text-amber-950 hover:bg-amber-200")}>
+                <Play data-icon="inline-start" aria-hidden="true" />
+                Resume Timer
+              </button>
+            )}
             <button type="submit" disabled={saving} className={buttonVariants()}>
               {saving ? "Saving…" : "Save Session"}
             </button>
@@ -444,13 +492,25 @@ function parseStoredTimer(value: string | null): TimerSession | null {
   try {
     const parsed = JSON.parse(value) as Partial<TimerSession>;
     if (!parsed.itemId || !parsed.itemSlug || !parsed.itemName) return null;
+    const accumulatedSeconds = typeof parsed.accumulatedSeconds === "number"
+      ? Math.max(0, parsed.accumulatedSeconds)
+      : 0;
+    const startedAt = typeof parsed.startedAt === "number" ? parsed.startedAt : null;
+    const createdAt = typeof parsed.createdAt === "number" ? parsed.createdAt : startedAt ?? Date.now();
+    if (Date.now() - createdAt > timerRetentionMilliseconds) return null;
+    const recoveredSeconds = accumulatedSeconds +
+      (startedAt ? Math.max(0, Math.floor((Date.now() - startedAt) / 1000)) : 0);
+    const reachedLimit = recoveredSeconds >= maxTimerSeconds;
+
     return {
       sessionId: parsed.sessionId || crypto.randomUUID(),
       itemId: parsed.itemId,
       itemSlug: parsed.itemSlug,
       itemName: parsed.itemName,
-      startedAt: typeof parsed.startedAt === "number" ? parsed.startedAt : null,
-      accumulatedSeconds: typeof parsed.accumulatedSeconds === "number" ? Math.max(0, parsed.accumulatedSeconds) : 0,
+      createdAt,
+      startedAt: reachedLimit ? null : startedAt,
+      accumulatedSeconds: reachedLimit ? maxTimerSeconds : accumulatedSeconds,
+      stoppedAtLimit: reachedLimit || parsed.stoppedAtLimit === true,
     };
   } catch {
     return null;

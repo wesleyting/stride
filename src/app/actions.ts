@@ -102,7 +102,7 @@ const timedPracticeSchema = z.object({
   sessionId: z.string().uuid(),
   itemId: z.string().uuid(),
   itemSlug: z.string().trim().min(1),
-  durationSeconds: z.coerce.number().int().min(1).max(43200),
+  durationSeconds: z.coerce.number().int().min(1).max(14400),
   note: z.string().trim().max(500).optional().or(z.literal("")),
   rating: z.number().int().min(1).max(10).nullable().optional(),
   practicePart: z.string().trim().max(160).optional().or(z.literal("")),

@@ -9,11 +9,11 @@ export function GuestSavePrompt({ next = "/" }: { next?: string }) {
       <div className="flex min-w-0 items-start gap-3">
         <Cloud className="mt-0.5 size-4 shrink-0 text-stone-500" aria-hidden="true" />
         <div>
-          <p className="text-sm font-semibold text-stone-900">Your practice is saved in this browser</p>
-          <p className="mt-0.5 text-xs leading-5 text-stone-500">Create an account to keep it if you change devices or clear browser data.</p>
+          <p className="text-sm font-semibold text-stone-900">Guest progress stays on this device</p>
+          <p className="mt-0.5 text-xs leading-5 text-stone-500">Create an account to use another device or return after 90 days away.</p>
         </div>
       </div>
-      <Link href={authHref("/sign-up", next)} className={buttonVariants({ variant: "outline", size: "sm" })}>Save Your Progress</Link>
+      <Link href={authHref("/sign-up", next)} className={buttonVariants({ variant: "outline", size: "sm" })}>Create Account</Link>
     </section>
   );
 }

@@ -31,13 +31,18 @@ export async function getUser(): Promise<UserResult> {
   const supabase = await createClient();
   const { data, error } = await supabase.auth.getUser();
 
-  if (
-    error &&
-    error.name !== "AuthSessionMissingError" &&
-    !error.message.includes("Auth session missing")
-  ) {
+  if (error && !isMissingAuthSession(error)) {
     throw error;
   }
 
   return { supabase, user: data.user ?? null };
+}
+
+function isMissingAuthSession(error: { name?: string; message: string; code?: string }) {
+  const message = error.message.toLowerCase();
+  return error.name === "AuthSessionMissingError"
+    || error.code === "session_not_found"
+    || error.code === "user_not_found"
+    || message.includes("auth session missing")
+    || message.includes("user from sub claim in jwt does not exist");
 }
