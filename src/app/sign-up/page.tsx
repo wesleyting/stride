@@ -22,13 +22,13 @@ export default async function SignUpPage({ searchParams }: PageProps<"/sign-up">
   const message = typeof params.message === "string" ? params.message : "";
 
   return (
-    <AuthShell eyebrow={upgradingGuest ? "Save your progress" : "Create your account"} title={upgradingGuest ? "Keep Your Songs Wherever You Practice" : "Make Practice Easier to Return To"} description={upgradingGuest ? "Add an email now. After confirming it, you will choose a password and keep everything you already added." : "Start with one song. Add notes, references, and tracked time only when they help."}>
+    <AuthShell eyebrow={upgradingGuest ? "Save your progress" : "Create your account"} title={upgradingGuest ? "Save Your Progress" : "Make Practice Easier to Return To"} description={upgradingGuest ? "Use your practice log on any device." : "Start with one song. Add notes, references, and tracked time only when they help."}>
       <div className="space-y-5">
         {error || message ? <div role={error ? "alert" : "status"} className={`rounded-lg border px-4 py-3 text-sm leading-6 ${error ? "border-red-200 bg-red-50 text-red-800" : "border-stone-200 bg-stone-50 text-stone-700"}`}>{error || message}</div> : null}
         {!message && upgradingGuest ? <form action={beginGuestUpgradeAction} className="space-y-4">
           <input type="hidden" name="next" value={next} />
           <label className="grid text-sm font-medium text-stone-700">Email<input name="email" type="email" autoComplete="email" required className={authFieldClassName} /></label>
-          <Button type="submit" size="lg" className="w-full">Email Me a Confirmation Link</Button>
+          <Button type="submit" size="lg" className="w-full">Send Confirmation</Button>
         </form> : null}
         {!message && !upgradingGuest ? <form action={signUpAction} className="space-y-4">
           <input type="hidden" name="next" value={next} />
@@ -36,8 +36,7 @@ export default async function SignUpPage({ searchParams }: PageProps<"/sign-up">
           <label className="grid text-sm font-medium text-stone-700">Password<input name="password" type="password" autoComplete="new-password" required minLength={8} aria-describedby="password-help" className={authFieldClassName} /><span id="password-help" className="mt-1.5 text-xs font-normal text-stone-500">Use at least 8 characters.</span></label>
           <Button type="submit" size="lg" className="w-full">Create Account</Button>
         </form> : null}
-        {!upgradingGuest ? <p className="text-center text-sm text-stone-600">Already use Stride? <Link href={authHref("/sign-in", next)} className="font-semibold text-stone-950 underline-offset-4 hover:underline">Sign in</Link></p> : <p className="text-center text-xs leading-5 text-stone-500">Your current songs remain available while you confirm your email.</p>}
-        <p className="text-center text-xs leading-5 text-stone-500">Your song library and practice history are private unless you explicitly share them.</p>
+        {!upgradingGuest ? <><p className="text-center text-sm text-stone-600">Already use Stride? <Link href={authHref("/sign-in", next)} className="font-semibold text-stone-950 underline-offset-4 hover:underline">Sign in</Link></p><p className="text-center text-xs leading-5 text-stone-500">Your practice stays private unless you share it.</p></> : <p className="text-center"><Link href={next} className="text-sm font-medium text-stone-600 underline-offset-4 hover:text-stone-950 hover:underline">Continue as Guest</Link></p>}
       </div>
     </AuthShell>
   );

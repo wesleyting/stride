@@ -275,7 +275,7 @@ export async function beginGuestUpgradeAction(formData: FormData) {
     redirect(`/finish-sign-up?${finishParams.toString()}`);
   }
 
-  redirect(authRedirectPath("/sign-up", next, "message", "Check your inbox to confirm your email. Your guest songs will stay here."));
+  redirect(authRedirectPath("/sign-up", next, "message", "Check your email to finish signing up."));
 }
 
 export async function finishGuestUpgradeAction(formData: FormData) {

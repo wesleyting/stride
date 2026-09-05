@@ -1,7 +1,6 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
-import Link from "next/link";
 import { Eye, Lock, Plus } from "lucide-react";
 import { createItemAction, type MutationState } from "@/app/actions";
 import { DialogShell } from "@/components/stride/dialog-shell";
@@ -156,6 +155,8 @@ function ItemForm({
 }
 
 function VisibilityField({ isPublic, setIsPublic, isGuest }: { isPublic: boolean; setIsPublic: (value: boolean) => void; isGuest: boolean }) {
+  const [showGuestHint, setShowGuestHint] = useState(false);
+
   return (
     <fieldset className="border-t border-stone-200 pt-4">
       <legend className="text-sm font-semibold text-stone-900">Visibility</legend>
@@ -165,12 +166,15 @@ function VisibilityField({ isPublic, setIsPublic, isGuest }: { isPublic: boolean
           <Lock className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
           <span><span className="block text-sm font-semibold">Only Me</span><span className="mt-0.5 block text-xs leading-5 text-stone-500">Private by default</span></span>
         </button>
-        <button type="button" role="radio" aria-checked={isPublic} onClick={() => { if (!isGuest) setIsPublic(true); }} aria-disabled={isGuest} className={`flex items-start gap-3 rounded-xl border px-4 py-3 text-left transition focus-visible:ring-2 focus-visible:ring-stone-500 ${isPublic ? "border-stone-900 bg-stone-50 ring-1 ring-stone-900" : isGuest ? "cursor-not-allowed border-stone-200 bg-stone-50 text-stone-400" : "border-stone-200 hover:border-stone-300"}`}>
-          <Eye className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-          <span><span className="block text-sm font-semibold">Public</span><span className="mt-0.5 block text-xs leading-5 text-stone-500">Share from your profile</span></span>
-        </button>
+        <div className="group/public relative">
+          <button type="button" role="radio" aria-checked={isPublic} onClick={() => { if (isGuest) setShowGuestHint(true); else setIsPublic(true); }} aria-disabled={isGuest} aria-describedby={isGuest ? "guest-public-tooltip" : undefined} className={`flex h-full w-full items-start gap-3 rounded-xl border px-4 py-3 text-left transition focus-visible:ring-2 focus-visible:ring-stone-500 ${isPublic ? "border-stone-900 bg-stone-50 ring-1 ring-stone-900" : isGuest ? "border-stone-200 bg-stone-50 text-stone-500 hover:border-stone-300" : "border-stone-200 hover:border-stone-300"}`}>
+            <Eye className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+            <span><span className="block text-sm font-semibold">Public</span><span className="mt-0.5 block text-xs leading-5 text-stone-500">Share from your profile</span></span>
+          </button>
+          {isGuest ? <span id="guest-public-tooltip" role="tooltip" className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 w-max max-w-52 -translate-x-1/2 rounded-md bg-stone-950 px-2.5 py-1.5 text-center text-xs text-white opacity-0 shadow-md transition group-hover/public:opacity-100 group-focus-within/public:opacity-100">Sign up to publish songs</span> : null}
+        </div>
       </div>
-      {isGuest ? <p className="mt-2 text-xs leading-5 text-stone-500"><Link href="/sign-up" className="font-semibold text-stone-800 underline-offset-4 hover:underline">Save your progress</Link> to publish songs. You can keep using every private practice feature as a guest.</p> : null}
+      {isGuest && showGuestHint ? <p role="status" className="mt-2 text-xs leading-5 text-stone-600">Add this song privately first. You can publish it from the song page after signing up.</p> : null}
     </fieldset>
   );
 }

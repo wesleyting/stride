@@ -24,7 +24,7 @@ export async function requireUser(next = "/") {
 }
 
 export function isAccountSetupPending(user: User) {
-  return user.user_metadata?.stride_account_setup_pending === true;
+  return user.is_anonymous !== true && user.user_metadata?.stride_account_setup_pending === true;
 }
 
 export async function getUser(): Promise<UserResult> {
