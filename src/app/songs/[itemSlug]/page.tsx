@@ -8,6 +8,7 @@ import { FavoriteButton } from "@/components/stride/favorite-button";
 import { EditItemModal } from "@/components/stride/edit-item-modal";
 import { EditPracticeEntryModal } from "@/components/stride/edit-practice-entry-modal";
 import { LogPracticeModal } from "@/components/stride/log-practice-modal";
+import { LocalDateTime } from "@/components/stride/local-date-time";
 import { StartPracticeTimerButton } from "@/components/stride/practice-timer";
 import { SongResources } from "@/components/stride/song-resources";
 import { SongShareControl } from "@/components/stride/song-share-control";
@@ -17,7 +18,7 @@ import { SongSetup } from "@/components/stride/song-setup";
 import { YoutubeReference } from "@/components/stride/youtube-reference";
 import { requireUser } from "@/lib/auth";
 import { normalizePracticeTags } from "@/lib/practice-tags";
-import { entriesWithinDays, formatEntryDisplay, formatTrackedTime, titleCaseSongName, type EntryRecord, type ItemRecord, type SongResourceRecord } from "@/lib/stride";
+import { entriesWithinDays, formatTrackedTime, titleCaseSongName, type EntryRecord, type ItemRecord, type SongResourceRecord } from "@/lib/stride";
 
 export const dynamic = "force-dynamic";
 
@@ -82,22 +83,21 @@ export default async function SongPage({ params, searchParams }: PageProps<"/son
 function PracticeLog({ entries, itemSlug, suggestions }: { entries: EntryRecord[]; itemSlug: string; suggestions: string[] }) {
   const groups = groupEntriesByDay(entries);
 
-  return <section className="overflow-hidden rounded-xl border border-stone-200 bg-white" aria-labelledby="practice-log-heading"><div className="border-b border-stone-200 px-4 py-4 sm:px-5"><h2 id="practice-log-heading" className="text-sm font-semibold text-stone-950">Practice Log</h2></div>{groups.length ? groups.map((group, index) => { const trackedSeconds = group.entries.reduce((total, entry) => total + (entry.duration_seconds ?? 0), 0); return <details key={group.key} open={index === 0} className="group/day border-b border-stone-200 last:border-b-0"><summary className="flex cursor-pointer list-none items-center justify-between gap-4 bg-stone-50 px-4 py-3 transition hover:bg-stone-100 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-stone-500 sm:px-5"><div><p className="text-sm font-semibold text-stone-900">{group.label}</p><p className="mt-0.5 text-xs text-stone-500">{group.entries.length} {group.entries.length === 1 ? "session" : "sessions"}</p></div><div className="flex items-center gap-3">{trackedSeconds ? <span className="text-sm font-semibold tabular-nums text-stone-700">{formatTrackedTime(trackedSeconds)} total</span> : null}<ChevronDown className="size-4 text-stone-400 transition-transform group-open/day:rotate-180" aria-hidden="true" /></div></summary><div className="divide-y divide-stone-100 border-t border-stone-200">{group.entries.map((entry) => <PracticeLogEntry key={entry.id} entry={entry} itemSlug={itemSlug} suggestions={suggestions} />)}</div></details>; }) : <div className="px-5 py-8"><p className="text-sm font-semibold text-stone-900">No practice logs yet</p><p className="mt-1 text-sm leading-6 text-stone-500">Your first log creates a useful starting point for the next session.</p></div>}</section>;
+  return <section className="overflow-hidden rounded-xl border border-stone-200 bg-white" aria-labelledby="practice-log-heading"><div className="border-b border-stone-200 px-4 py-4 sm:px-5"><h2 id="practice-log-heading" className="text-sm font-semibold text-stone-950">Practice Log</h2></div>{groups.length ? groups.map((group, index) => { const trackedSeconds = group.entries.reduce((total, entry) => total + (entry.duration_seconds ?? 0), 0); return <details key={group.key} open={index === 0} className="group/day border-b border-stone-200 last:border-b-0"><summary className="flex cursor-pointer list-none items-center justify-between gap-4 bg-stone-50 px-4 py-3 transition hover:bg-stone-100 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-stone-500 sm:px-5"><div><p className="text-sm font-semibold text-stone-900"><LocalDateTime value={group.date} display="relative" /></p><p className="mt-0.5 text-xs text-stone-500">{group.entries.length} {group.entries.length === 1 ? "session" : "sessions"}</p></div><div className="flex items-center gap-3">{trackedSeconds ? <span className="text-sm font-semibold tabular-nums text-stone-700">{formatTrackedTime(trackedSeconds)} total</span> : null}<ChevronDown className="size-4 text-stone-400 transition-transform group-open/day:rotate-180" aria-hidden="true" /></div></summary><div className="divide-y divide-stone-100 border-t border-stone-200">{group.entries.map((entry) => <PracticeLogEntry key={entry.id} entry={entry} itemSlug={itemSlug} suggestions={suggestions} />)}</div></details>; }) : <div className="px-5 py-8"><p className="text-sm font-semibold text-stone-900">No practice logs yet</p><p className="mt-1 text-sm leading-6 text-stone-500">Your first log creates a useful starting point for the next session.</p></div>}</section>;
 }
 
 function PracticeLogEntry({ entry, itemSlug, suggestions }: { entry: EntryRecord; itemSlug: string; suggestions: string[] }) {
-  const date = formatEntryDisplay(entry.created_at);
-  return <article className="group/log grid gap-5 px-4 py-5 sm:grid-cols-[7rem_minmax(0,1fr)_7rem] sm:px-5"><div><p className="h-5 text-[0.6875rem] font-semibold tracking-wide text-stone-400 uppercase">Time</p><p className="mt-1 text-sm font-semibold text-stone-900">{date.time}</p>{entry.duration_seconds ? <p className="mt-0.5 text-xs text-stone-500">{formatTrackedTime(entry.duration_seconds)} tracked</p> : null}</div><div><div className="flex h-5 items-center gap-1.5"><p className="text-[0.6875rem] font-semibold tracking-wide text-stone-400 uppercase">Notes</p><EditPracticeEntryModal entryId={entry.id} itemSlug={itemSlug} note={entry.content} rating={entry.rating} practicePart={entry.practice_part ?? ""} suggestions={suggestions} /></div>{entry.practice_part ? <div className="mt-1 mb-2 flex flex-wrap gap-1">{normalizePracticeTags(entry.practice_part).map((tag) => <span key={tag} className="rounded-md bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-600">{tag}</span>)}</div> : null}<p className="mt-1 text-sm leading-6 text-stone-700">{entry.content}</p></div><div className="sm:text-right"><p className="h-5 text-[0.6875rem] font-semibold tracking-wide text-stone-400 uppercase">Session Rating</p><p className="mt-1 text-sm font-semibold tabular-nums text-stone-900">{entry.rating ? `${entry.rating} / 10` : "Not rated"}</p></div></article>;
+  return <article className="group/log grid gap-5 px-4 py-5 sm:grid-cols-[7rem_minmax(0,1fr)_7rem] sm:px-5"><div><p className="h-5 text-[0.6875rem] font-semibold tracking-wide text-stone-400 uppercase">Time</p><p className="mt-1 text-sm font-semibold text-stone-900"><LocalDateTime value={entry.created_at} display="time" /></p>{entry.duration_seconds ? <p className="mt-0.5 text-xs text-stone-500">{formatTrackedTime(entry.duration_seconds)} tracked</p> : null}</div><div><div className="flex h-5 items-center gap-1.5"><p className="text-[0.6875rem] font-semibold tracking-wide text-stone-400 uppercase">Notes</p><EditPracticeEntryModal entryId={entry.id} itemSlug={itemSlug} note={entry.content} rating={entry.rating} practicePart={entry.practice_part ?? ""} suggestions={suggestions} /></div>{entry.practice_part ? <div className="mt-1 mb-2 flex flex-wrap gap-1">{normalizePracticeTags(entry.practice_part).map((tag) => <span key={tag} className="rounded-md bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-600">{tag}</span>)}</div> : null}<p className="mt-1 text-sm leading-6 text-stone-700">{entry.content}</p></div><div className="sm:text-right"><p className="h-5 text-[0.6875rem] font-semibold tracking-wide text-stone-400 uppercase">Session Rating</p><p className="mt-1 text-sm font-semibold tabular-nums text-stone-900">{entry.rating ? `${entry.rating} / 10` : "Not rated"}</p></div></article>;
 }
 
 function groupEntriesByDay(entries: EntryRecord[]) {
-  const groups = new Map<string, { key: string; label: string; entries: EntryRecord[] }>();
+  const groups = new Map<string, { key: string; date: string; entries: EntryRecord[] }>();
   entries.forEach((entry) => {
     const date = new Date(entry.created_at);
     const key = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
     const existing = groups.get(key);
     if (existing) existing.entries.push(entry);
-    else groups.set(key, { key, label: formatEntryDisplay(entry.created_at).label, entries: [entry] });
+    else groups.set(key, { key, date: entry.created_at, entries: [entry] });
   });
   return Array.from(groups.values());
 }

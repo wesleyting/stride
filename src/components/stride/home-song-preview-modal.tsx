@@ -5,10 +5,10 @@ import { useState } from "react";
 import { ChevronRight, Plus } from "lucide-react";
 import { DialogShell } from "@/components/stride/dialog-shell";
 import { LogPracticeModal } from "@/components/stride/log-practice-modal";
+import { LocalDateTime } from "@/components/stride/local-date-time";
 import { buttonVariants } from "@/components/ui/button";
 import { normalizePracticeTags } from "@/lib/practice-tags";
 import {
-  formatCompactLogDate,
   formatTrackedTime,
   titleCaseSongName,
   type EntryRecord,
@@ -76,9 +76,7 @@ export function HomeSongPreviewModal({
                       className="border-b border-stone-200 px-4 py-3 last:border-b-0"
                     >
                       <div className="flex items-center justify-between gap-3 text-xs text-stone-500">
-                        <time dateTime={entry.created_at}>
-                          {formatCompactLogDate(entry.created_at)}
-                        </time>
+                        <LocalDateTime value={entry.created_at} />
                         <span className="font-medium tabular-nums text-stone-700">
                           {[
                             entry.duration_seconds

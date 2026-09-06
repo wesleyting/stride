@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ArrowLeft, BookOpen, CalendarDays, ChevronDown, ChevronRight, Clock3, ExternalLink, FileImage, LockKeyhole, NotebookPen, Play, Settings, TimerReset } from "lucide-react";
 import { AppFrame } from "@/components/stride/app-frame";
+import { LocalDateTime } from "@/components/stride/local-date-time";
 import { CopyLinkButton } from "@/components/stride/copy-link-button";
 import { PublicHistoryPagination } from "@/components/stride/public-history-pagination";
 import { PublicMediaGallery } from "@/components/stride/public-media-gallery";
@@ -10,7 +11,7 @@ import { SessionSidebarFooter } from "@/components/stride/session-sidebar-footer
 import { StarRating } from "@/components/stride/star-rating";
 import { createClient } from "@/lib/supabase/server";
 import { normalizePracticeTags } from "@/lib/practice-tags";
-import { formatCompactLogDate, formatTrackedTime, titleCaseSongName, type PublicProfileRecord } from "@/lib/stride";
+import { formatTrackedTime, titleCaseSongName, type PublicProfileRecord } from "@/lib/stride";
 
 export const dynamic = "force-dynamic";
 
@@ -115,7 +116,7 @@ export default async function PublicProfilePage({
 }
 
 function SongLibrary({ username, songs }: { username: string; songs: PublicSong[] }) {
-  return <section className="mt-8" aria-labelledby="songs-heading"><div className="flex items-center gap-2"><BookOpen className="size-4 text-stone-500" aria-hidden="true" /><h2 id="songs-heading" className="text-base font-semibold text-stone-950">Songs</h2></div>{songs.length ? <div className="mt-3 grid gap-3 sm:grid-cols-2">{songs.map((song) => <Link key={song.song_name} href={`/people/${username}/songs/${song.song_slug}`} className="group grid gap-3 rounded-xl border border-stone-200 bg-white px-4 py-4 transition hover:border-stone-300 hover:bg-stone-50 hover:shadow-sm focus-visible:ring-2 focus-visible:ring-stone-500"><span className="flex items-start justify-between gap-3"><span className="font-semibold text-stone-950 group-hover:underline">{titleCaseSongName(song.song_name)}</span><ChevronRight className="mt-0.5 size-4 shrink-0 text-stone-400 transition group-hover:translate-x-0.5" aria-hidden="true" /></span><span className="flex flex-wrap items-center justify-between gap-3"><Difficulty value={song.difficulty} /><span className="text-xs text-stone-500">{formatTrackedTime(Number(song.tracked_seconds))} practiced{song.last_practiced ? ` · ${formatCompactLogDate(song.last_practiced)}` : ""}</span></span></Link>)}</div> : <EmptyShared label="No songs shared yet." />}</section>;
+  return <section className="mt-8" aria-labelledby="songs-heading"><div className="flex items-center gap-2"><BookOpen className="size-4 text-stone-500" aria-hidden="true" /><h2 id="songs-heading" className="text-base font-semibold text-stone-950">Songs</h2></div>{songs.length ? <div className="mt-3 grid gap-3 sm:grid-cols-2">{songs.map((song) => <Link key={song.song_name} href={`/people/${username}/songs/${song.song_slug}`} className="group grid gap-3 rounded-xl border border-stone-200 bg-white px-4 py-4 transition hover:border-stone-300 hover:bg-stone-50 hover:shadow-sm focus-visible:ring-2 focus-visible:ring-stone-500"><span className="flex items-start justify-between gap-3"><span className="font-semibold text-stone-950 group-hover:underline">{titleCaseSongName(song.song_name)}</span><ChevronRight className="mt-0.5 size-4 shrink-0 text-stone-400 transition group-hover:translate-x-0.5" aria-hidden="true" /></span><span className="flex flex-wrap items-center justify-between gap-3"><Difficulty value={song.difficulty} /><span className="text-xs text-stone-500">{formatTrackedTime(Number(song.tracked_seconds))} practiced{song.last_practiced ? <> · <LocalDateTime value={song.last_practiced} /></> : null}</span></span></Link>)}</div> : <EmptyShared label="No songs shared yet." />}</section>;
 }
 
 function PracticeHistory({ entries, entryCount, currentPage, totalPages, basePath, open }: { entries: PublicEntry[]; entryCount: number; currentPage: number; totalPages: number; basePath: string; open: boolean }) {
@@ -123,7 +124,7 @@ function PracticeHistory({ entries, entryCount, currentPage, totalPages, basePat
 }
 
 function EntryRow({ entry }: { entry: PublicEntry }) {
-  return <article className="grid gap-3 px-4 py-4 sm:grid-cols-[9rem_minmax(0,1fr)_8rem] sm:px-5"><div><p className="text-sm font-semibold text-stone-900">{entry.song_name ? titleCaseSongName(entry.song_name) : "Guitar Practice"}</p><p className="mt-0.5 text-xs text-stone-500">{formatCompactLogDate(entry.created_at)}</p></div><div>{entry.practice_part ? <div className="mb-1.5 flex flex-wrap gap-1">{normalizePracticeTags(entry.practice_part).map((tag) => <span key={tag} className="rounded-md bg-stone-200/70 px-2 py-0.5 text-xs font-medium text-stone-600">{tag}</span>)}</div> : null}<p className="text-sm leading-6 text-stone-700">{entry.content}</p></div><div className="sm:text-right">{entry.duration_seconds ? <p className="text-xs font-semibold text-stone-700">{formatTrackedTime(entry.duration_seconds)}</p> : null}<p className="text-xs text-stone-500">{entry.rating ? `Rating ${entry.rating}/10` : "Not rated"}</p></div></article>;
+  return <article className="grid gap-3 px-4 py-4 sm:grid-cols-[9rem_minmax(0,1fr)_8rem] sm:px-5"><div><p className="text-sm font-semibold text-stone-900">{entry.song_name ? titleCaseSongName(entry.song_name) : "Guitar Practice"}</p><p className="mt-0.5 text-xs text-stone-500"><LocalDateTime value={entry.created_at} /></p></div><div>{entry.practice_part ? <div className="mb-1.5 flex flex-wrap gap-1">{normalizePracticeTags(entry.practice_part).map((tag) => <span key={tag} className="rounded-md bg-stone-200/70 px-2 py-0.5 text-xs font-medium text-stone-600">{tag}</span>)}</div> : null}<p className="text-sm leading-6 text-stone-700">{entry.content}</p></div><div className="sm:text-right">{entry.duration_seconds ? <p className="text-xs font-semibold text-stone-700">{formatTrackedTime(entry.duration_seconds)}</p> : null}<p className="text-xs text-stone-500">{entry.rating ? `Rating ${entry.rating}/10` : "Not rated"}</p></div></article>;
 }
 
 function SharedResources({ songs, media }: { songs: PublicSong[]; media: PublicResource[] }) {
