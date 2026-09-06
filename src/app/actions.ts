@@ -941,6 +941,10 @@ export async function deleteItemAction(
   });
 
   if (!parsed.success) return mutationError("That item could not be deleted.");
+  const rawReturnHref = formData.get("returnHref");
+  const returnHref = typeof rawReturnHref === "string" && rawReturnHref
+    ? safeReturnPath(rawReturnHref)
+    : null;
 
   const resourceResult = await supabase
     .from("song_resources")
@@ -974,6 +978,7 @@ export async function deleteItemAction(
   revalidatePath(`/${parsed.data.activitySlug}`);
   revalidatePath("/");
   revalidatePath("/songs");
+  if (returnHref) redirect(returnHref);
   return mutationSuccess();
 }
 
