@@ -1,8 +1,9 @@
 "use client";
 
-import { useOptimistic, useState, useTransition } from "react";
+import { useOptimistic, useTransition } from "react";
 import { Pin } from "lucide-react";
 import { toggleFavoriteAction } from "@/app/actions";
+import { useToast } from "@/components/stride/toast-provider";
 import { cn } from "@/lib/utils";
 
 export function FavoriteButton({
@@ -15,16 +16,19 @@ export function FavoriteButton({
   compact?: boolean;
 }) {
   const [favorite, setFavorite] = useOptimistic(initialFavorite);
-  const [error, setError] = useState("");
   const [pending, startTransition] = useTransition();
+  const { showToast } = useToast();
 
   function toggle() {
     const nextValue = !favorite;
-    setError("");
     startTransition(async () => {
       setFavorite(nextValue);
       const result = await toggleFavoriteAction(itemId, nextValue);
-      if (!result.success) setError(result.error ?? "Could not update favorite.");
+      if (!result.success) {
+        showToast(result.error ?? "Could not update favorite.", { tone: "error" });
+        return;
+      }
+      showToast(nextValue ? "Pinned to Home." : "Removed from Home.", { id: `favorite-${itemId}` });
     });
   }
 
@@ -48,11 +52,6 @@ export function FavoriteButton({
         />
         {!compact ? (favorite ? "Pinned to Home" : "Pin to Home") : null}
       </button>
-      {error ? (
-        <span role="alert" className="absolute top-full right-0 z-20 mt-1 w-64 rounded-md bg-red-50 px-2 py-1 text-xs text-red-700 shadow-sm">
-          {error}
-        </span>
-      ) : null}
     </span>
   );
 }

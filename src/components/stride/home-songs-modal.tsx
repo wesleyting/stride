@@ -7,6 +7,7 @@ import { setHomeSongsAction, type MutationState } from "@/app/actions";
 import { DialogShell } from "@/components/stride/dialog-shell";
 import { buttonVariants } from "@/components/ui/button";
 import { titleCaseSongName } from "@/lib/stride";
+import { useToast } from "@/components/stride/toast-provider";
 
 const initialState: MutationState = { success: false, error: null };
 
@@ -24,6 +25,7 @@ function HomeSongsForm({ songs, close }: { songs: Array<{ id: string; name: stri
     .sort((a, b) => (a.pin_position ?? Number.MAX_SAFE_INTEGER) - (b.pin_position ?? Number.MAX_SAFE_INTEGER))
     .map((song) => song.id));
   const selectedSet = useMemo(() => new Set(selected), [selected]);
+  const { showToast } = useToast();
   const filtered = useMemo(() => {
     const position = new Map(selected.map((id, index) => [id, index]));
     return [...songs]
@@ -37,7 +39,7 @@ function HomeSongsForm({ songs, close }: { songs: Array<{ id: string; name: stri
       })
       .filter((song) => song.name.toLowerCase().includes(query.trim().toLowerCase()));
   }, [query, selected, songs]);
-  useEffect(() => { if (state.success) { router.refresh(); close(); } }, [close, router, state.success]);
+  useEffect(() => { if (state.success) { router.refresh(); close(); showToast("Home pins updated."); } }, [close, router, showToast, state.success]);
 
   function toggle(id: string) {
     setSelected((current) => current.includes(id) ? current.filter((songId) => songId !== id) : [...current, id]);

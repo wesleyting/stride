@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { PracticeTimerProvider } from "@/components/stride/practice-timer";
+import { ToastProvider } from "@/components/stride/toast-provider";
 import { getSiteUrl, siteConfig } from "@/lib/site";
 import "./globals.css";
 
@@ -38,7 +39,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className="h-full antialiased">
       <body className="min-h-full bg-stone-100 text-stone-950">
-        <PracticeTimerProvider>{children}</PracticeTimerProvider>
+        <ToastProvider>
+          <PracticeTimerProvider>{children}</PracticeTimerProvider>
+        </ToastProvider>
         <Analytics />
         <SpeedInsights />
       </body>

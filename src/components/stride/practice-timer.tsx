@@ -11,6 +11,7 @@ import { Clock3, Gauge, Minus, Pause, Play, Plus, Square, TimerReset, X } from "
 import { saveTimedPracticeAction } from "@/app/actions";
 import { DialogShell } from "@/components/stride/dialog-shell";
 import { PracticeTagInput } from "@/components/stride/practice-tag-input";
+import { useToast } from "@/components/stride/toast-provider";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -47,7 +48,7 @@ export function PracticeTimerProvider({ children }: { children: React.ReactNode 
   const [resumeAfterCancel, setResumeAfterCancel] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
+  const { showToast } = useToast();
   const [showDetails, setShowDetails] = useState(false);
   const [note, setNote] = useState("");
   const [rating, setRating] = useState<number | null>(null);
@@ -66,11 +67,11 @@ export function PracticeTimerProvider({ children }: { children: React.ReactNode 
     queueMicrotask(() => {
       setTimer(storedTimer);
       if (storedTimer?.stoppedAtLimit) {
-        setNotice("Timer paused at 4 hours. Review and save the session when you are ready.");
+        showToast("Timer paused at 4 hours. Review and save when ready.", { id: "practice-timer", tone: "info" });
       }
       setHydrated(true);
     });
-  }, []);
+  }, [showToast]);
 
   useEffect(() => {
     function syncTimer(event: StorageEvent) {
@@ -107,26 +108,20 @@ export function PracticeTimerProvider({ children }: { children: React.ReactNode 
           accumulatedSeconds: maxTimerSeconds,
           stoppedAtLimit: true,
         });
-        setNotice("Timer paused at 4 hours. Review and save the session when you are ready.");
+        showToast("Timer paused at 4 hours. Review and save when ready.", { id: "practice-timer", tone: "info" });
         return;
       }
 
       setNow(timestamp);
     }, 1000);
     return () => window.clearInterval(interval);
-  }, [timer]);
-
-  useEffect(() => {
-    if (!notice) return;
-    const timeout = window.setTimeout(() => setNotice(""), 4000);
-    return () => window.clearTimeout(timeout);
-  }, [notice]);
+  }, [showToast, timer]);
 
   function start(target: SongTimerTarget, timestamp: number) {
     const existingTimer = readStoredTimer();
     if (timer || existingTimer) {
       if (!timer && existingTimer) setTimer(existingTimer);
-      setNotice(`Finish ${timer?.itemName ?? existingTimer?.itemName ?? "the current song"} before starting another timer.`);
+      showToast(`Finish ${timer?.itemName ?? existingTimer?.itemName ?? "the current song"} before starting another timer.`, { id: "practice-timer", tone: "info" });
       return;
     }
     const nextTimer = { ...target, sessionId: crypto.randomUUID(), createdAt: timestamp, startedAt: timestamp, accumulatedSeconds: 0, stoppedAtLimit: false };
@@ -156,7 +151,7 @@ export function PracticeTimerProvider({ children }: { children: React.ReactNode 
   function resume() {
     if (!timer || timer.startedAt) return;
     if (timer.accumulatedSeconds >= maxTimerSeconds) {
-      setNotice("This timer reached the 4-hour safety limit. Finish or discard it to continue.");
+      showToast("This timer reached the 4-hour limit. Finish or discard it to continue.", { id: "practice-timer", tone: "info" });
       return;
     }
     const timestamp = Date.now();
@@ -223,7 +218,7 @@ export function PracticeTimerProvider({ children }: { children: React.ReactNode 
     setResumeAfterCancel(false);
     setTimer(null);
     resetDetails();
-    setNotice(`${formatStopwatch(durationSeconds)} saved to ${timer.itemName}.`);
+    showToast(`${formatStopwatch(durationSeconds)} saved to ${timer.itemName}.`);
   }
 
   function discard() {
@@ -307,12 +302,6 @@ export function PracticeTimerProvider({ children }: { children: React.ReactNode 
               <X aria-hidden="true" />
             </button>
           </div>
-        </div>
-      ) : null}
-
-      {notice ? (
-        <div role="status" className="fixed right-4 bottom-4 z-40 rounded-lg bg-stone-950 px-4 py-3 text-sm font-medium text-white shadow-xl">
-          {notice}
         </div>
       ) : null}
 

@@ -6,6 +6,7 @@ import { deleteItemAction, type MutationState } from "@/app/actions";
 import { DialogShell } from "@/components/stride/dialog-shell";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/components/stride/toast-provider";
 
 const initialState: MutationState = { success: false, error: null };
 
@@ -21,7 +22,8 @@ export function DeleteItemModal({ itemId, activitySlug, itemName, leavePageAfter
 
 function DeleteItemForm({ itemId, activitySlug, itemName, leavePageAfterDelete, returnHref, close }: { itemId: string; activitySlug: string; itemName: string; leavePageAfterDelete: boolean; returnHref?: string; close: () => void }) {
   const [state, formAction, pending] = useActionState(deleteItemAction, initialState);
-  useEffect(() => { if (state.success) close(); }, [close, state.success]);
+  const { showToast } = useToast();
+  useEffect(() => { if (state.success) { close(); showToast("Song deleted."); } }, [close, showToast, state.success]);
   return <form action={formAction} className="grid gap-5">
     <input type="hidden" name="itemId" value={itemId} /><input type="hidden" name="activitySlug" value={activitySlug} />{leavePageAfterDelete ? <input type="hidden" name="returnHref" value={returnHref ?? `/${activitySlug}`} /> : null}
     {state.error ? <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{state.error}</div> : null}

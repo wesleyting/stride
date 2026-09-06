@@ -9,6 +9,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import type { SongResourceRecord } from "@/lib/stride";
 import { authHref } from "@/lib/return-path";
+import { useToast } from "@/components/stride/toast-provider";
 
 const acceptedTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "video/mp4", "video/webm", "video/quicktime", "audio/mpeg", "audio/mp4", "audio/x-m4a", "audio/wav", "audio/webm"]);
 const accept = Array.from(acceptedTypes).join(",");
@@ -25,6 +26,7 @@ export function SongResources({ itemId, itemSlug, userId, initialResources, isGu
   const [guestGateOpen, setGuestGateOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const selectedPreviewRef = useRef<HTMLDivElement>(null);
+  const { showToast } = useToast();
   const selectedIndex = selected ? resources.findIndex((resource) => resource.id === selected.id) : -1;
 
   useEffect(() => {
@@ -89,6 +91,7 @@ export function SongResources({ itemId, itemSlug, userId, initialResources, isGu
     }
     setPendingMedia(null);
     setBusy(false);
+    showToast("Practice media added.");
   }
 
   async function toggleVisibility(resource: SongResourceRecord) {
@@ -101,7 +104,9 @@ export function SongResources({ itemId, itemSlug, userId, initialResources, isGu
       setResources((current) => current.map((candidate) => candidate.id === resource.id ? { ...candidate, is_public: resource.is_public } : candidate));
       setSelected((current) => current?.id === resource.id ? { ...current, is_public: resource.is_public } : current);
       setError(result.error.code === "PGRST204" || result.error.code === "42703" ? "Run migration 0009_practice_media_visibility.sql to control media sharing." : result.error.message);
+      return;
     }
+    showToast(next ? "Media is now public." : "Media is now private.");
   }
 
   function changeVisibility(resource: SongResourceRecord) {
@@ -125,7 +130,8 @@ export function SongResources({ itemId, itemSlug, userId, initialResources, isGu
     const supabase = createClient();
     const storageResult = await supabase.storage.from("song-resources").remove([resource.storage_path]);
     const metadataResult = await supabase.from("song_resources").delete().eq("id", resource.id).eq("item_id", itemId);
-    if (storageResult.error || metadataResult.error) { setResources(before); setSelected(resource); setError(storageResult.error?.message ?? metadataResult.error?.message ?? "Could not remove the file."); }
+    if (storageResult.error || metadataResult.error) { setResources(before); setSelected(resource); setError(storageResult.error?.message ?? metadataResult.error?.message ?? "Could not remove the file."); return; }
+    showToast("Practice media removed.");
   }
 
   return <section className="rounded-xl border border-stone-200 bg-white" aria-labelledby="resources-heading">

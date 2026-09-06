@@ -7,6 +7,7 @@ import { DialogShell } from "@/components/stride/dialog-shell";
 import { buttonVariants } from "@/components/ui/button";
 import { PracticeTagInput } from "@/components/stride/practice-tag-input";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/components/stride/toast-provider";
 
 const initialState: MutationState = { success: false, error: null };
 const fieldClassName =
@@ -113,6 +114,7 @@ function PracticeForm({
   const areasRef = useRef<HTMLDivElement>(null);
   const youtubeRef = useRef<HTMLDivElement>(null);
   const draftKey = `stride-practice-draft:${itemSlug}`;
+  const { showToast } = useToast();
 
   useEffect(() => {
     let draft: Partial<PracticeDraft> | null = null;
@@ -162,8 +164,9 @@ function PracticeForm({
         setResetSignal((value) => value + 1);
       });
       close();
+      showToast("Practice logged.");
     }
-  }, [close, currentYoutubeUrl, draftKey, state.success]);
+  }, [close, currentYoutubeUrl, draftKey, showToast, state.success]);
 
   return (
     <form ref={formRef} action={formAction} className="grid gap-6">

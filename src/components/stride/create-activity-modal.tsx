@@ -9,6 +9,7 @@ import {
 import { DialogShell } from "@/components/stride/dialog-shell";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/components/stride/toast-provider";
 
 const initialState: MutationState = {
   success: false,
@@ -62,12 +63,14 @@ function ActivityForm({
     initialState,
   );
   const [showDetails, setShowDetails] = useState(false);
+  const { showToast } = useToast();
 
   useEffect(() => {
     if (state.success) {
       close();
+      showToast("Activity created.");
     }
-  }, [close, state.success]);
+  }, [close, showToast, state.success]);
 
   return (
     <form action={formAction} className="grid gap-4">

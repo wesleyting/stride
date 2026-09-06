@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { updateItemDifficultyAction } from "@/app/actions";
 import { StarRating } from "@/components/stride/star-rating";
+import { useToast } from "@/components/stride/toast-provider";
 
 export function DifficultyControl({
   itemId,
@@ -18,13 +19,12 @@ export function DifficultyControl({
   compact?: boolean;
 }) {
   const [difficulty, setDifficulty] = useState(value);
-  const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const { showToast } = useToast();
 
   function updateDifficulty(nextDifficulty: number) {
     const previousDifficulty = difficulty;
     setDifficulty(nextDifficulty);
-    setError(null);
 
     startTransition(async () => {
       const formData = new FormData();
@@ -36,23 +36,16 @@ export function DifficultyControl({
 
       if (!result.success) {
         setDifficulty(previousDifficulty);
-        setError(result.error ?? "Could not update difficulty.");
+        showToast(result.error ?? "Could not update difficulty.", { tone: "error" });
+        return;
       }
+      showToast("Difficulty updated.", { id: `difficulty-${itemId}` });
     });
   }
 
   return (
-    <div className="relative inline-flex shrink-0 items-center gap-1.5">
+    <div className="inline-flex shrink-0 items-center gap-1.5">
       <StarRating value={difficulty} onChange={updateDifficulty} disabled={pending} size={compact ? "sm" : "md"} />
-      {error ? (
-        <span
-          role="alert"
-          title={error}
-          className="absolute top-full right-0 mt-1 whitespace-nowrap text-xs text-red-600"
-        >
-          Update failed
-        </span>
-      ) : null}
     </div>
   );
 }

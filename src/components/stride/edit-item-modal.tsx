@@ -7,6 +7,7 @@ import { DialogShell } from "@/components/stride/dialog-shell";
 import { buttonVariants } from "@/components/ui/button";
 import { DifficultyField, OptionalSongFields, songFieldClassName } from "@/components/stride/song-fields";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/components/stride/toast-provider";
 
 const initialState: MutationState = { success: false, error: null };
 type EditItemModalProps = { itemId: string; itemSlug: string; activitySlug: string; itemName: string; difficulty: number; youtubeUrl: string; tuning?: string | null; capo?: number | null; showLabel?: boolean };
@@ -24,7 +25,8 @@ export function EditItemModal(props: EditItemModalProps) {
 function EditItemForm({ close, ...props }: EditItemModalProps & { close: () => void }) {
   const [state, formAction, pending] = useActionState(updateItemAction, initialState);
   const [difficulty, setDifficulty] = useState(props.difficulty);
-  useEffect(() => { if (state.success) close(); }, [close, state.success]);
+  const { showToast } = useToast();
+  useEffect(() => { if (state.success) { close(); showToast("Song updated."); } }, [close, showToast, state.success]);
   return <form action={formAction} className="grid gap-5">
     <input type="hidden" name="itemId" value={props.itemId} /><input type="hidden" name="itemSlug" value={props.itemSlug} /><input type="hidden" name="activitySlug" value={props.activitySlug} />
     {state.error ? <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{state.error}</div> : null}

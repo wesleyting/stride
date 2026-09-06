@@ -5,6 +5,7 @@ import { Link2 } from "lucide-react";
 import { updateSongWorkspaceAction, type MutationState } from "@/app/actions";
 import { DialogShell } from "@/components/stride/dialog-shell";
 import { buttonVariants } from "@/components/ui/button";
+import { useToast } from "@/components/stride/toast-provider";
 
 const initialState: MutationState = { success: false, error: null };
 const fieldClass = "mt-1.5 w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-sm shadow-sm transition placeholder:text-stone-400 hover:border-stone-400 focus:border-stone-500 focus:ring-2 focus:ring-stone-500/20";
@@ -39,7 +40,8 @@ function WorkspaceForm(props: {
   close: () => void;
 }) {
   const [state, action, pending] = useActionState(updateSongWorkspaceAction, initialState);
-  useEffect(() => { if (state.success) props.close(); }, [props, state.success]);
+  const { showToast } = useToast();
+  useEffect(() => { if (state.success) { props.close(); showToast("YouTube link updated."); } }, [props, showToast, state.success]);
 
   return (
     <form action={action} className="grid gap-5">

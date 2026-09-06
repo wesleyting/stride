@@ -6,6 +6,7 @@ import { BookOpen, Images, NotebookPen } from "lucide-react";
 import { saveProfileAction, type MutationState } from "@/app/actions";
 import { buttonVariants } from "@/components/ui/button";
 import { DialogShell } from "@/components/stride/dialog-shell";
+import { useToast } from "@/components/stride/toast-provider";
 
 export type ProfileSettings = {
   username: string;
@@ -34,13 +35,15 @@ export function ProfileSettingsForm({
   const formRef = useRef<HTMLFormElement>(null);
   const [dirty, setDirty] = useState(!profile);
   const [pendingHref, setPendingHref] = useState<string | null>(null);
+  const { showToast } = useToast();
 
   useEffect(() => {
     if (!state.success) return;
     queueMicrotask(() => setDirty(false));
+    showToast("Settings saved.", { id: "profile-settings" });
     router.refresh();
     onSaved?.();
-  }, [onSaved, router, state.success]);
+  }, [onSaved, router, showToast, state.success]);
 
   useEffect(() => {
     const warnBeforeUnload = (event: BeforeUnloadEvent) => {
@@ -72,8 +75,6 @@ export function ProfileSettingsForm({
     <form ref={formRef} action={action} onChange={() => setDirty(true)} className="grid gap-6 text-left">
       {dirty ? <div className="sticky top-3 z-20 -mx-2 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300 bg-amber-50/95 px-4 py-3 shadow-lg backdrop-blur"><div><p className="text-sm font-semibold text-amber-950">{profile ? "You have unsaved changes" : "Finish setting up your profile"}</p><p className="text-xs text-amber-800">Save before leaving, or discard your changes.</p></div><div className="flex gap-2"><button type="button" onClick={discardChanges} className={buttonVariants({ variant: "outline", size: "sm" })}>Discard</button><button type="submit" disabled={pending} className={buttonVariants({ size: "sm" })}>{pending ? "Saving…" : "Save Changes"}</button></div></div> : null}
       {state.error ? <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{state.error}</p> : null}
-      {state.success && !onSaved && !dirty ? <p role="status" className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">Settings saved.</p> : null}
-
       <div className="grid gap-5">
         <label className="text-sm font-semibold text-stone-900">
           Display Name

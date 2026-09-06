@@ -464,7 +464,7 @@ export async function createItemAction(
   revalidatePath("/");
   revalidatePath("/songs");
   revalidatePath(`/songs/${slug}`);
-  redirect(`/songs/${slug}${createdFromHome ? "?from=home" : ""}`);
+  redirect(`/songs/${slug}?${createdFromHome ? "from=home&" : ""}notice=song-created`);
 }
 
 export async function logPracticeAction(
@@ -978,7 +978,7 @@ export async function deleteItemAction(
   revalidatePath(`/${parsed.data.activitySlug}`);
   revalidatePath("/");
   revalidatePath("/songs");
-  if (returnHref) redirect(returnHref);
+  if (returnHref) redirect(`${returnHref}${returnHref.includes("?") ? "&" : "?"}notice=song-deleted`);
   return mutationSuccess();
 }
 

@@ -8,6 +8,7 @@ import { CopyLinkButton } from "@/components/stride/copy-link-button";
 import { DialogShell } from "@/components/stride/dialog-shell";
 import { buttonVariants } from "@/components/ui/button";
 import { authHref } from "@/lib/return-path";
+import { useToast } from "@/components/stride/toast-provider";
 
 export function SongShareControl({ itemId, itemSlug, itemName, username, profilePublic, initialPublic, isGuest = false }: { itemId: string; itemSlug: string; itemName: string; username: string | null; profilePublic: boolean; initialPublic: boolean; isGuest?: boolean }) {
   const [open, setOpen] = useState(false);
@@ -16,6 +17,7 @@ export function SongShareControl({ itemId, itemSlug, itemName, username, profile
   const [pending, startTransition] = useTransition();
   const ready = Boolean(username && profilePublic && !isGuest);
   const path = username ? `/people/${username}/songs/${itemSlug}` : "";
+  const { showToast } = useToast();
 
   function changeVisibility(next: boolean) {
     setError("");
@@ -24,6 +26,7 @@ export function SongShareControl({ itemId, itemSlug, itemName, username, profile
       if (!result.success) { setError(result.error ?? "Could not update song sharing."); return; }
       setIsPublic(next);
       if (!next) setOpen(false);
+      showToast(next ? "Song is now public." : "Song is now private.");
     });
   }
 
