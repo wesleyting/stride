@@ -5,6 +5,7 @@ import { AuthShell, authFieldClassName } from "@/components/stride/auth-shell";
 import { Button } from "@/components/ui/button";
 import { getUser, isAccountSetupPending } from "@/lib/auth";
 import { authHref, safeReturnPath } from "@/lib/return-path";
+import { TurnstileField } from "@/components/stride/turnstile-field";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +35,7 @@ export default async function SignUpPage({ searchParams }: PageProps<"/sign-up">
           <input type="hidden" name="next" value={next} />
           <label className="grid text-sm font-medium text-stone-700">Email<input name="email" type="email" autoComplete="email" required className={authFieldClassName} /></label>
           <label className="grid text-sm font-medium text-stone-700">Password<input name="password" type="password" autoComplete="new-password" required minLength={8} aria-describedby="password-help" className={authFieldClassName} /><span id="password-help" className="mt-1.5 text-xs font-normal text-stone-500">Use at least 8 characters.</span></label>
+          <TurnstileField action="sign_up" />
           <Button type="submit" size="lg" className="w-full">Create Account</Button>
         </form> : null}
         {!upgradingGuest ? <><p className="text-center text-sm text-stone-600">Already use Stride? <Link href={authHref("/sign-in", next)} className="font-semibold text-stone-950 underline-offset-4 hover:underline">Sign in</Link></p><p className="text-center text-xs leading-5 text-stone-500">Your practice stays private unless you share it.</p></> : <p className="text-center"><Link href={next} className="text-sm font-medium text-stone-600 underline-offset-4 hover:text-stone-950 hover:underline">Continue as Guest</Link></p>}

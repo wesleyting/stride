@@ -5,6 +5,7 @@ import { AuthShell, authFieldClassName } from "@/components/stride/auth-shell";
 import { Button } from "@/components/ui/button";
 import { getUser } from "@/lib/auth";
 import { authHref, safeReturnPath } from "@/lib/return-path";
+import { TurnstileField } from "@/components/stride/turnstile-field";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +29,7 @@ export default async function SignInPage({ searchParams }: PageProps<"/sign-in">
             <span className="flex items-center justify-between gap-3"><span>Password</span><Link href="/forgot-password" className="font-normal text-stone-600 underline-offset-4 hover:text-stone-950 hover:underline">Forgot password?</Link></span>
             <input name="password" type="password" autoComplete="current-password" required minLength={8} className={authFieldClassName} />
           </label>
+          <TurnstileField action="sign_in" />
           <Button type="submit" size="lg" className="w-full">Sign In</Button>
         </form>
         <p className="text-center text-sm text-stone-600">New to Stride? <Link href={authHref("/sign-up", next)} className="font-semibold text-stone-950 underline-offset-4 hover:underline">Create an account</Link></p>

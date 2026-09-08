@@ -141,6 +141,10 @@ const profileSchema = z.object({
   shareSongResources: z.boolean(),
 });
 
+const deleteAccountSchema = z.object({
+  confirmation: z.literal("DELETE", { error: "Type DELETE to confirm." }),
+});
+
 const activityDescriptionFallbacks: Record<
   z.infer<typeof activitySchema>["kind"],
   string
@@ -168,6 +172,11 @@ function mutationSuccess(): MutationState {
   return { success: true, error: null };
 }
 
+function captchaToken(formData: FormData) {
+  const token = formData.get("cf-turnstile-response");
+  return typeof token === "string" && token ? token : undefined;
+}
+
 async function getSignedInUser() {
   const supabase = await createClient();
   const { data, error } = await supabase.auth.getUser();
@@ -191,7 +200,10 @@ export async function signInAction(formData: FormData) {
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword(parsed.data);
+  const { error } = await supabase.auth.signInWithPassword({
+    ...parsed.data,
+    options: { captchaToken: captchaToken(formData) },
+  });
 
   if (error) {
     redirect(authRedirectPath("/sign-in", next, "error", "Could not sign you in. Check your email and password."));
@@ -206,7 +218,9 @@ export async function startGuestAction(formData: FormData) {
   const { data: current } = await supabase.auth.getUser();
 
   if (!current.user) {
-    const { error } = await supabase.auth.signInAnonymously();
+    const { error } = await supabase.auth.signInAnonymously({
+      options: { captchaToken: captchaToken(formData) },
+    });
     if (error) {
       redirect(`/?guest=unavailable`);
     }
@@ -231,7 +245,7 @@ export async function signUpAction(formData: FormData) {
   emailRedirect.searchParams.set("next", next);
   const { data, error } = await supabase.auth.signUp({
     ...parsed.data,
-    options: { emailRedirectTo: emailRedirect.toString() },
+    options: { emailRedirectTo: emailRedirect.toString(), captchaToken: captchaToken(formData) },
   });
 
   if (error) {
@@ -313,13 +327,57 @@ export async function signOutAction() {
   redirect("/");
 }
 
+export async function deleteAccountAction(
+  _previousState: MutationState,
+  formData: FormData,
+): Promise<MutationState> {
+  const parsed = deleteAccountSchema.safeParse({ confirmation: formData.get("confirmation") });
+  if (!parsed.success) return mutationError("Type DELETE to confirm.");
+
+  const { supabase, user } = await getSignedInUser();
+  if (!user) return mutationError("Your session has expired. Sign in and try again.");
+
+  const preflight = await supabase.rpc("delete_stride_account", { dry_run: true });
+  if (preflight.error) {
+    const message = preflight.error.code === "PGRST202"
+      ? "Run migration 0021_account_deletion.sql before deleting accounts."
+      : "Stride could not verify account deletion. Try again.";
+    return mutationError(message);
+  }
+
+  const resources = await supabase
+    .from("song_resources")
+    .select("storage_path")
+    .eq("user_id", user.id);
+  if (resources.error && resources.error.code !== "42P01") {
+    return mutationError("Stride could not prepare your uploaded files for deletion.");
+  }
+
+  const paths = (resources.data ?? []).map((resource) => resource.storage_path).filter(Boolean);
+  if (paths.length > 0) {
+    const removed = await supabase.storage.from("song-resources").remove(paths);
+    if (removed.error) return mutationError("Stride could not delete your uploaded files. Try again.");
+  }
+
+  const deleted = await supabase.rpc("delete_stride_account", { dry_run: false });
+  if (deleted.error) {
+    return mutationError("Stride could not delete your account. Try again.");
+  }
+
+  await supabase.auth.signOut({ scope: "local" });
+  redirect("/?notice=account-deleted");
+}
+
 export async function requestPasswordResetAction(formData: FormData) {
   const parsed = emailSchema.safeParse({ email: formData.get("email") });
   if (!parsed.success) redirect(`/forgot-password${errorQuery(parsed.error.issues[0]?.message ?? "Enter a valid email address.")}`);
 
   const supabase = await createClient();
   const redirectTo = new URL("/auth/callback?next=/reset-password", getSiteUrl()).toString();
-  const { error } = await supabase.auth.resetPasswordForEmail(parsed.data.email, { redirectTo });
+  const { error } = await supabase.auth.resetPasswordForEmail(parsed.data.email, {
+    redirectTo,
+    captchaToken: captchaToken(formData),
+  });
   if (error) redirect(`/forgot-password${errorQuery(error.message)}`);
 
   redirect(`/forgot-password?message=${encodeURIComponent("If an account exists for that email, a password reset link is on its way.")}`);

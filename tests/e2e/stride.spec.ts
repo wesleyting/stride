@@ -18,6 +18,14 @@ test("signed-out visitors can preview the dashboard without creating an account"
   await expect(page.getByRole("button", { name: "Add Song" }).first()).toBeVisible();
 });
 
+test("privacy controls are discoverable before creating an account", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("link", { name: "Privacy" }).click();
+  await expect(page).toHaveURL(/\/privacy$/);
+  await expect(page.getByRole("heading", { name: "Privacy, in Plain Language" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "What Other People See" })).toBeVisible();
+});
+
 test("a visitor can start a guest library from Add Song", async ({ page }) => {
   test.skip(process.env.E2E_GUEST !== "1", "Set E2E_GUEST=1 for a Supabase project with Anonymous Sign-Ins enabled.");
 

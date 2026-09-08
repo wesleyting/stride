@@ -55,6 +55,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     const messages: Record<string, string> = {
       "song-created": "Song added.",
       "song-deleted": "Song deleted.",
+      "account-deleted": "Your Stride data was deleted.",
     };
     if (messages[notice]) {
       queueMicrotask(() => showToast(messages[notice], { id: `navigation-${notice}` }));

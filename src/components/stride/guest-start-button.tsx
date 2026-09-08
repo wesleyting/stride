@@ -5,11 +5,13 @@ import { Plus } from "lucide-react";
 import { startGuestAction } from "@/app/actions";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { TurnstileField } from "@/components/stride/turnstile-field";
 
 export function GuestStartButton({ className }: { className?: string }) {
   return (
     <form action={startGuestAction}>
       <input type="hidden" name="next" value="/?action=add-song" />
+      <TurnstileField action="start_guest" />
       <GuestSubmit className={className} />
     </form>
   );

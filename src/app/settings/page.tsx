@@ -4,13 +4,14 @@ import { ProfileSettingsForm, type ProfileSettings } from "@/components/stride/p
 import { CopyLinkButton } from "@/components/stride/copy-link-button";
 import { SessionSidebarFooter } from "@/components/stride/session-sidebar-footer";
 import { requireUser } from "@/lib/auth";
+import { DeleteAccountModal } from "@/components/stride/delete-account-modal";
 
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
   const { supabase, user } = await requireUser("/settings");
   if (user.is_anonymous) {
-    return <AppFrame showSidebar sidebarFooter={<SessionSidebarFooter signedIn isGuest next="/settings" />}><main className="min-w-0 flex-1 px-4 py-6 sm:px-7 sm:py-8"><div className="mx-auto w-full max-w-3xl"><header className="border-b border-stone-200 pb-5"><h1 className="text-2xl font-semibold tracking-tight text-stone-950">Settings</h1><p className="mt-1 text-sm text-stone-500">Your private guest practice is ready to use.</p></header><div className="mt-6"><GuestSavePrompt next="/settings" /></div><section className="mt-6 rounded-xl border border-stone-200 bg-white px-5 py-5"><h2 className="text-sm font-semibold text-stone-950">Sharing and profile settings</h2><p className="mt-1 text-sm leading-6 text-stone-500">Create an account before publishing a profile, sharing songs, or uploading practice media. Songs, notes, timers, and YouTube references remain available in guest mode.</p></section></div></main></AppFrame>;
+    return <AppFrame showSidebar sidebarFooter={<SessionSidebarFooter signedIn isGuest next="/settings" />}><main className="min-w-0 flex-1 px-4 py-6 sm:px-7 sm:py-8"><div className="mx-auto w-full max-w-3xl"><header className="border-b border-stone-200 pb-5"><h1 className="text-2xl font-semibold tracking-tight text-stone-950">Settings</h1><p className="mt-1 text-sm text-stone-500">Your private guest practice is ready to use.</p></header><div className="mt-6"><GuestSavePrompt next="/settings" /></div><section className="mt-6 rounded-xl border border-stone-200 bg-white px-5 py-5"><h2 className="text-sm font-semibold text-stone-950">Sharing and profile settings</h2><p className="mt-1 text-sm leading-6 text-stone-500">Create an account before publishing a profile, sharing songs, or uploading practice media. Songs, notes, timers, and YouTube references remain available in guest mode.</p></section><section className="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-red-200 bg-white px-5 py-5"><div><h2 className="text-sm font-semibold text-stone-950">Clear Guest Data</h2><p className="mt-1 text-sm text-stone-500">Permanently remove this browser’s guest practice data.</p></div><DeleteAccountModal isGuest /></section></div></main></AppFrame>;
   }
   const result = await supabase
     .from("profiles")
@@ -47,6 +48,10 @@ export default async function SettingsPage() {
           <div className="mt-6">
             {profile?.is_public ? <section className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-stone-200 bg-stone-50 px-4 py-4"><div><h2 className="text-sm font-semibold text-stone-950">Your Public Profile</h2><p className="mt-1 text-xs text-stone-500">Anyone with this link can view what you chose to share.</p></div><CopyLinkButton path={`/people/${profile.username}`} label="Copy Profile Link" /></section> : <section className="mb-6 rounded-xl border border-dashed border-stone-300 bg-stone-50 px-4 py-4"><h2 className="text-sm font-semibold text-stone-900">Profile Link</h2><p className="mt-1 text-sm leading-6 text-stone-500">Turn on Show Me in Community and save to create a shareable profile link.</p></section>}
             <ProfileSettingsForm profile={profile} />
+            <section className="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-red-200 bg-white px-5 py-5">
+              <div><h2 className="text-sm font-semibold text-stone-950">Delete Account</h2><p className="mt-1 text-sm text-stone-500">Permanently remove your account and all Stride data.</p></div>
+              <DeleteAccountModal />
+            </section>
           </div>
         </div>
       </main>

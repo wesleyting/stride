@@ -15,7 +15,7 @@ Stride is a guitar-practice tracker that helps you resume each song with useful 
 2. In the Supabase SQL Editor, run every file in `supabase/migrations/` in numeric order.
 3. In **Authentication → Providers → Anonymous Sign-Ins**, enable anonymous sign-ins.
 4. Copy `.env.example` to `.env.local`.
-5. Fill in the three environment variables described below.
+5. Fill in the required environment variables described below.
 6. Install dependencies and start the app:
 
 ```bash
@@ -31,12 +31,16 @@ Open [http://localhost:3000](http://localhost:3000).
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_your_key
+# Optional until Turnstile is enabled in Supabase:
+NEXT_PUBLIC_TURNSTILE_SITE_KEY=
 ```
 
 - `NEXT_PUBLIC_SITE_URL` is Stride's own URL. Use `http://localhost:3000` locally and the final HTTPS domain in production.
 - Find the Supabase Project URL and Publishable key in the project's **Connect** dialog. They are also available under **Settings → API Keys**.
 - The publishable key is designed for browser applications and is protected by the project's RLS policies.
 - Do not add a Supabase secret key or legacy `service_role` key to this application.
+
+For production guest access, create a Cloudflare Turnstile widget for your domain, add its public site key as `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, then enable Turnstile under **Supabase → Authentication → Bot and Abuse Protection** with Cloudflare's secret key. Stride passes the resulting token to sign-in, sign-up, password-reset, and anonymous guest requests. Leave the environment variable empty while CAPTCHA is disabled.
 
 ## Supabase Auth configuration
 
@@ -56,14 +60,14 @@ Password recovery uses `/auth/callback?next=/reset-password`. Keep the Supabase 
 
 Keep the **Change email address** template's `{{ .ConfirmationURL }}` link intact. Stride supplies an allowed `/auth/callback` redirect so a guest returns to the password step after confirming their email.
 
-Guest visitors receive an anonymous Supabase user only when they choose **Add Song**. They can use the complete private practice workflow and later attach an email and password without changing ownership of their data. Public profiles, public songs, and media uploads require a permanent account. Before opening guest access broadly, add Cloudflare Turnstile or another supported CAPTCHA token to the guest-start flow, then enable the matching CAPTCHA integration in Supabase.
+Guest visitors receive an anonymous Supabase user only when they choose **Add Song**. They can use the complete private practice workflow and later attach an email and password without changing ownership of their data. Public profiles, public songs, and media uploads require a permanent account.
 
-Supabase does not automatically remove abandoned anonymous users. Migration `0020_anonymous_user_cleanup.sql` enables Supabase Cron and removes anonymous accounts after 90 days without a sign-in or Stride write; application records are deleted with them through the existing foreign-key cascades. Review runs in **Integrations → Cron → Jobs**. For public guest access, also enable CAPTCHA or Cloudflare Turnstile in Supabase to reduce automated anonymous-user creation.
+Supabase does not automatically remove abandoned anonymous users. Migration `0020_anonymous_user_cleanup.sql` enables Supabase Cron and removes anonymous accounts after 90 days without a sign-in or Stride write; application records are deleted with them through the existing foreign-key cascades. Review runs in **Integrations → Cron → Jobs**. Migration `0021_account_deletion.sql` provides the narrowly scoped function used by Settings to delete the current user and their data.
 
 ## Deploying to Vercel
 
 1. Import the Git repository into Vercel.
-2. Add `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` to Production and Preview.
+2. Add `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` to Production and Preview. Add `NEXT_PUBLIC_TURNSTILE_SITE_KEY` after configuring Turnstile.
 3. Add `NEXT_PUBLIC_SITE_URL` to Production using the final HTTPS domain. Preview deployments can omit it and use Vercel's generated deployment URL.
 4. Deploy, then add the final `/auth/callback` URL to Supabase's allowed redirect URLs.
 5. Enable **Web Analytics** and **Speed Insights** in the Vercel project dashboard.
