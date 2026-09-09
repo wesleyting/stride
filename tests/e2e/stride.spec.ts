@@ -15,7 +15,7 @@ test("signed-out visitors can preview the dashboard without creating an account"
   await expect(page.getByRole("heading", { name: "Guitar" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Add Your First Song" }).first()).toBeVisible();
   await expect(page.getByText(/No account required/)).toBeVisible();
-  await expect(page.getByRole("button", { name: "Add Song" }).first()).toBeVisible();
+  await expect(page.getByRole("button", { name: "Add Song" }).first()).toHaveAttribute("aria-keyshortcuts", "N");
 });
 
 test("privacy controls are discoverable before creating an account", async ({ page }) => {

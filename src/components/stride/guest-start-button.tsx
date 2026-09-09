@@ -21,7 +21,7 @@ function GuestSubmit({ className }: { className?: string }) {
   const { pending } = useFormStatus();
 
   return (
-    <button type="submit" disabled={pending} className={cn(buttonVariants(), className)}>
+    <button type="submit" disabled={pending} data-shortcut-add-song aria-keyshortcuts="N" title="Add Song (N)" className={cn(buttonVariants(), className)}>
       <Plus data-icon="inline-start" aria-hidden="true" />
       {pending ? "Starting…" : "Add Song"}
     </button>

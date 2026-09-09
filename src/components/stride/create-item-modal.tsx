@@ -47,6 +47,9 @@ export function CreateItemModal({
       <button
         type="button"
         onClick={() => setOpen(true)}
+        data-shortcut-add-song
+        aria-keyshortcuts="N"
+        title={`${actionLabel} (N)`}
         className={buttonVariants({ size: "default" })}
       >
         <Plus data-icon="inline-start" aria-hidden="true" />
