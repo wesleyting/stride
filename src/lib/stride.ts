@@ -18,7 +18,8 @@ export type ItemRecord = {
   activity_id: string;
   name: string;
   slug: string;
-  difficulty: number;
+  difficulty: number | null;
+  folder_id: string | null;
   is_favorite: boolean;
   pin_position: number | null;
   youtube_url: string;
@@ -28,6 +29,14 @@ export type ItemRecord = {
   is_archived: boolean;
   created_at: string;
   updated_at: string;
+};
+
+export type SongFolderRecord = {
+  id: string;
+  activity_id: string;
+  name: string;
+  sort_order: number;
+  created_at: string;
 };
 
 export const GUITAR_TUNINGS = [
@@ -47,6 +56,17 @@ export type GuitarTuning = (typeof GUITAR_TUNINGS)[number]["value"];
 
 export function formatTuning(value?: string | null) {
   return GUITAR_TUNINGS.find((tuning) => tuning.value === value) ?? GUITAR_TUNINGS[0];
+}
+
+export function referenceSourceLabel(value: string) {
+  try {
+    const host = new URL(value).hostname.replace(/^www\./, "").toLowerCase();
+    if (host === "youtu.be" || host.endsWith("youtube.com")) return "YouTube";
+    if (host.endsWith("ultimate-guitar.com")) return "Ultimate Guitar";
+    return host || "Reference";
+  } catch {
+    return "Reference";
+  }
 }
 
 export type SongResourceRecord = {

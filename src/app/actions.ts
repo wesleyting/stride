@@ -46,14 +46,32 @@ const difficultySchema = z.coerce.number().min(0.5).max(5).refine(
   "Choose a difficulty in half-star steps.",
 );
 
+const optionalDifficultySchema = z.preprocess(
+  (value) => value === "" || value === null ? null : Number(value),
+  z.number().min(0.5).max(5).refine((value) => Number.isInteger(value * 2), "Choose difficulty in half-star steps.").nullable(),
+);
+
+const optionalFolderIdSchema = z.preprocess(
+  (value) => value === "" || value === "uncategorized" || value === null ? null : value,
+  z.string().uuid().nullable(),
+);
+
+const referenceUrlSchema = z.string().trim().max(500).refine((value) => {
+  if (!value) return true;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" || url.protocol === "http:";
+  } catch {
+    return false;
+  }
+}, "Use a complete http or https link.");
+
 const itemSchema = z.object({
   name: z.string().trim().min(2, "Item names need at least 2 characters.").max(60),
-  difficulty: difficultySchema,
+  difficulty: optionalDifficultySchema,
+  folderId: optionalFolderIdSchema,
   isPublic: z.boolean().default(false),
-  youtubeUrl: z.string().trim().max(500).refine(
-    (value) => !value || /^https:\/\/(www\.)?(youtube\.com|youtu\.be)\//i.test(value),
-    "Use a YouTube or youtu.be link.",
-  ).optional().or(z.literal("")),
+  youtubeUrl: referenceUrlSchema.optional().or(z.literal("")),
   tuning: z.enum(["standard", "half-step-down", "whole-step-down", "drop-d", "double-drop-d", "dadgad", "open-c", "open-d", "open-e", "open-g"]).default("standard"),
   capo: z.preprocess(
     (value) => value === "" || value === "none" || value === null ? null : Number(value),
@@ -68,10 +86,7 @@ const practiceSchema = z.object({
     z.number().int().min(1).max(10).nullable(),
   ),
   practicePart: z.string().trim().max(160, "Keep the practice tags under 160 characters.").optional().or(z.literal("")),
-  youtubeUrl: z.string().trim().max(500).refine(
-    (value) => !value || /^https:\/\/(www\.)?(youtube\.com|youtu\.be)\//i.test(value),
-    "Use a YouTube or youtu.be link.",
-  ).optional().or(z.literal("")),
+  youtubeUrl: referenceUrlSchema.optional().or(z.literal("")),
   activitySlug: z.string().trim().min(1),
   itemSlug: z.string().trim().min(1),
 }).refine(
@@ -82,14 +97,12 @@ const practiceSchema = z.object({
 const songWorkspaceSchema = z.object({
   itemId: z.string().uuid(),
   itemSlug: z.string().trim().min(1),
-  youtubeUrl: z
-    .string()
-    .trim()
-    .max(500)
-    .refine(
-      (value) => !value || /^https:\/\/(www\.)?(youtube\.com|youtu\.be)\//i.test(value),
-      "Use a YouTube or youtu.be link.",
-    ),
+  youtubeUrl: referenceUrlSchema,
+});
+
+const folderSchema = z.object({
+  activitySlug: z.string().trim().min(1),
+  name: z.string().trim().min(1, "Give the folder a name.").max(40, "Keep folder names under 40 characters."),
 });
 
 const editSongSchema = itemSchema.extend({
@@ -450,6 +463,7 @@ export async function createItemAction(
   const parsed = itemSchema.safeParse({
     name: formData.get("name"),
     difficulty: formData.get("difficulty"),
+    folderId: formData.get("folderId") ?? "",
     isPublic: formData.get("isPublic") === "true",
     youtubeUrl: formData.get("youtubeUrl") ?? "",
     tuning: formData.get("tuning") ?? "standard",
@@ -501,12 +515,18 @@ export async function createItemAction(
   const normalizedName = titleCaseSongName(parsed.data.name);
   const slug = slugify(normalizedName);
 
+  if (parsed.data.folderId) {
+    const folder = await supabase.from("song_folders").select("id").eq("id", parsed.data.folderId).eq("user_id", user.id).eq("activity_id", activity.id).maybeSingle();
+    if (folder.error || !folder.data) return mutationError("That folder is no longer available.");
+  }
+
   const { error } = await supabase.from("items").insert({
     user_id: user.id,
     activity_id: activity.id,
     name: normalizedName,
     slug,
     difficulty: parsed.data.difficulty,
+    folder_id: parsed.data.folderId,
     is_public: parsed.data.isPublic,
     ...(parsed.data.youtubeUrl ? { youtube_url: parsed.data.youtubeUrl } : {}),
     tuning: parsed.data.tuning || "standard",
@@ -515,7 +535,7 @@ export async function createItemAction(
   });
 
   if (error) {
-    return mutationError(error.code === "42703" || error.code === "PGRST204" ? "Run migration 0015_song_setup.sql before saving tuning and capo." : error.message);
+    return mutationError(error.code === "42703" || error.code === "PGRST204" || error.code === "23502" ? "Run migration 0022_song_folders_and_optional_difficulty.sql before saving this song." : error.message);
   }
 
   revalidatePath(`/${activitySlug}`);
@@ -523,6 +543,47 @@ export async function createItemAction(
   revalidatePath("/songs");
   revalidatePath(`/songs/${slug}`);
   redirect(`/songs/${slug}?${createdFromHome ? "from=home&" : ""}notice=song-created`);
+}
+
+export async function createSongFolderAction(
+  _previousState: MutationState,
+  formData: FormData,
+): Promise<MutationState> {
+  const { supabase, user } = await getSignedInUser();
+  if (!user) return mutationError("You need to sign in first.");
+
+  const parsed = folderSchema.safeParse({ activitySlug: formData.get("activitySlug"), name: formData.get("name") });
+  if (!parsed.success) return mutationError(parsed.error.issues[0]?.message ?? "Check the folder name.");
+
+  const activity = await supabase.from("activities").select("id").eq("user_id", user.id).eq("slug", parsed.data.activitySlug).maybeSingle();
+  if (activity.error || !activity.data) return mutationError("That activity could not be found.");
+
+  const result = await supabase.from("song_folders").insert({
+    user_id: user.id,
+    activity_id: activity.data.id,
+    name: titleCaseSongName(parsed.data.name),
+  });
+  if (result.error) {
+    if (result.error.code === "42P01" || result.error.code === "PGRST205") return mutationError("Run migration 0022_song_folders_and_optional_difficulty.sql first.");
+    if (result.error.code === "23505") return mutationError("A folder with that name already exists.");
+    return mutationError(result.error.message);
+  }
+
+  revalidatePath("/songs");
+  return mutationSuccess();
+}
+
+export async function deleteSongFolderAction(folderId: string): Promise<MutationState> {
+  const { supabase, user } = await getSignedInUser();
+  if (!user) return mutationError("You need to sign in first.");
+
+  const parsed = z.string().uuid().safeParse(folderId);
+  if (!parsed.success) return mutationError("That folder could not be found.");
+  const result = await supabase.from("song_folders").delete().eq("id", parsed.data).eq("user_id", user.id);
+  if (result.error) return mutationError(result.error.message);
+
+  revalidatePath("/songs");
+  return mutationSuccess();
 }
 
 export async function logPracticeAction(
@@ -951,6 +1012,7 @@ export async function updateItemAction(
     activitySlug: formData.get("activitySlug"),
     name: formData.get("name"),
     difficulty: formData.get("difficulty"),
+    folderId: formData.get("folderId") ?? "",
     youtubeUrl: formData.get("youtubeUrl") ?? "",
     tuning: formData.get("tuning") ?? "standard",
     capo: formData.get("capo") ?? "",
@@ -959,11 +1021,13 @@ export async function updateItemAction(
 
   const name = titleCaseSongName(parsed.data.name);
 
+  const includeFolder = formData.has("folderId");
   const { error } = await supabase
     .from("items")
     .update({
       name,
       difficulty: parsed.data.difficulty,
+      ...(includeFolder ? { folder_id: parsed.data.folderId } : {}),
       youtube_url: parsed.data.youtubeUrl,
       tuning: parsed.data.tuning || "standard",
       capo: parsed.data.capo,
@@ -972,7 +1036,7 @@ export async function updateItemAction(
     .eq("user_id", user.id);
 
   if (error) {
-    return mutationError(error.code === "42703" || error.code === "PGRST204" ? "Run migration 0015_song_setup.sql before saving tuning and capo." : error.message);
+    return mutationError(error.code === "42703" || error.code === "PGRST204" || error.code === "23502" ? "Run migration 0022_song_folders_and_optional_difficulty.sql before saving this song." : error.message);
   }
 
   revalidatePath(`/${parsed.data.activitySlug}`);

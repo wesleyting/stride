@@ -24,9 +24,9 @@ export function SongWorkspaceModal({
     <>
       <button type="button" onClick={() => setOpen(true)} className={buttonVariants({ variant: "outline" })}>
         <Link2 data-icon="inline-start" aria-hidden="true" />
-        {youtubeUrl ? "Edit YouTube Link" : "Add YouTube Link"}
+        {youtubeUrl ? "Edit Reference Link" : "Add Reference Link"}
       </button>
-      <DialogShell open={open} onOpenChange={setOpen} title="YouTube Link" size="md">
+      <DialogShell open={open} onOpenChange={setOpen} title="Reference Link" size="md">
         {open ? <WorkspaceForm itemId={itemId} itemSlug={itemSlug} youtubeUrl={youtubeUrl} close={() => setOpen(false)} /> : null}
       </DialogShell>
     </>
@@ -41,7 +41,7 @@ function WorkspaceForm(props: {
 }) {
   const [state, action, pending] = useActionState(updateSongWorkspaceAction, initialState);
   const { showToast } = useToast();
-  useEffect(() => { if (state.success) { props.close(); showToast("YouTube link updated."); } }, [props, showToast, state.success]);
+  useEffect(() => { if (state.success) { props.close(); showToast("Reference link updated."); } }, [props, showToast, state.success]);
 
   return (
     <form action={action} className="grid gap-5">
@@ -49,8 +49,8 @@ function WorkspaceForm(props: {
       <input type="hidden" name="itemSlug" value={props.itemSlug} />
       {state.error ? <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{state.error}</p> : null}
       <label className="text-sm font-semibold text-stone-900">
-        YouTube Link <span className="font-normal text-stone-500">Optional</span>
-        <input name="youtubeUrl" type="url" maxLength={500} defaultValue={props.youtubeUrl} placeholder="https://www.youtube.com/watch?v=…" className={fieldClass} />
+        Reference Link <span className="font-normal text-stone-500">Optional</span>
+        <input name="youtubeUrl" type="url" maxLength={500} defaultValue={props.youtubeUrl} placeholder="YouTube, Ultimate Guitar, or another chord site" className={fieldClass} />
       </label>
       <div className="flex justify-end gap-2 border-t border-stone-200 pt-4">
         <button type="button" onClick={props.close} className={buttonVariants({ variant: "outline" })}>Cancel</button>

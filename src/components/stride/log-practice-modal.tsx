@@ -218,15 +218,15 @@ function PracticeForm({
         <p className="text-sm font-semibold text-stone-950">Add details</p>
         <div className="mt-2 flex flex-wrap gap-2">
           <OptionalButton active={showAreas} onClick={() => reveal(setShowAreas, areasRef)} icon={Tags}>Worked on</OptionalButton>
-          <OptionalButton active={showYoutube} onClick={() => reveal(setShowYoutube, youtubeRef)} icon={Link2}>YouTube link</OptionalButton>
+          <OptionalButton active={showYoutube} onClick={() => reveal(setShowYoutube, youtubeRef)} icon={Link2}>Reference link</OptionalButton>
         </div>
       </div>
 
       <div ref={areasRef} className={showAreas ? "block" : "hidden"}><PracticeTagInput key={resetSignal} name="practicePart" suggestions={previousParts} optional initialValue={practicePart} onValueChange={handlePracticePartChange} /></div>
 
       <div ref={youtubeRef} className={showYoutube ? "block" : "hidden"}>
-        <label htmlFor="practice-youtube" className="text-sm font-semibold text-stone-950">YouTube link</label>
-        <input id="practice-youtube" name="youtubeUrl" type="url" maxLength={500} value={youtubeUrl} onChange={(event) => setYoutubeUrl(event.target.value)} placeholder="https://www.youtube.com/watch?v=…" className={fieldClassName} />
+        <label htmlFor="practice-youtube" className="text-sm font-semibold text-stone-950">Reference link</label>
+        <input id="practice-youtube" name="youtubeUrl" type="url" maxLength={500} value={youtubeUrl} onChange={(event) => setYoutubeUrl(event.target.value)} placeholder="YouTube, Ultimate Guitar, or another chord site" className={fieldClassName} />
       </div>
 
       <div className="flex flex-col-reverse gap-2 border-t border-stone-200 pt-4 sm:flex-row sm:justify-end">

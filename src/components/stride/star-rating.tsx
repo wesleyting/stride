@@ -14,7 +14,7 @@ export function StarRating({
   size = "md",
   label = "Song difficulty",
 }: {
-  value: number;
+  value: number | null;
   onChange?: (value: number) => void;
   disabled?: boolean;
   size?: "sm" | "md" | "lg";
@@ -22,12 +22,12 @@ export function StarRating({
 }) {
   const [preview, setPreview] = useState<number | null>(null);
   const interactive = Boolean(onChange);
-  const visibleValue = preview ?? value;
+  const visibleValue = preview ?? value ?? 0;
   const starSize = size === "sm" ? "size-3.5" : size === "lg" ? "size-6" : "size-4";
   const stars = <>{Array.from({ length: 5 }, (_, index) => <PartialStar key={index} fill={visibleValue - index} className={starSize} />)}</>;
 
   if (!interactive) {
-    return <span className="inline-flex shrink-0" aria-label={`${label}: ${formatDifficulty(value)} out of 5`}>{stars}</span>;
+    return <span className="inline-flex shrink-0" aria-label={value === null ? `${label}: not set` : `${label}: ${formatDifficulty(value)} out of 5`}>{stars}</span>;
   }
 
   function valueFromPoint(element: HTMLElement, clientX: number) {
@@ -46,8 +46,9 @@ export function StarRating({
 
   function selectWithKeyboard(event: KeyboardEvent<HTMLButtonElement>) {
     let next: number | null = null;
-    if (event.key === "ArrowRight" || event.key === "ArrowUp") next = Math.min(MAX_DIFFICULTY, value + 0.5);
-    if (event.key === "ArrowLeft" || event.key === "ArrowDown") next = Math.max(MIN_DIFFICULTY, value - 0.5);
+    const current = value ?? 0;
+    if (event.key === "ArrowRight" || event.key === "ArrowUp") next = Math.min(MAX_DIFFICULTY, current + 0.5);
+    if (event.key === "ArrowLeft" || event.key === "ArrowDown") next = Math.max(MIN_DIFFICULTY, current - 0.5);
     if (event.key === "Home") next = MIN_DIFFICULTY;
     if (event.key === "End") next = MAX_DIFFICULTY;
     if (next !== null) {
@@ -63,9 +64,9 @@ export function StarRating({
       aria-label={label}
       aria-valuemin={MIN_DIFFICULTY}
       aria-valuemax={MAX_DIFFICULTY}
-      aria-valuenow={value}
-      aria-valuetext={`${formatDifficulty(value)} out of 5`}
-      title={`${formatDifficulty(visibleValue)} out of 5`}
+      aria-valuenow={value ?? undefined}
+      aria-valuetext={value === null ? "Not set" : `${formatDifficulty(value)} out of 5`}
+      title={visibleValue === 0 ? "Set difficulty" : `${formatDifficulty(visibleValue)} out of 5`}
       disabled={disabled}
       onPointerMove={previewPoint}
       onPointerLeave={() => setPreview(null)}

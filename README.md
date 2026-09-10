@@ -1,6 +1,6 @@
 # Stride
 
-Stride is a guitar-practice tracker that helps you resume each song with useful context. It supports timed sessions, lightweight practice logs, pinned songs, private practice media, and intentionally shared public profiles.
+Stride is a guitar-practice tracker that helps you resume each song with useful context. It supports timed sessions, lightweight practice logs, organized song folders, flexible reference links, private practice media, and intentionally shared public profiles.
 
 ## Stack
 

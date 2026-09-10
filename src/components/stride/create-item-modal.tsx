@@ -4,8 +4,9 @@ import { useActionState, useEffect, useState } from "react";
 import { Eye, Lock, Plus } from "lucide-react";
 import { createItemAction, type MutationState } from "@/app/actions";
 import { DialogShell } from "@/components/stride/dialog-shell";
-import { DifficultyField, OptionalSongFields, songFieldClassName } from "@/components/stride/song-fields";
+import { DifficultyField, FolderField, OptionalSongFields, songFieldClassName } from "@/components/stride/song-fields";
 import { buttonVariants } from "@/components/ui/button";
+import type { SongFolderRecord } from "@/lib/stride";
 
 const initialState: MutationState = {
   success: false,
@@ -18,12 +19,14 @@ export function CreateItemModal({
   defaultOpen = false,
   createdFrom = "songs",
   isGuest = false,
+  folders,
 }: {
   activitySlug: string;
   activityKind: "practice" | "journal" | "fitness" | "projects";
   defaultOpen?: boolean;
   createdFrom?: "home" | "songs";
   isGuest?: boolean;
+  folders?: SongFolderRecord[];
 }) {
   const [open, setOpen] = useState(defaultOpen);
 
@@ -69,6 +72,7 @@ export function CreateItemModal({
             actionLabel={actionLabel}
             createdFrom={createdFrom}
             isGuest={isGuest}
+            folders={folders}
             close={() => setOpen(false)}
           />
         ) : null}
@@ -83,6 +87,7 @@ function ItemForm({
   actionLabel,
   createdFrom,
   isGuest,
+  folders,
   close,
 }: {
   activitySlug: string;
@@ -90,13 +95,14 @@ function ItemForm({
   actionLabel: string;
   createdFrom: "home" | "songs";
   isGuest: boolean;
+  folders?: SongFolderRecord[];
   close: () => void;
 }) {
   const [state, formAction, pending] = useActionState(
     createItemAction,
     initialState,
   );
-  const [difficulty, setDifficulty] = useState(3);
+  const [difficulty, setDifficulty] = useState<number | null>(null);
   const [isPublic, setIsPublic] = useState(false);
 
   useEffect(() => {
@@ -131,10 +137,12 @@ function ItemForm({
         />
       </label>
 
+      {folders ? <FolderField folders={folders} /> : null}
+
       {activityKind === "practice" ? (
         <DifficultyField value={difficulty} onChange={setDifficulty} />
       ) : (
-        <input type="hidden" name="difficulty" value="3" />
+        <input type="hidden" name="difficulty" value="" />
       )}
 
       {activityKind === "practice" ? <OptionalSongFields /> : null}

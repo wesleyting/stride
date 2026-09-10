@@ -15,7 +15,7 @@ export function DifficultyControl({
   itemId: string;
   itemSlug: string;
   activitySlug: string;
-  value: number;
+  value: number | null;
   compact?: boolean;
 }) {
   const [difficulty, setDifficulty] = useState(value);
