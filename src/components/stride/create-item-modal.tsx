@@ -137,15 +137,16 @@ function ItemForm({
         />
       </label>
 
-      {folders ? <FolderField folders={folders} /> : null}
-
       {activityKind === "practice" ? (
-        <DifficultyField value={difficulty} onChange={setDifficulty} />
+        <section className="grid gap-5 border-t border-stone-200 pt-4" aria-labelledby="optional-song-details">
+          <h3 id="optional-song-details" className="text-xs font-semibold uppercase tracking-wide text-stone-500">Optional details</h3>
+          {folders ? <FolderField folders={folders} activitySlug={activitySlug} /> : null}
+          <DifficultyField value={difficulty} onChange={setDifficulty} />
+          <OptionalSongFields />
+        </section>
       ) : (
         <input type="hidden" name="difficulty" value="" />
       )}
-
-      {activityKind === "practice" ? <OptionalSongFields /> : null}
 
       {activityKind === "practice" ? <VisibilityField isPublic={isPublic} setIsPublic={setIsPublic} isGuest={isGuest} /> : null}
 

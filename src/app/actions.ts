@@ -17,6 +17,7 @@ import {
 export type MutationState = {
   success: boolean;
   error: string | null;
+  folder?: { id: string; name: string } | null;
 };
 
 const authSchema = z.object({
@@ -555,22 +556,27 @@ export async function createSongFolderAction(
   const parsed = folderSchema.safeParse({ activitySlug: formData.get("activitySlug"), name: formData.get("name") });
   if (!parsed.success) return mutationError(parsed.error.issues[0]?.message ?? "Check the folder name.");
 
-  const activity = await supabase.from("activities").select("id").eq("user_id", user.id).eq("slug", parsed.data.activitySlug).maybeSingle();
+  let activity = await supabase.from("activities").select("id").eq("user_id", user.id).eq("slug", parsed.data.activitySlug).maybeSingle();
+  if (!activity.data && parsed.data.activitySlug === "guitar") {
+    const created = await supabase.from("activities").insert({ user_id: user.id, name: "Guitar", slug: "guitar", kind: "practice", description: "Songs and practice notes", sort_order: 0 }).select("id").single();
+    activity = created;
+  }
   if (activity.error || !activity.data) return mutationError("That activity could not be found.");
 
   const result = await supabase.from("song_folders").insert({
     user_id: user.id,
     activity_id: activity.data.id,
     name: titleCaseSongName(parsed.data.name),
-  });
+  }).select("id, name").single();
   if (result.error) {
     if (result.error.code === "42P01" || result.error.code === "PGRST205") return mutationError("Run migration 0022_song_folders_and_optional_difficulty.sql first.");
     if (result.error.code === "23505") return mutationError("A folder with that name already exists.");
     return mutationError(result.error.message);
   }
 
-  revalidatePath("/songs");
-  return mutationSuccess();
+  revalidatePath("/");
+  revalidatePath("/songs", "layout");
+  return { success: true, error: null, folder: result.data };
 }
 
 export async function deleteSongFolderAction(folderId: string): Promise<MutationState> {
@@ -582,7 +588,8 @@ export async function deleteSongFolderAction(folderId: string): Promise<Mutation
   const result = await supabase.from("song_folders").delete().eq("id", parsed.data).eq("user_id", user.id);
   if (result.error) return mutationError(result.error.message);
 
-  revalidatePath("/songs");
+  revalidatePath("/");
+  revalidatePath("/songs", "layout");
   return mutationSuccess();
 }
 

@@ -15,7 +15,7 @@ import { SessionSidebarFooter } from "@/components/stride/session-sidebar-footer
 import { buttonVariants } from "@/components/ui/button";
 import { getUser, isAccountSetupPending } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { calculatePracticeStreak, entriesWithinDays, formatTrackedTime, referenceSourceLabel, titleCaseSongName, type EntryRecord, type ItemRecord } from "@/lib/stride";
+import { calculatePracticeStreak, entriesWithinDays, formatTrackedTime, referenceSourceLabel, titleCaseSongName, type EntryRecord, type ItemRecord, type SongFolderRecord } from "@/lib/stride";
 
 export const dynamic = "force-dynamic";
 type ItemExtension = Pick<ItemRecord, "id" | "is_favorite" | "pin_position" | "youtube_url" | "tuning" | "capo">;
@@ -33,16 +33,18 @@ export default async function GuitarDashboard({ searchParams }: PageProps<"/">) 
   const guitar = activityResult.data;
   let songs: ItemRecord[] = [];
   let entries: EntryRecord[] = [];
+  let folders: SongFolderRecord[] = [];
   let workspaceReady = true;
   let pinOrderingReady = true;
   let timeTrackingReady = true;
 
   if (guitar) {
-    const [itemsResult, entriesResult, extensionResult, durationResult] = await Promise.all([
+    const [itemsResult, entriesResult, extensionResult, durationResult, folderResult] = await Promise.all([
       supabase.from("items").select("id, activity_id, name, slug, difficulty, sort_order, is_archived, created_at, updated_at").eq("user_id", user.id).eq("activity_id", guitar.id).eq("is_archived", false).order("sort_order"),
       supabase.from("entries").select("id, activity_id, item_id, content, rating, practice_part, created_at").eq("user_id", user.id).eq("activity_id", guitar.id).order("created_at", { ascending: false }),
       supabase.from("items").select("id, is_favorite, pin_position, youtube_url, tuning, capo").eq("user_id", user.id).eq("activity_id", guitar.id),
       supabase.from("entries").select("id, duration_seconds").eq("user_id", user.id).eq("activity_id", guitar.id),
+      supabase.from("song_folders").select("id, activity_id, name, sort_order, created_at").eq("user_id", user.id).eq("activity_id", guitar.id).order("sort_order").order("name"),
     ]);
     if (itemsResult.error) throw itemsResult.error;
     if (entriesResult.error) throw entriesResult.error;
@@ -54,8 +56,9 @@ export default async function GuitarDashboard({ searchParams }: PageProps<"/">) 
       pinOrderingReady = false;
     } else workspaceReady = !extensionResult.error;
     timeTrackingReady = !durationResult.error;
+    folders = (folderResult.data ?? []) as SongFolderRecord[];
     const extensionById = new Map(extensionRows.map((row) => [row.id, row as ItemExtension]));
-    songs = (itemsResult.data ?? []).map((song) => ({ ...song, is_favorite: extensionById.get(song.id)?.is_favorite ?? false, pin_position: extensionById.get(song.id)?.pin_position ?? null, youtube_url: extensionById.get(song.id)?.youtube_url ?? "", tuning: extensionById.get(song.id)?.tuning ?? "standard", capo: extensionById.get(song.id)?.capo ?? null })) as ItemRecord[];
+    songs = (itemsResult.data ?? []).map((song) => ({ ...song, is_favorite: extensionById.get(song.id)?.is_favorite ?? false, pin_position: extensionById.get(song.id)?.pin_position ?? null, youtube_url: extensionById.get(song.id)?.youtube_url ?? "", tuning: extensionById.get(song.id)?.tuning ?? "standard", capo: extensionById.get(song.id)?.capo ?? null, folder_id: null })) as ItemRecord[];
     const durationById = new Map((durationResult.data ?? []).map((entry) => [entry.id, entry.duration_seconds]));
     entries = (entriesResult.data ?? []).map((entry) => ({ ...entry, duration_seconds: durationById.get(entry.id) ?? null })) as EntryRecord[];
   }
@@ -72,7 +75,7 @@ export default async function GuitarDashboard({ searchParams }: PageProps<"/">) 
       <main className="min-w-0 flex-1 px-4 py-6 sm:px-7 sm:py-8">
         <header className="flex flex-wrap items-start justify-between gap-4">
           <h1 className="text-2xl font-semibold tracking-tight text-stone-950">Guitar</h1>
-          <CreateItemModal activitySlug="guitar" activityKind="practice" defaultOpen={openAddSong} createdFrom="home" isGuest={isGuest} />
+          <CreateItemModal activitySlug="guitar" activityKind="practice" defaultOpen={openAddSong} createdFrom="home" isGuest={isGuest} folders={folders} />
         </header>
 
         {isGuest && songs.length ? <div className="mt-5"><GuestSavePrompt /></div> : null}
@@ -84,7 +87,7 @@ export default async function GuitarDashboard({ searchParams }: PageProps<"/">) 
 
         <section className="mt-8" aria-labelledby="home-songs-heading">
           <div className="flex flex-wrap items-center justify-between gap-3"><h2 id="home-songs-heading" className="text-base font-semibold text-stone-950">Pinned</h2><div className="flex gap-2">{songs.length ? <HomeSongsModal songs={songs} /> : null}<Link href="/songs" className={buttonVariants({ variant: "ghost" })}>All songs <ChevronRight data-icon="inline-end" aria-hidden="true" /></Link></div></div>
-          {songs.length === 0 ? <EmptyLibrary isGuest={isGuest} /> : favoriteSongs.length === 0 ? <div className="mt-4 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-stone-200 bg-stone-50 px-5 py-5"><p className="text-sm font-medium text-stone-700">Pin songs for quick access.</p><HomeSongsModal songs={songs} /></div> : <div className="mt-4 grid gap-3 xl:grid-cols-2">{favoriteSongs.map((song) => <SongCard key={song.id} song={song} latest={latestBySong.get(song.id)} entries={entries} />)}</div>}
+          {songs.length === 0 ? <EmptyLibrary isGuest={isGuest} folders={folders} /> : favoriteSongs.length === 0 ? <div className="mt-4 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-stone-200 bg-stone-50 px-5 py-5"><p className="text-sm font-medium text-stone-700">Pin songs for quick access.</p><HomeSongsModal songs={songs} /></div> : <div className="mt-4 grid gap-3 xl:grid-cols-2">{favoriteSongs.map((song) => <SongCard key={song.id} song={song} latest={latestBySong.get(song.id)} entries={entries} />)}</div>}
         </section>
 
       </main>
@@ -97,8 +100,8 @@ function SongCard({ song, latest, entries }: { song: ItemRecord; latest?: EntryR
   return <article className="grid min-h-40 grid-rows-[auto_1fr] rounded-xl border border-stone-200 bg-white p-4 transition hover:border-stone-300 hover:shadow-sm focus-within:border-stone-400"><div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-stretch gap-3 border-b border-stone-100 pb-3"><Link href={`/songs/${song.slug}?from=home`} className="group/title -m-2 flex min-h-14 min-w-0 flex-col justify-center rounded-lg p-2 transition hover:bg-stone-50 focus-visible:ring-2 focus-visible:ring-stone-500"><h3 className="truncate text-base font-semibold text-stone-950 group-hover/title:underline">{titleCaseSongName(song.name)}</h3><p className="mt-1 truncate text-xs text-stone-500">{latest ? <><span className="font-medium text-stone-600">Last logged:</span> <LocalDateTime value={latest.created_at} /></> : "Not logged yet"}</p></Link><div className="self-center justify-self-end">{song.youtube_url ? <a href={song.youtube_url} target="_blank" rel="noreferrer" title="Open reference" className={buttonVariants({ variant: "ghost", size: "sm" })}>{referenceSourceLabel(song.youtube_url)}<ExternalLink data-icon="inline-end" aria-hidden="true" /></a> : <SongWorkspaceModal itemId={song.id} itemSlug={song.slug} youtubeUrl={song.youtube_url} />}</div></div><div className="mt-3 grid content-end gap-3"><div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2"><StartPracticeTimerButton itemId={song.id} itemSlug={song.slug} itemName={titleCaseSongName(song.name)} compact /><DifficultyControl itemId={song.id} itemSlug={song.slug} activitySlug="guitar" value={song.difficulty} /><div className="justify-self-end"><HomeSongPreviewModal song={song} entries={entries} /></div></div><div className="[&>button]:w-full"><LogPracticeModal activitySlug="guitar" activityName="Guitar" activityKind="practice" itemSlug={song.slug} itemName={titleCaseSongName(song.name)} hasHistory={Boolean(latest)} previousParts={parts} currentYoutubeUrl={song.youtube_url} /></div></div></article>;
 }
 
-function EmptyLibrary({ isGuest }: { isGuest: boolean }) {
-  return <div className="mt-4 rounded-xl border border-dashed border-stone-300 bg-stone-50 px-5 py-8 text-center"><span className="mx-auto flex size-11 items-center justify-center rounded-xl bg-white shadow-sm ring-1 ring-stone-200"><Music2 className="size-5 text-stone-600" aria-hidden="true" /></span><h3 className="mt-4 text-base font-semibold text-stone-950">Add Your First Song</h3><div className="mt-4 flex justify-center"><CreateItemModal activitySlug="guitar" activityKind="practice" createdFrom="home" isGuest={isGuest} /></div></div>;
+function EmptyLibrary({ isGuest, folders }: { isGuest: boolean; folders: SongFolderRecord[] }) {
+  return <div className="mt-4 rounded-xl border border-dashed border-stone-300 bg-stone-50 px-5 py-8 text-center"><span className="mx-auto flex size-11 items-center justify-center rounded-xl bg-white shadow-sm ring-1 ring-stone-200"><Music2 className="size-5 text-stone-600" aria-hidden="true" /></span><h3 className="mt-4 text-base font-semibold text-stone-950">Add Your First Song</h3><div className="mt-4 flex justify-center"><CreateItemModal activitySlug="guitar" activityKind="practice" createdFrom="home" isGuest={isGuest} folders={folders} /></div></div>;
 }
 
 function Metric({ icon: Icon, value, label }: { icon: typeof Flame; value: React.ReactNode; label: string }) {

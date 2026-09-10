@@ -32,9 +32,12 @@ function EditItemForm({ close, ...props }: EditItemModalProps & { close: () => v
     <input type="hidden" name="itemId" value={props.itemId} /><input type="hidden" name="itemSlug" value={props.itemSlug} /><input type="hidden" name="activitySlug" value={props.activitySlug} />
     {state.error ? <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{state.error}</div> : null}
     <label className="grid gap-2 text-sm font-semibold text-stone-900">Song Name<input name="name" required minLength={2} maxLength={60} defaultValue={props.itemName} className={songFieldClassName} /></label>
-    {props.folders ? <FolderField folders={props.folders} value={props.folderId} /> : null}
-    <DifficultyField value={difficulty} onChange={setDifficulty} />
-    <OptionalSongFields youtubeUrl={props.youtubeUrl} tuning={props.tuning ?? "standard"} capo={props.capo} />
+    <section className="grid gap-5 border-t border-stone-200 pt-4" aria-labelledby="optional-song-details-edit">
+      <h3 id="optional-song-details-edit" className="text-xs font-semibold uppercase tracking-wide text-stone-500">Optional details</h3>
+      {props.folders ? <FolderField folders={props.folders} value={props.folderId} activitySlug={props.activitySlug} /> : null}
+      <DifficultyField value={difficulty} onChange={setDifficulty} />
+      <OptionalSongFields youtubeUrl={props.youtubeUrl} tuning={props.tuning ?? "standard"} capo={props.capo} />
+    </section>
     <div className="flex justify-end gap-2 border-t border-stone-200 pt-4"><button type="button" onClick={close} className={buttonVariants({ variant: "outline" })}>Cancel</button><button type="submit" disabled={pending} className={buttonVariants()}>{pending ? "Saving…" : "Save Changes"}</button></div>
   </form>;
 }

@@ -5,7 +5,7 @@ import { Check, ChevronDown } from "lucide-react";
 import { useCallback, useState } from "react";
 import { cn } from "@/lib/utils";
 
-export type SelectOption = { value: string; label: string };
+export type SelectOption = { value: string; label: string; tone?: "action" };
 
 export function CustomSelect({
   options,
@@ -15,6 +15,7 @@ export function CustomSelect({
   onValueChange,
   ariaLabel,
   className,
+  placement = "adaptive",
 }: {
   options: SelectOption[];
   name?: string;
@@ -23,6 +24,7 @@ export function CustomSelect({
   onValueChange?: (value: string) => void;
   ariaLabel: string;
   className?: string;
+  placement?: "adaptive" | "below";
 }) {
   const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(null);
   const setTriggerRef = useCallback((trigger: HTMLButtonElement | null) => {
@@ -43,11 +45,11 @@ export function CustomSelect({
         <Select.Icon><ChevronDown className="size-4 shrink-0 text-stone-500 transition-transform data-[popup-open]:rotate-180" aria-hidden="true" /></Select.Icon>
       </Select.Trigger>
       <Select.Portal container={portalContainer}>
-        <Select.Positioner sideOffset={6} align="start" className="z-[100] outline-none">
+        <Select.Positioner side={placement === "below" ? "bottom" : undefined} sideOffset={6} align="start" collisionAvoidance={placement === "below" ? { side: "none", align: "shift", fallbackAxisSide: "none" } : undefined} className="z-[100] outline-none">
           <Select.Popup className="max-h-72 min-w-[var(--anchor-width)] origin-[var(--transform-origin)] overflow-y-auto rounded-xl border border-stone-200 bg-white p-1 shadow-xl outline-none transition data-[ending-style]:scale-95 data-[ending-style]:opacity-0 data-[starting-style]:scale-95 data-[starting-style]:opacity-0">
             <Select.List>
               {options.map((option) => (
-                <Select.Item key={option.value} value={option.value} className="grid cursor-pointer grid-cols-[minmax(0,1fr)_1rem] items-center gap-3 rounded-lg px-3 py-2 text-sm text-stone-700 outline-none transition data-[highlighted]:bg-stone-100 data-[highlighted]:text-stone-950 data-[selected]:font-semibold">
+                <Select.Item key={option.value} value={option.value} className={cn("grid cursor-pointer grid-cols-[minmax(0,1fr)_1rem] items-center gap-3 rounded-lg px-3 py-2 text-sm text-stone-700 outline-none transition data-[highlighted]:bg-stone-100 data-[highlighted]:text-stone-950 data-[selected]:font-semibold", option.tone === "action" && "mt-1 border-t border-stone-200 pt-2.5 font-semibold text-stone-900")}>
                   <Select.ItemText>{option.label}</Select.ItemText>
                   <Select.ItemIndicator><Check className="size-4" aria-hidden="true" /></Select.ItemIndicator>
                 </Select.Item>
