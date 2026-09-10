@@ -6,28 +6,30 @@ import { updateSongWorkspaceAction, type MutationState } from "@/app/actions";
 import { DialogShell } from "@/components/stride/dialog-shell";
 import { buttonVariants } from "@/components/ui/button";
 import { useToast } from "@/components/stride/toast-provider";
+import { ReferenceLinksField } from "@/components/stride/song-fields";
 
 const initialState: MutationState = { success: false, error: null };
-const fieldClass = "mt-1.5 w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-sm shadow-sm transition placeholder:text-stone-400 hover:border-stone-400 focus:border-stone-500 focus:ring-2 focus:ring-stone-500/20";
 
 export function SongWorkspaceModal({
   itemId,
   itemSlug,
   youtubeUrl,
+  referenceUrls,
 }: {
   itemId: string;
   itemSlug: string;
   youtubeUrl: string;
+  referenceUrls?: string[];
 }) {
   const [open, setOpen] = useState(false);
   return (
     <>
       <button type="button" onClick={() => setOpen(true)} className={buttonVariants({ variant: "outline" })}>
         <Link2 data-icon="inline-start" aria-hidden="true" />
-        {youtubeUrl ? "Edit Reference Link" : "Add Reference Link"}
+        {referenceUrls?.length || youtubeUrl ? "Edit Reference Links" : "Add Reference Link"}
       </button>
-      <DialogShell open={open} onOpenChange={setOpen} title="Reference Link" size="md">
-        {open ? <WorkspaceForm itemId={itemId} itemSlug={itemSlug} youtubeUrl={youtubeUrl} close={() => setOpen(false)} /> : null}
+      <DialogShell open={open} onOpenChange={setOpen} title="Reference Links" size="md">
+        {open ? <WorkspaceForm itemId={itemId} itemSlug={itemSlug} referenceUrls={referenceUrls ?? (youtubeUrl ? [youtubeUrl] : [])} close={() => setOpen(false)} /> : null}
       </DialogShell>
     </>
   );
@@ -36,22 +38,19 @@ export function SongWorkspaceModal({
 function WorkspaceForm(props: {
   itemId: string;
   itemSlug: string;
-  youtubeUrl: string;
+  referenceUrls: string[];
   close: () => void;
 }) {
   const [state, action, pending] = useActionState(updateSongWorkspaceAction, initialState);
   const { showToast } = useToast();
-  useEffect(() => { if (state.success) { props.close(); showToast("Reference link updated."); } }, [props, showToast, state.success]);
+  useEffect(() => { if (state.success) { props.close(); showToast("Reference links updated."); } }, [props, showToast, state.success]);
 
   return (
     <form action={action} className="grid gap-5">
       <input type="hidden" name="itemId" value={props.itemId} />
       <input type="hidden" name="itemSlug" value={props.itemSlug} />
       {state.error ? <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{state.error}</p> : null}
-      <label className="text-sm font-semibold text-stone-900">
-        Reference Link <span className="font-normal text-stone-500">Optional</span>
-        <input name="youtubeUrl" type="url" maxLength={500} defaultValue={props.youtubeUrl} placeholder="YouTube, Ultimate Guitar, or another chord site" className={fieldClass} />
-      </label>
+      <ReferenceLinksField urls={props.referenceUrls} />
       <div className="flex justify-end gap-2 border-t border-stone-200 pt-4">
         <button type="button" onClick={props.close} className={buttonVariants({ variant: "outline" })}>Cancel</button>
         <button type="submit" disabled={pending} className={buttonVariants()}>{pending ? "Saving…" : "Save"}</button>

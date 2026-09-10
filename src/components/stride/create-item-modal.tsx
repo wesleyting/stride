@@ -1,10 +1,10 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
-import { Eye, Lock, Plus } from "lucide-react";
+import { ChevronDown, Eye, Lock, Plus } from "lucide-react";
 import { createItemAction, type MutationState } from "@/app/actions";
 import { DialogShell } from "@/components/stride/dialog-shell";
-import { DifficultyField, FolderField, OptionalSongFields, songFieldClassName } from "@/components/stride/song-fields";
+import { DifficultyField, FolderField, ReferenceLinksField, SongSetupFields, songFieldClassName } from "@/components/stride/song-fields";
 import { buttonVariants } from "@/components/ui/button";
 import type { SongFolderRecord } from "@/lib/stride";
 
@@ -138,17 +138,18 @@ function ItemForm({
       </label>
 
       {activityKind === "practice" ? (
-        <section className="grid gap-5 border-t border-stone-200 pt-4" aria-labelledby="optional-song-details">
-          <h3 id="optional-song-details" className="text-xs font-semibold uppercase tracking-wide text-stone-500">Optional details</h3>
+        <section className="grid gap-5 border-t border-stone-200 pt-4">
           {folders ? <FolderField folders={folders} activitySlug={activitySlug} /> : null}
           <DifficultyField value={difficulty} onChange={setDifficulty} />
-          <OptionalSongFields />
+          <ReferenceLinksField />
+          <details className="group overflow-hidden rounded-xl border border-stone-200 bg-stone-50/60">
+            <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-semibold text-stone-800 hover:bg-stone-100">More Options<ChevronDown className="size-4 text-stone-400 transition group-open:rotate-180" aria-hidden="true" /></summary>
+            <div className="grid gap-5 border-t border-stone-200 bg-white p-4"><SongSetupFields /><VisibilityField isPublic={isPublic} setIsPublic={setIsPublic} isGuest={isGuest} /></div>
+          </details>
         </section>
       ) : (
         <input type="hidden" name="difficulty" value="" />
       )}
-
-      {activityKind === "practice" ? <VisibilityField isPublic={isPublic} setIsPublic={setIsPublic} isGuest={isGuest} /> : null}
 
       <div className="flex justify-end gap-2 border-t border-stone-200 pt-4">
         <button
@@ -170,7 +171,7 @@ function VisibilityField({ isPublic, setIsPublic, isGuest }: { isPublic: boolean
   const [showGuestHint, setShowGuestHint] = useState(false);
 
   return (
-    <fieldset className="border-t border-stone-200 pt-4">
+    <fieldset>
       <legend className="text-sm font-semibold text-stone-900">Visibility</legend>
       <input type="hidden" name="isPublic" value={String(isPublic)} />
       <div className="mt-2 grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Song visibility">

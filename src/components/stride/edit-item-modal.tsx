@@ -1,17 +1,17 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
-import { Pencil } from "lucide-react";
+import { ChevronDown, Pencil } from "lucide-react";
 import { updateItemAction, type MutationState } from "@/app/actions";
 import { DialogShell } from "@/components/stride/dialog-shell";
 import { buttonVariants } from "@/components/ui/button";
-import { DifficultyField, FolderField, OptionalSongFields, songFieldClassName } from "@/components/stride/song-fields";
+import { DifficultyField, FolderField, ReferenceLinksField, SongSetupFields, songFieldClassName } from "@/components/stride/song-fields";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/stride/toast-provider";
 import type { SongFolderRecord } from "@/lib/stride";
 
 const initialState: MutationState = { success: false, error: null };
-type EditItemModalProps = { itemId: string; itemSlug: string; activitySlug: string; itemName: string; difficulty: number | null; youtubeUrl: string; tuning?: string | null; capo?: number | null; folderId?: string | null; folders?: SongFolderRecord[]; showLabel?: boolean };
+type EditItemModalProps = { itemId: string; itemSlug: string; activitySlug: string; itemName: string; difficulty: number | null; youtubeUrl: string; referenceUrls?: string[]; tuning?: string | null; capo?: number | null; folderId?: string | null; folders?: SongFolderRecord[]; showLabel?: boolean };
 
 export function EditItemModal(props: EditItemModalProps) {
   const [open, setOpen] = useState(false);
@@ -32,11 +32,11 @@ function EditItemForm({ close, ...props }: EditItemModalProps & { close: () => v
     <input type="hidden" name="itemId" value={props.itemId} /><input type="hidden" name="itemSlug" value={props.itemSlug} /><input type="hidden" name="activitySlug" value={props.activitySlug} />
     {state.error ? <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{state.error}</div> : null}
     <label className="grid gap-2 text-sm font-semibold text-stone-900">Song Name<input name="name" required minLength={2} maxLength={60} defaultValue={props.itemName} className={songFieldClassName} /></label>
-    <section className="grid gap-5 border-t border-stone-200 pt-4" aria-labelledby="optional-song-details-edit">
-      <h3 id="optional-song-details-edit" className="text-xs font-semibold uppercase tracking-wide text-stone-500">Optional details</h3>
+    <section className="grid gap-5 border-t border-stone-200 pt-4">
       {props.folders ? <FolderField folders={props.folders} value={props.folderId} activitySlug={props.activitySlug} /> : null}
       <DifficultyField value={difficulty} onChange={setDifficulty} />
-      <OptionalSongFields youtubeUrl={props.youtubeUrl} tuning={props.tuning ?? "standard"} capo={props.capo} />
+      <ReferenceLinksField urls={props.referenceUrls ?? (props.youtubeUrl ? [props.youtubeUrl] : [])} />
+      <details className="group overflow-hidden rounded-xl border border-stone-200 bg-stone-50/60"><summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-semibold text-stone-800 hover:bg-stone-100">More Options<ChevronDown className="size-4 text-stone-400 transition group-open:rotate-180" aria-hidden="true" /></summary><div className="border-t border-stone-200 bg-white p-4"><SongSetupFields tuning={props.tuning ?? "standard"} capo={props.capo} /></div></details>
     </section>
     <div className="flex justify-end gap-2 border-t border-stone-200 pt-4"><button type="button" onClick={close} className={buttonVariants({ variant: "outline" })}>Cancel</button><button type="submit" disabled={pending} className={buttonVariants()}>{pending ? "Saving…" : "Save Changes"}</button></div>
   </form>;

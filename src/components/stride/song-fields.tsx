@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Plus, X } from "lucide-react";
+import { Link2, Plus, X } from "lucide-react";
 import { createSongFolderAction } from "@/app/actions";
 import { CustomSelect } from "@/components/ui/custom-select";
 import { StarRating } from "@/components/stride/star-rating";
@@ -65,13 +65,23 @@ export function FolderField({ folders, value = null, activitySlug = "guitar" }: 
   return <div className="grid gap-2 text-sm font-semibold text-stone-900"><span>Folder</span><CustomSelect name="folderId" value={selected} onValueChange={(next) => { if (next === "add-folder") { setAdding(true); setError(null); } else { setSelected(next); setAdding(false); } }} ariaLabel="Song folder" placement="below" options={[{ value: "uncategorized", label: "Uncategorized" }, ...localFolders.map((folder) => ({ value: folder.id, label: folder.name })), { value: "add-folder", label: "+ Add Folder", tone: "action" }]} />{adding ? <div className="grid gap-2 rounded-lg border border-stone-200 bg-stone-50 p-3"><input value={folderName} onChange={(event) => setFolderName(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addFolder(); } }} autoFocus maxLength={40} placeholder="Folder name" aria-label="New folder name" className={songFieldClassName} />{error ? <span role="alert" className="text-xs font-normal text-red-700">{error}</span> : null}<div className="flex justify-end gap-2"><button type="button" onClick={() => { setAdding(false); setError(null); }} className={buttonVariants({ variant: "ghost", size: "sm" })}>Cancel</button><button type="button" onClick={addFolder} disabled={pending} className={buttonVariants({ size: "sm" })}><Plus data-icon="inline-start" aria-hidden="true" />{pending ? "Adding…" : "Add Folder"}</button></div></div> : null}</div>;
 }
 
-export function OptionalSongFields({ youtubeUrl = "", tuning = "standard", capo = null }: { youtubeUrl?: string; tuning?: string; capo?: number | null }) {
+export function ReferenceLinksField({ urls = [] }: { urls?: string[] }) {
+  const [links, setLinks] = useState(() => urls.length ? urls : [""]);
+
+  return <fieldset className="grid gap-2">
+    <legend className="text-sm font-semibold text-stone-900">Reference Links</legend>
+    <div className="grid gap-2">
+      {links.map((url, index) => <div key={index} className="flex items-center gap-2">
+        <div className="relative min-w-0 flex-1"><Link2 className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-stone-400" aria-hidden="true" /><input name="referenceUrl" type="url" maxLength={500} value={url} onChange={(event) => setLinks((current) => current.map((value, position) => position === index ? event.target.value : value))} aria-label={`Reference link ${index + 1}`} placeholder={index === 0 ? "YouTube, Ultimate Guitar, or another site" : "Another reference link"} className={`${songFieldClassName} pl-9`} /></div>
+        {links.length > 1 ? <button type="button" onClick={() => setLinks((current) => current.filter((_, position) => position !== index))} title="Remove link" aria-label={`Remove reference link ${index + 1}`} className={buttonVariants({ variant: "ghost", size: "icon-sm" })}><X aria-hidden="true" /></button> : null}
+      </div>)}
+    </div>
+    {links.length < 10 ? <button type="button" onClick={() => setLinks((current) => [...current, ""])} className="mt-1 inline-flex w-fit cursor-pointer items-center gap-1.5 rounded-md text-sm font-medium text-stone-600 hover:text-stone-950 focus-visible:ring-2 focus-visible:ring-stone-500"><Plus className="size-3.5" aria-hidden="true" />Add Another Link</button> : null}
+  </fieldset>;
+}
+
+export function SongSetupFields({ tuning = "standard", capo = null }: { tuning?: string; capo?: number | null }) {
   return (
-    <div className="grid gap-4">
-      <label className="grid gap-2 text-sm font-semibold text-stone-900">
-        <span>Reference Link</span>
-        <input name="youtubeUrl" type="url" maxLength={500} defaultValue={youtubeUrl} placeholder="YouTube, Ultimate Guitar, or another chord site" className={songFieldClassName} />
-      </label>
       <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_9rem]">
         <div className="grid gap-2 text-sm font-semibold text-stone-900">
           <span>Tuning</span>
@@ -82,6 +92,5 @@ export function OptionalSongFields({ youtubeUrl = "", tuning = "standard", capo 
           <CustomSelect name="capo" defaultValue={capo ? String(capo) : "none"} ariaLabel="Capo" options={[{ value: "none", label: "No capo" }, ...Array.from({ length: 12 }, (_, index) => index + 1).map((fret) => ({ value: String(fret), label: `Fret ${fret}` }))]} />
         </div>
       </div>
-    </div>
   );
 }

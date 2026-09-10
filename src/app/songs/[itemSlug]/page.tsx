@@ -15,7 +15,7 @@ import { SongShareControl } from "@/components/stride/song-share-control";
 import { SessionSidebarFooter } from "@/components/stride/session-sidebar-footer";
 import { SongWorkspaceModal } from "@/components/stride/song-workspace-modal";
 import { SongSetup } from "@/components/stride/song-setup";
-import { YoutubeReference } from "@/components/stride/youtube-reference";
+import { SongReferences } from "@/components/stride/youtube-reference";
 import { requireUser } from "@/lib/auth";
 import { normalizePracticeTags } from "@/lib/practice-tags";
 import { entriesWithinDays, formatTrackedTime, titleCaseSongName, type EntryRecord, type ItemRecord, type SongFolderRecord, type SongResourceRecord } from "@/lib/stride";
@@ -45,13 +45,14 @@ export default async function SongPage({ params, searchParams }: PageProps<"/son
   }
   const item = { ...base.data, is_favorite: extensionData?.is_favorite ?? false, pin_position: null, youtube_url: extensionData?.youtube_url ?? "", tuning: extensionData?.tuning ?? "standard", capo: extensionData?.capo ?? null, folder_id: extensionData?.folder_id ?? null } as ItemRecord;
 
-  const [entriesResult, resourcesResult, durationResult, visibilityResult, profileResult, foldersResult] = await Promise.all([
+  const [entriesResult, resourcesResult, durationResult, visibilityResult, profileResult, foldersResult, referencesResult] = await Promise.all([
     supabase.from("entries").select("id, activity_id, item_id, content, rating, practice_part, created_at").eq("user_id", user.id).eq("item_id", item.id).order("created_at", { ascending: false }),
     supabase.from("song_resources").select("id, item_id, storage_path, file_name, mime_type, is_public, created_at").eq("user_id", user.id).eq("item_id", item.id).order("created_at", { ascending: false }),
     supabase.from("entries").select("id, duration_seconds").eq("user_id", user.id).eq("item_id", item.id),
     supabase.from("items").select("is_public").eq("user_id", user.id).eq("id", item.id).maybeSingle(),
     supabase.from("profiles").select("username, is_public").eq("user_id", user.id).maybeSingle(),
     supabase.from("song_folders").select("id, activity_id, name, sort_order, created_at").eq("user_id", user.id).eq("activity_id", activity.data.id).order("sort_order").order("name"),
+    supabase.from("song_references").select("url, sort_order").eq("user_id", user.id).eq("item_id", item.id).order("sort_order"),
   ]);
   if (entriesResult.error) throw entriesResult.error;
   const durationById = new Map((durationResult.data ?? []).map((entry) => [entry.id, entry.duration_seconds]));
@@ -65,19 +66,20 @@ export default async function SongPage({ params, searchParams }: PageProps<"/son
   const totalTrackedSeconds = entries.reduce((total, entry) => total + (entry.duration_seconds ?? 0), 0);
   const weekTrackedSeconds = entriesWithinDays(entries, 7).reduce((total, entry) => total + (entry.duration_seconds ?? 0), 0);
   const folders = (foldersResult.data ?? []) as SongFolderRecord[];
+  const referenceUrls = referencesResult.error ? (item.youtube_url ? [item.youtube_url] : []) : (referencesResult.data ?? []).map((reference) => reference.url);
 
   return <AppFrame showSidebar sidebarFooter={<SessionSidebarFooter signedIn isGuest={isGuest} next={`/songs/${itemSlug}`} />}><main className="min-w-0 flex-1 px-4 py-6 sm:px-7 sm:py-8">
     <header className="border-b border-stone-200 pb-6">
       <Link href={returnHref} className="inline-flex items-center gap-1.5 rounded-md text-sm text-stone-500 transition hover:text-stone-950 focus-visible:ring-2 focus-visible:ring-stone-500"><ArrowLeft className="size-4" aria-hidden="true" />{returnLabel}</Link>
       <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0"><div className="flex flex-wrap items-center gap-3"><h1 className="text-2xl font-semibold tracking-tight text-stone-950">{titleCaseSongName(item.name)}</h1><FavoriteButton itemId={item.id} initialFavorite={item.is_favorite} /></div><div className="mt-3 flex flex-wrap items-center gap-3"><DifficultyControl itemId={item.id} itemSlug={item.slug} activitySlug="guitar" value={item.difficulty} /><SongSetup tuning={item.tuning} capo={item.capo} /></div></div>
-        <div className="flex flex-wrap items-center justify-end gap-2"><SongShareControl itemId={item.id} itemSlug={item.slug} itemName={titleCaseSongName(item.name)} username={profileResult.data?.username ?? null} profilePublic={profileResult.data?.is_public ?? false} initialPublic={visibilityResult.data?.is_public ?? false} isGuest={isGuest} /><EditItemModal itemId={item.id} itemSlug={item.slug} activitySlug="guitar" itemName={titleCaseSongName(item.name)} difficulty={item.difficulty} youtubeUrl={item.youtube_url} tuning={item.tuning} capo={item.capo} folderId={item.folder_id} folders={folders} showLabel /><DeleteItemModal itemId={item.id} activitySlug="guitar" itemName={titleCaseSongName(item.name)} leavePageAfterDelete returnHref={returnHref} /><StartPracticeTimerButton itemId={item.id} itemSlug={item.slug} itemName={titleCaseSongName(item.name)} /><LogPracticeModal activitySlug="guitar" activityName="Guitar" activityKind="practice" itemSlug={item.slug} itemName={titleCaseSongName(item.name)} hasHistory={entries.length > 0} previousParts={priorParts} currentYoutubeUrl={item.youtube_url} /></div>
+        <div className="flex flex-wrap items-center justify-end gap-2"><SongShareControl itemId={item.id} itemSlug={item.slug} itemName={titleCaseSongName(item.name)} username={profileResult.data?.username ?? null} profilePublic={profileResult.data?.is_public ?? false} initialPublic={visibilityResult.data?.is_public ?? false} isGuest={isGuest} /><EditItemModal itemId={item.id} itemSlug={item.slug} activitySlug="guitar" itemName={titleCaseSongName(item.name)} difficulty={item.difficulty} youtubeUrl={item.youtube_url} referenceUrls={referenceUrls} tuning={item.tuning} capo={item.capo} folderId={item.folder_id} folders={folders} showLabel /><DeleteItemModal itemId={item.id} activitySlug="guitar" itemName={titleCaseSongName(item.name)} leavePageAfterDelete returnHref={returnHref} /><StartPracticeTimerButton itemId={item.id} itemSlug={item.slug} itemName={titleCaseSongName(item.name)} /><LogPracticeModal activitySlug="guitar" activityName="Guitar" activityKind="practice" itemSlug={item.slug} itemName={titleCaseSongName(item.name)} hasHistory={entries.length > 0} previousParts={priorParts} currentYoutubeUrl={item.youtube_url} /></div>
       </div>
     </header>
 
     <div className="mt-6 grid items-start gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(18rem,0.65fr)]">
       <PracticeLog entries={entries} itemSlug={item.slug} suggestions={priorParts} />
-      <div className="grid gap-5"><PracticeTimeSummary totalSeconds={totalTrackedSeconds} weekSeconds={weekTrackedSeconds} ready={!durationResult.error} />{item.youtube_url ? <YoutubeReference url={item.youtube_url} /> : <section className="rounded-xl border border-dashed border-stone-300 bg-stone-50 px-4 py-4"><SongWorkspaceModal itemId={item.id} itemSlug={item.slug} youtubeUrl={item.youtube_url} /></section>}<SongResources itemId={item.id} itemSlug={item.slug} userId={user.id} initialResources={resources} isGuest={isGuest} /></div>
+      <div className="grid gap-5"><PracticeTimeSummary totalSeconds={totalTrackedSeconds} weekSeconds={weekTrackedSeconds} ready={!durationResult.error} />{referenceUrls.length ? <><SongReferences urls={referenceUrls} /><SongWorkspaceModal itemId={item.id} itemSlug={item.slug} youtubeUrl={item.youtube_url} referenceUrls={referenceUrls} /></> : <section className="rounded-xl border border-dashed border-stone-300 bg-stone-50 px-4 py-4"><SongWorkspaceModal itemId={item.id} itemSlug={item.slug} youtubeUrl={item.youtube_url} referenceUrls={referenceUrls} /></section>}<SongResources itemId={item.id} itemSlug={item.slug} userId={user.id} initialResources={resources} isGuest={isGuest} /></div>
     </div>
   </main></AppFrame>;
 }
