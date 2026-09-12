@@ -68,6 +68,7 @@ const referenceUrlSchema = z.string().trim().max(500).refine((value) => {
 }, "Use a complete http or https link.");
 
 const referenceUrlsSchema = z.array(referenceUrlSchema).max(10, "Keep reference links to 10 or fewer.").transform((urls) => Array.from(new Set(urls.filter(Boolean))));
+const guitarTuningSchema = z.enum(["standard", "half-step-down", "whole-step-down", "drop-d", "double-drop-d", "dadgad", "open-c", "open-d", "open-e", "open-g"]);
 
 const itemSchema = z.object({
   name: z.string().trim().min(2, "Item names need at least 2 characters.").max(60),
@@ -75,7 +76,7 @@ const itemSchema = z.object({
   folderId: optionalFolderIdSchema,
   isPublic: z.boolean().default(false),
   referenceUrls: referenceUrlsSchema,
-  tuning: z.enum(["standard", "half-step-down", "whole-step-down", "drop-d", "double-drop-d", "dadgad", "open-c", "open-d", "open-e", "open-g"]).default("standard"),
+  tuning: guitarTuningSchema.default("standard"),
   capo: z.preprocess(
     (value) => value === "" || value === "none" || value === null ? null : Number(value),
     z.number().int().min(1).max(12).nullable(),
@@ -155,6 +156,9 @@ const profileSchema = z.object({
   shareSongLibrary: z.boolean(),
   sharePracticeLogs: z.boolean(),
   shareSongResources: z.boolean(),
+  defaultSongPublic: z.boolean(),
+  defaultResourcePublic: z.boolean(),
+  defaultTuning: guitarTuningSchema,
 });
 
 const deleteAccountSchema = z.object({
@@ -837,6 +841,9 @@ export async function saveProfileAction(
     shareSongLibrary: formData.get("shareSongLibrary") === "on",
     sharePracticeLogs: formData.get("sharePracticeLogs") === "on",
     shareSongResources: formData.get("shareSongResources") === "on",
+    defaultSongPublic: formData.get("defaultSongPublic") === "on",
+    defaultResourcePublic: formData.get("defaultResourcePublic") === "on",
+    defaultTuning: formData.get("defaultTuning") ?? "standard",
   });
 
   if (!parsed.success) {
@@ -852,12 +859,15 @@ export async function saveProfileAction(
     share_song_library: parsed.data.shareSongLibrary,
     share_practice_logs: parsed.data.sharePracticeLogs,
     share_song_resources: parsed.data.shareSongResources,
+    default_song_public: parsed.data.defaultSongPublic,
+    default_resource_public: parsed.data.defaultResourcePublic,
+    default_tuning: parsed.data.defaultTuning,
   });
 
   if (error) {
     return mutationError(
       error.code === "42703" || error.code === "PGRST204"
-        ? "Run migration 0008_public_profile_sharing.sql before saving sharing settings."
+        ? "Run migration 0024_user_preferences.sql before saving these settings."
         : error.code === "42P01"
         ? "Run migration 0007_practice_time_and_public_profiles.sql first."
         : error.code === "23505"

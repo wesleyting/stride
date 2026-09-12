@@ -50,7 +50,7 @@ export default async function SongPage({ params, searchParams }: PageProps<"/son
     supabase.from("song_resources").select("id, item_id, storage_path, file_name, mime_type, is_public, created_at").eq("user_id", user.id).eq("item_id", item.id).order("created_at", { ascending: false }),
     supabase.from("entries").select("id, duration_seconds").eq("user_id", user.id).eq("item_id", item.id),
     supabase.from("items").select("is_public").eq("user_id", user.id).eq("id", item.id).maybeSingle(),
-    supabase.from("profiles").select("username, is_public").eq("user_id", user.id).maybeSingle(),
+    supabase.from("profiles").select("username, is_public, default_resource_public").eq("user_id", user.id).maybeSingle(),
     supabase.from("song_folders").select("id, activity_id, name, sort_order, created_at").eq("user_id", user.id).eq("activity_id", activity.data.id).order("sort_order").order("name"),
     supabase.from("song_references").select("url, sort_order").eq("user_id", user.id).eq("item_id", item.id).order("sort_order"),
   ]);
@@ -79,7 +79,7 @@ export default async function SongPage({ params, searchParams }: PageProps<"/son
 
     <div className="mt-6 grid items-start gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(18rem,0.65fr)]">
       <PracticeLog entries={entries} itemSlug={item.slug} suggestions={priorParts} />
-      <div className="grid gap-5"><PracticeTimeSummary totalSeconds={totalTrackedSeconds} weekSeconds={weekTrackedSeconds} ready={!durationResult.error} />{referenceUrls.length ? <><SongReferences urls={referenceUrls} /><SongWorkspaceModal itemId={item.id} itemSlug={item.slug} youtubeUrl={item.youtube_url} referenceUrls={referenceUrls} /></> : <section className="rounded-xl border border-dashed border-stone-300 bg-stone-50 px-4 py-4"><SongWorkspaceModal itemId={item.id} itemSlug={item.slug} youtubeUrl={item.youtube_url} referenceUrls={referenceUrls} /></section>}<SongResources itemId={item.id} itemSlug={item.slug} userId={user.id} initialResources={resources} isGuest={isGuest} /></div>
+      <div className="grid gap-5"><PracticeTimeSummary totalSeconds={totalTrackedSeconds} weekSeconds={weekTrackedSeconds} ready={!durationResult.error} />{referenceUrls.length ? <><SongReferences urls={referenceUrls} /><SongWorkspaceModal itemId={item.id} itemSlug={item.slug} youtubeUrl={item.youtube_url} referenceUrls={referenceUrls} /></> : <section className="rounded-xl border border-dashed border-stone-300 bg-stone-50 px-4 py-4"><SongWorkspaceModal itemId={item.id} itemSlug={item.slug} youtubeUrl={item.youtube_url} referenceUrls={referenceUrls} /></section>}<SongResources itemId={item.id} itemSlug={item.slug} userId={user.id} initialResources={resources} isGuest={isGuest} defaultPublic={profileResult.data?.default_resource_public ?? false} /></div>
     </div>
   </main></AppFrame>;
 }

@@ -20,6 +20,8 @@ export function CreateItemModal({
   createdFrom = "songs",
   isGuest = false,
   folders,
+  defaultSongPublic = false,
+  defaultTuning = "standard",
 }: {
   activitySlug: string;
   activityKind: "practice" | "journal" | "fitness" | "projects";
@@ -27,6 +29,8 @@ export function CreateItemModal({
   createdFrom?: "home" | "songs";
   isGuest?: boolean;
   folders?: SongFolderRecord[];
+  defaultSongPublic?: boolean;
+  defaultTuning?: string;
 }) {
   const [open, setOpen] = useState(defaultOpen);
 
@@ -73,6 +77,8 @@ export function CreateItemModal({
             createdFrom={createdFrom}
             isGuest={isGuest}
             folders={folders}
+            defaultSongPublic={defaultSongPublic}
+            defaultTuning={defaultTuning}
             close={() => setOpen(false)}
           />
         ) : null}
@@ -88,6 +94,8 @@ function ItemForm({
   createdFrom,
   isGuest,
   folders,
+  defaultSongPublic,
+  defaultTuning,
   close,
 }: {
   activitySlug: string;
@@ -96,6 +104,8 @@ function ItemForm({
   createdFrom: "home" | "songs";
   isGuest: boolean;
   folders?: SongFolderRecord[];
+  defaultSongPublic: boolean;
+  defaultTuning: string;
   close: () => void;
 }) {
   const [state, formAction, pending] = useActionState(
@@ -103,7 +113,7 @@ function ItemForm({
     initialState,
   );
   const [difficulty, setDifficulty] = useState<number | null>(null);
-  const [isPublic, setIsPublic] = useState(false);
+  const [isPublic, setIsPublic] = useState(defaultSongPublic && !isGuest);
 
   useEffect(() => {
     if (state.success) {
@@ -143,8 +153,8 @@ function ItemForm({
           <DifficultyField value={difficulty} onChange={setDifficulty} />
           <ReferenceLinksField />
           <details className="group overflow-hidden rounded-xl border border-stone-200 bg-stone-50/60">
-            <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-semibold text-stone-800 hover:bg-stone-100">More Options<ChevronDown className="size-4 text-stone-400 transition group-open:rotate-180" aria-hidden="true" /></summary>
-            <div className="grid gap-5 border-t border-stone-200 bg-white p-4"><SongSetupFields /><VisibilityField isPublic={isPublic} setIsPublic={setIsPublic} isGuest={isGuest} /></div>
+            <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-semibold text-stone-800 hover:bg-stone-100"><span>More Options</span><span className="flex items-center gap-2">{isPublic ? <span className="rounded-full bg-stone-200 px-2 py-0.5 text-[0.6875rem] font-semibold text-stone-700">Public</span> : null}<ChevronDown className="size-4 text-stone-400 transition group-open:rotate-180" aria-hidden="true" /></span></summary>
+            <div className="grid gap-5 border-t border-stone-200 bg-white p-4"><SongSetupFields tuning={defaultTuning} /><VisibilityField isPublic={isPublic} setIsPublic={setIsPublic} isGuest={isGuest} /></div>
           </details>
         </section>
       ) : (

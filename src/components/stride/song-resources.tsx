@@ -15,7 +15,7 @@ const acceptedTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/g
 const accept = Array.from(acceptedTypes).join(",");
 type PendingMedia = { file: File; previewUrl: string; isPublic: boolean };
 
-export function SongResources({ itemId, itemSlug, userId, initialResources, isGuest = false }: { itemId: string; itemSlug: string; userId: string; initialResources: SongResourceRecord[]; isGuest?: boolean }) {
+export function SongResources({ itemId, itemSlug, userId, initialResources, isGuest = false, defaultPublic = false }: { itemId: string; itemSlug: string; userId: string; initialResources: SongResourceRecord[]; isGuest?: boolean; defaultPublic?: boolean }) {
   const [resources, setResources] = useState(initialResources);
   const [pendingMedia, setPendingMedia] = useState<PendingMedia | null>(null);
   const [selected, setSelected] = useState<SongResourceRecord | null>(null);
@@ -45,7 +45,7 @@ export function SongResources({ itemId, itemSlug, userId, initialResources, isGu
     if (!acceptedTypes.has(file.type)) { setError("Use a JPG, PNG, WebP, GIF, MP4, MOV, WebM, MP3, M4A, or WAV file."); return; }
     if (file.size > 50 * 1024 * 1024) { setError("Practice media must be 50 MB or smaller."); return; }
     setError("");
-    setPendingMedia({ file, previewUrl: URL.createObjectURL(file), isPublic: true });
+    setPendingMedia({ file, previewUrl: URL.createObjectURL(file), isPublic: defaultPublic });
   }
 
   function closePreview() {

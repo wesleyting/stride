@@ -10,6 +10,7 @@ export const dynamic = "force-dynamic";
 
 export default async function SongsPage() {
   const { supabase, user } = await requireUser("/songs");
+  const preferencesResult = user.is_anonymous ? { data: null } : await supabase.from("profiles").select("default_song_public, default_tuning").eq("user_id", user.id).maybeSingle();
   const activity = await supabase.from("activities").select("id").eq("user_id", user.id).eq("slug", "guitar").maybeSingle();
   if (activity.error) throw activity.error;
   let songs: ItemRecord[] = [];
@@ -42,5 +43,5 @@ export default async function SongsPage() {
   }
 
   const isGuest = user.is_anonymous === true;
-  return <AppFrame showSidebar sidebarFooter={<SessionSidebarFooter signedIn isGuest={isGuest} next="/songs" />}><main className="min-w-0 flex-1 px-4 py-6 sm:px-7 sm:py-8"><header className="flex items-start justify-between gap-4"><h1 className="text-2xl font-semibold tracking-tight text-stone-950">All songs</h1><div className="flex gap-2"><SongFolderManager folders={folders} ready={foldersReady} /><CreateItemModal activitySlug="guitar" activityKind="practice" isGuest={isGuest} folders={foldersReady ? folders : undefined} /></div></header><SongLibrary songs={songs} entries={entries} folders={folders} foldersReady={foldersReady} referencesBySong={referencesBySong} /></main></AppFrame>;
+  return <AppFrame showSidebar sidebarFooter={<SessionSidebarFooter signedIn isGuest={isGuest} next="/songs" />}><main className="min-w-0 flex-1 px-4 py-6 sm:px-7 sm:py-8"><header className="flex items-start justify-between gap-4"><h1 className="text-2xl font-semibold tracking-tight text-stone-950">All songs</h1><div className="flex gap-2"><SongFolderManager folders={folders} ready={foldersReady} /><CreateItemModal activitySlug="guitar" activityKind="practice" isGuest={isGuest} folders={foldersReady ? folders : undefined} defaultSongPublic={preferencesResult.data?.default_song_public ?? false} defaultTuning={preferencesResult.data?.default_tuning ?? "standard"} /></div></header><SongLibrary songs={songs} entries={entries} folders={folders} foldersReady={foldersReady} referencesBySong={referencesBySong} /></main></AppFrame>;
 }

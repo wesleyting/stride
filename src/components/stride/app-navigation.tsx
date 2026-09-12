@@ -9,8 +9,8 @@ const destinations = [
   { href: "/", label: "Home", icon: House },
   { href: "/songs", label: "All songs", icon: Library },
   { href: "/community", label: "Community", icon: UsersRound },
-  { href: "/settings", label: "Settings", icon: Settings },
 ];
+const mobileDestinations = [...destinations, { href: "/settings", label: "Settings", icon: Settings }];
 
 function isActive(pathname: string, href: string) {
   if (href === "/") return pathname === "/";
@@ -67,7 +67,7 @@ export function MobileNavigation() {
       aria-label="Primary navigation"
       className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-stone-200 bg-white/95 px-1 pb-[max(0.35rem,env(safe-area-inset-bottom))] pt-1 shadow-[0_-4px_18px_rgba(0,0,0,0.05)] backdrop-blur md:hidden"
     >
-      {destinations.map(({ href, label, icon: Icon }) => {
+      {mobileDestinations.map(({ href, label, icon: Icon }) => {
         const active = isActive(pathname, href);
         return (
           <Link
