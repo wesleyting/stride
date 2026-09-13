@@ -9,6 +9,8 @@ import { DialogShell } from "@/components/stride/dialog-shell";
 import { useToast } from "@/components/stride/toast-provider";
 import { CustomSelect } from "@/components/ui/custom-select";
 import { GUITAR_TUNINGS } from "@/lib/stride";
+import { CopyLinkButton } from "@/components/stride/copy-link-button";
+import { useSettingsSection } from "@/components/stride/settings-tabs";
 
 export type ProfileSettings = {
   username: string;
@@ -42,6 +44,7 @@ export function ProfileSettingsForm({
   const [pendingHref, setPendingHref] = useState<string | null>(null);
   const [defaultSongPublic, setDefaultSongPublic] = useState(profile?.default_song_public ?? false);
   const [confirmPublicDefault, setConfirmPublicDefault] = useState(false);
+  const activeSection = useSettingsSection();
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -84,7 +87,7 @@ export function ProfileSettingsForm({
     <form ref={formRef} action={action} onChange={() => setDirty(true)} className="grid gap-6 text-left">
       {dirty ? <div className="sticky top-3 z-20 -mx-2 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300 bg-amber-50/95 px-4 py-3 shadow-lg backdrop-blur"><div><p className="text-sm font-semibold text-amber-950">{profile ? "You have unsaved changes" : "Finish setting up your profile"}</p><p className="text-xs text-amber-800">Save before leaving, or discard your changes.</p></div><div className="flex gap-2"><button type="button" onClick={discardChanges} className={buttonVariants({ variant: "outline", size: "sm" })}>Discard</button><button type="submit" disabled={pending} className={buttonVariants({ size: "sm" })}>{pending ? "Saving…" : "Save Changes"}</button></div></div> : null}
       {state.error ? <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{state.error}</p> : null}
-      <section id="general" className="scroll-mt-6" aria-labelledby="general-heading">
+      <section id="settings-panel-general" role="tabpanel" aria-label="General" hidden={activeSection !== "general"} aria-labelledby="general-heading">
         <div className="flex items-center gap-2"><SlidersHorizontal className="size-4 text-stone-500" aria-hidden="true" /><h2 id="general-heading" className="text-base font-semibold text-stone-950">General</h2></div>
         <p className="mt-1 text-sm leading-6 text-stone-500">Choose the starting values used when you add songs and media.</p>
         <div className="mt-4"><label className="grid max-w-md gap-1.5 text-sm font-semibold text-stone-900">Default Tuning<CustomSelect name="defaultTuning" defaultValue={profile?.default_tuning ?? "standard"} onValueChange={() => setDirty(true)} ariaLabel="Default song tuning" options={GUITAR_TUNINGS.map((option) => ({ value: option.value, label: `${option.label} · ${option.notes}` }))} /></label></div>
@@ -95,9 +98,10 @@ export function ProfileSettingsForm({
         </div>
       </section>
 
-      <section id="profile" className="scroll-mt-6 border-t border-stone-200 pt-5" aria-labelledby="profile-heading">
+      <section id="settings-panel-profile" role="tabpanel" aria-label="Profile and sharing" hidden={activeSection !== "profile"} aria-labelledby="profile-heading">
         <h2 id="profile-heading" className="text-base font-semibold text-stone-950">Profile & Sharing</h2>
         <p className="mt-1 text-sm leading-6 text-stone-500">Manage your identity and exactly what other people can see.</p>
+        {profile?.is_public ? <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-stone-200 bg-stone-50 px-4 py-4"><div><h3 className="text-sm font-semibold text-stone-950">Your Public Profile</h3><p className="mt-1 text-xs text-stone-500">Anyone with this link can view what you chose to share.</p></div><CopyLinkButton path={`/people/${profile.username}`} label="Copy Profile Link" /></div> : <div className="mt-4 rounded-xl border border-dashed border-stone-300 bg-stone-50 px-4 py-4"><h3 className="text-sm font-semibold text-stone-900">Profile Link</h3><p className="mt-1 text-sm leading-6 text-stone-500">Turn on Show Me in Community and save to create a shareable profile link.</p></div>}
       <div className="mt-4 grid gap-5">
         <label className="text-sm font-semibold text-stone-900">
           Display Name
