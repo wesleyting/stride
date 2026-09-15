@@ -431,7 +431,8 @@ export function StartPracticeTimerButton({
   itemSlug,
   itemName,
   compact = false,
-}: SongTimerTarget & { compact?: boolean }) {
+  iconOnly = false,
+}: SongTimerTarget & { compact?: boolean; iconOnly?: boolean }) {
   const context = usePracticeTimer();
   const sameSong = context.timer?.itemId === itemId;
   const anotherSong = Boolean(context.timer && !sameSong);
@@ -441,6 +442,8 @@ export function StartPracticeTimerButton({
       type="button"
       onClick={() => context.start({ itemId, itemSlug, itemName }, Date.now())}
       disabled={Boolean(context.timer)}
+      aria-label={sameSong ? `Timer running for ${itemName}` : anotherSong ? `Finish ${context.timer?.itemName} before timing ${itemName}` : `Start a timer for ${itemName}`}
+      aria-pressed={sameSong}
       title={
         sameSong
           ? `Timer running for ${itemName}`
@@ -450,11 +453,11 @@ export function StartPracticeTimerButton({
       }
       className={buttonVariants({
         variant: "outline",
-        size: compact ? "sm" : "default",
+        size: iconOnly ? "icon-sm" : compact ? "sm" : "default",
       })}
     >
-      <Clock3 data-icon="inline-start" aria-hidden="true" />
-      {sameSong ? "Running" : compact ? "Timer" : "Start Timer"}
+      <Clock3 data-icon={iconOnly ? undefined : "inline-start"} aria-hidden="true" />
+      {iconOnly ? null : sameSong ? "Running" : compact ? "Timer" : "Start Timer"}
     </button>
   );
 }

@@ -9,6 +9,7 @@ import { DifficultyControl } from "@/components/stride/difficulty-control";
 import { EditItemModal } from "@/components/stride/edit-item-modal";
 import { FavoriteButton } from "@/components/stride/favorite-button";
 import { LogPracticeModal } from "@/components/stride/log-practice-modal";
+import { StartPracticeTimerButton } from "@/components/stride/practice-timer";
 import { titleCaseSongName, type EntryRecord, type ItemRecord, type SongFolderRecord } from "@/lib/stride";
 
 export function SongLibrary({ songs, entries, folders, foldersReady, referencesBySong = {} }: { songs: ItemRecord[]; entries: EntryRecord[]; folders: SongFolderRecord[]; foldersReady: boolean; referencesBySong?: Record<string, string[]> }) {
@@ -75,10 +76,10 @@ export function SongLibrary({ songs, entries, folders, foldersReady, referencesB
 
 function SongRow({ song, latest, entries, folders, referenceUrls }: { song: ItemRecord; latest?: EntryRecord; entries: EntryRecord[]; folders: SongFolderRecord[]; referenceUrls?: string[] }) {
   const parts = entries.filter((entry) => entry.item_id === song.id && entry.practice_part).map((entry) => entry.practice_part!);
-  return <article className="group grid min-h-18 gap-3 rounded-xl border border-stone-200 bg-white px-4 py-3 transition hover:border-stone-300 hover:bg-stone-50 hover:shadow-sm focus-within:bg-stone-50 sm:grid-cols-[minmax(0,1fr)_10rem_7rem_10rem] sm:items-center">
+  return <article className="group grid min-h-18 gap-3 rounded-xl border border-stone-200 bg-white px-4 py-3 transition hover:border-stone-300 hover:bg-stone-50 hover:shadow-sm focus-within:bg-stone-50 sm:grid-cols-[minmax(0,1fr)_10rem_9rem_10rem] sm:items-center">
     <Link href={`/songs/${song.slug}`} className="min-w-0 rounded-md focus-visible:ring-2 focus-visible:ring-stone-500"><h3 className="truncate text-sm font-semibold text-stone-950 group-hover:underline">{titleCaseSongName(song.name)}</h3></Link>
     <DifficultyControl itemId={song.id} itemSlug={song.slug} activitySlug="guitar" value={song.difficulty} />
-    <div className="flex items-center justify-end gap-1"><FavoriteButton itemId={song.id} initialFavorite={song.is_favorite} compact /><EditItemModal itemId={song.id} itemSlug={song.slug} activitySlug="guitar" itemName={titleCaseSongName(song.name)} difficulty={song.difficulty} youtubeUrl={song.youtube_url} referenceUrls={referenceUrls} tuning={song.tuning} capo={song.capo} folderId={song.folder_id} folders={folders} /><DeleteItemModal itemId={song.id} activitySlug="guitar" itemName={titleCaseSongName(song.name)} /></div>
+    <div className="flex items-center justify-end gap-1"><StartPracticeTimerButton itemId={song.id} itemSlug={song.slug} itemName={titleCaseSongName(song.name)} iconOnly /><FavoriteButton itemId={song.id} initialFavorite={song.is_favorite} compact /><EditItemModal itemId={song.id} itemSlug={song.slug} activitySlug="guitar" itemName={titleCaseSongName(song.name)} difficulty={song.difficulty} youtubeUrl={song.youtube_url} referenceUrls={referenceUrls} tuning={song.tuning} capo={song.capo} folderId={song.folder_id} folders={folders} /><DeleteItemModal itemId={song.id} activitySlug="guitar" itemName={titleCaseSongName(song.name)} /></div>
     <div className="[&>button]:w-full"><LogPracticeModal activitySlug="guitar" activityName="Guitar" activityKind="practice" itemSlug={song.slug} itemName={titleCaseSongName(song.name)} hasHistory={Boolean(latest)} previousParts={parts} currentYoutubeUrl={song.youtube_url} /></div>
   </article>;
 }
