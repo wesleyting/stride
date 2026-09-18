@@ -607,6 +607,27 @@ export async function deleteSongFolderAction(folderId: string): Promise<Mutation
   return mutationSuccess();
 }
 
+export async function renameSongFolderAction(folderId: string, name: string): Promise<MutationState> {
+  const { supabase, user } = await getSignedInUser();
+  if (!user) return mutationError("You need to sign in first.");
+
+  const parsed = z.object({ folderId: z.string().uuid(), name: folderSchema.shape.name }).safeParse({ folderId, name });
+  if (!parsed.success) return mutationError(parsed.error.issues[0]?.message ?? "Check the folder name.");
+
+  const result = await supabase.from("song_folders")
+    .update({ name: titleCaseSongName(parsed.data.name) })
+    .eq("id", parsed.data.folderId)
+    .eq("user_id", user.id)
+    .select("id, name")
+    .maybeSingle();
+  if (result.error?.code === "23505") return mutationError("A folder with that name already exists.");
+  if (result.error) return mutationError(result.error.message);
+  if (!result.data) return mutationError("That folder is no longer available.");
+
+  revalidatePath("/songs");
+  return { success: true, error: null, folder: result.data };
+}
+
 export async function setSongFolderOrderAction(folderIds: string[]): Promise<MutationState> {
   const { supabase, user } = await getSignedInUser();
   if (!user) return mutationError("You need to sign in first.");
