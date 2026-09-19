@@ -39,6 +39,8 @@ type LogPracticeModalProps = {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   hideTrigger?: boolean;
+  secondary?: boolean;
+  iconOnly?: boolean;
 };
 
 export function LogPracticeModal({
@@ -51,6 +53,8 @@ export function LogPracticeModal({
   open: controlledOpen,
   onOpenChange,
   hideTrigger = false,
+  secondary = false,
+  iconOnly = false,
 }: LogPracticeModalProps) {
   const [internalOpen, setInternalOpen] = useState(false);
   const open = controlledOpen ?? internalOpen;
@@ -62,10 +66,12 @@ export function LogPracticeModal({
       {!hideTrigger ? <button
         type="button"
         onClick={() => setOpen(true)}
-        className={buttonVariants({ size: "default" })}
+        aria-label={iconOnly ? `${actionLabel} for ${itemName}` : undefined}
+        title={iconOnly ? actionLabel : undefined}
+        className={buttonVariants({ variant: secondary ? "outline" : "default", size: iconOnly ? "icon-sm" : "default" })}
       >
-        <Plus data-icon="inline-start" aria-hidden="true" />
-        {actionLabel}
+        <Plus data-icon={iconOnly ? undefined : "inline-start"} aria-hidden="true" />
+        {iconOnly ? null : actionLabel}
       </button> : null}
       <DialogShell
         open={open}

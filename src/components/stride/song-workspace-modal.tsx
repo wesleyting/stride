@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
-import { Link2 } from "lucide-react";
+import { Link2, Pencil } from "lucide-react";
 import { updateSongWorkspaceAction, type MutationState } from "@/app/actions";
 import { DialogShell } from "@/components/stride/dialog-shell";
 import { buttonVariants } from "@/components/ui/button";
@@ -15,18 +15,20 @@ export function SongWorkspaceModal({
   itemSlug,
   youtubeUrl,
   referenceUrls,
+  iconOnly = false,
 }: {
   itemId: string;
   itemSlug: string;
   youtubeUrl: string;
   referenceUrls?: string[];
+  iconOnly?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className={buttonVariants({ variant: "outline" })}>
-        <Link2 data-icon="inline-start" aria-hidden="true" />
-        {referenceUrls?.length || youtubeUrl ? "Edit Reference Links" : "Add Reference Link"}
+      <button type="button" onClick={() => setOpen(true)} title={iconOnly ? "Edit reference links" : undefined} aria-label={iconOnly ? "Edit reference links" : undefined} className={buttonVariants({ variant: "outline", size: iconOnly ? "icon-sm" : "default" })}>
+        {iconOnly ? <Pencil aria-hidden="true" /> : <Link2 data-icon="inline-start" aria-hidden="true" />}
+        {iconOnly ? null : referenceUrls?.length || youtubeUrl ? "Edit Reference Links" : "Add Reference Link"}
       </button>
       <DialogShell open={open} onOpenChange={setOpen} title="Reference Links" size="md">
         {open ? <WorkspaceForm itemId={itemId} itemSlug={itemSlug} referenceUrls={referenceUrls ?? (youtubeUrl ? [youtubeUrl] : [])} close={() => setOpen(false)} /> : null}
@@ -50,7 +52,7 @@ function WorkspaceForm(props: {
       <input type="hidden" name="itemId" value={props.itemId} />
       <input type="hidden" name="itemSlug" value={props.itemSlug} />
       {state.error ? <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{state.error}</p> : null}
-      <ReferenceLinksField urls={props.referenceUrls} />
+      <ReferenceLinksField urls={props.referenceUrls} hideLabel />
       <div className="flex justify-end gap-2 border-t border-stone-200 pt-4">
         <button type="button" onClick={props.close} className={buttonVariants({ variant: "outline" })}>Cancel</button>
         <button type="submit" disabled={pending} className={buttonVariants()}>{pending ? "Saving…" : "Save"}</button>

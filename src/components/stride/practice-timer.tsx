@@ -432,7 +432,8 @@ export function StartPracticeTimerButton({
   itemName,
   compact = false,
   iconOnly = false,
-}: SongTimerTarget & { compact?: boolean; iconOnly?: boolean }) {
+  primary = false,
+}: SongTimerTarget & { compact?: boolean; iconOnly?: boolean; primary?: boolean }) {
   const context = usePracticeTimer();
   const sameSong = context.timer?.itemId === itemId;
   const anotherSong = Boolean(context.timer && !sameSong);
@@ -452,7 +453,7 @@ export function StartPracticeTimerButton({
             : `Start a timer for ${itemName}`
       }
       className={buttonVariants({
-        variant: "outline",
+        variant: primary ? "default" : "outline",
         size: iconOnly ? "icon-sm" : compact ? "sm" : "default",
       })}
     >
