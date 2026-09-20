@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { House, Library, Settings, UsersRound, Waypoints } from "lucide-react";
+import { ScrollPane } from "@/components/ui/scroll-pane";
 import { cn } from "@/lib/utils";
 
 const destinations = [
@@ -22,7 +23,8 @@ export function DesktopNavigation({ footer }: { footer?: React.ReactNode }) {
   const pathname = usePathname();
 
   return (
-    <aside className="stride-scroll-pane hidden h-full min-h-0 w-52 shrink-0 flex-col overflow-y-auto border-r border-stone-200 bg-stone-50 px-3 py-5 md:flex md:overscroll-contain xl:w-56">
+    <aside className="hidden h-full min-h-0 w-52 shrink-0 border-r border-stone-200 bg-stone-50 md:block xl:w-56">
+      <ScrollPane className="h-full" viewportClassName="h-full overflow-y-auto overscroll-contain" contentClassName="flex min-h-full flex-col px-3 py-5">
       <Link
         href="/"
         className="flex items-center gap-2 rounded-md px-2 py-1.5 text-base font-semibold text-stone-950 focus-visible:ring-2 focus-visible:ring-stone-500"
@@ -55,6 +57,7 @@ export function DesktopNavigation({ footer }: { footer?: React.ReactNode }) {
       </nav>
 
       <div className="mt-auto pt-8">{footer}</div>
+      </ScrollPane>
     </aside>
   );
 }

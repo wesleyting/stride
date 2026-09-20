@@ -1,5 +1,6 @@
 import { ViewTransition } from "react";
 import { DesktopNavigation, MobileNavigation } from "@/components/stride/app-navigation";
+import { ScrollPane } from "@/components/ui/scroll-pane";
 import { cn } from "@/lib/utils";
 
 export function AppFrame({
@@ -27,9 +28,9 @@ export function AppFrame({
           exit="stride-page-exit"
           default="none"
         >
-          <div className={cn("min-w-0 flex-1", showSidebar && "stride-scroll-pane md:h-full md:min-h-0 md:overflow-y-auto md:overscroll-contain md:[scrollbar-gutter:stable]")}>
+          <ScrollPane className={cn("min-w-0 flex-1", showSidebar && "md:h-full md:min-h-0")} viewportClassName={cn(showSidebar && "md:h-full md:overflow-y-auto md:overscroll-contain")}>
             {children}
-          </div>
+          </ScrollPane>
         </ViewTransition>
       </div>
       {showSidebar ? <MobileNavigation /> : null}
