@@ -391,6 +391,16 @@ export function formatTrackedTime(seconds: number) {
   return safeSeconds > 0 ? "<1m" : "0m";
 }
 
+export function formatPracticeDuration(seconds: number) {
+  const safeSeconds = Math.max(0, Math.floor(seconds));
+  const hours = Math.floor(safeSeconds / 3600);
+  const minutes = Math.floor((safeSeconds % 3600) / 60);
+  if (!hours && !minutes) return "Less than 1 minute";
+  const hourLabel = hours ? `${hours} ${hours === 1 ? "hour" : "hours"}` : "";
+  const minuteLabel = minutes ? `${minutes} ${minutes === 1 ? "minute" : "minutes"}` : "";
+  return [hourLabel, minuteLabel].filter(Boolean).join(" ");
+}
+
 export function buildActivitySummary(activity: ActivityRecord, itemCount: number) {
   if (activity.kind === "practice") {
     if (itemCount === 0) {

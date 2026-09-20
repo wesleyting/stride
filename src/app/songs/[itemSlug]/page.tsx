@@ -18,7 +18,7 @@ import { SongSetup } from "@/components/stride/song-setup";
 import { SongReferences } from "@/components/stride/youtube-reference";
 import { requireUser } from "@/lib/auth";
 import { normalizePracticeTags } from "@/lib/practice-tags";
-import { entriesWithinDays, formatTrackedTime, titleCaseSongName, type EntryRecord, type ItemRecord, type SongFolderRecord, type SongResourceRecord } from "@/lib/stride";
+import { entriesWithinDays, formatPracticeDuration, formatTrackedTime, titleCaseSongName, type EntryRecord, type ItemRecord, type SongFolderRecord, type SongResourceRecord } from "@/lib/stride";
 
 export const dynamic = "force-dynamic";
 
@@ -96,16 +96,6 @@ function PracticeLogEntry({ entry, itemSlug, suggestions }: { entry: EntryRecord
   const hasDetails = Boolean(note || entry.rating || tags.length);
 
   return <article className="group/log grid gap-4 px-4 py-4 sm:grid-cols-[8rem_11rem_minmax(0,1fr)_1.25rem] sm:px-5"><div><p className="text-[0.6875rem] font-semibold tracking-wide text-stone-400 uppercase">Started</p><p className="mt-1 text-sm font-semibold text-stone-900"><LocalDateTime value={entry.created_at} display="time" /></p></div><div><p className="text-[0.6875rem] font-semibold tracking-wide text-stone-400 uppercase">Duration</p><p className="mt-1 text-sm font-semibold tabular-nums text-stone-900">{entry.duration_seconds ? formatPracticeDuration(entry.duration_seconds) : "Not tracked"}</p></div><div><p className="text-[0.6875rem] font-semibold tracking-wide text-stone-400 uppercase">Details</p>{hasDetails ? <details className="group/details mt-1"><summary className="flex w-fit cursor-pointer list-none items-center gap-1.5 rounded-md text-sm font-semibold text-stone-600 hover:text-stone-950 focus-visible:ring-2 focus-visible:ring-stone-500"><span>View details</span><ChevronDown className="size-3.5 text-stone-400 transition-transform group-open/details:rotate-180" aria-hidden="true" /></summary><div className="mt-3 grid gap-3 rounded-lg bg-stone-50 px-3 py-3">{tags.length ? <div><p className="text-[0.6875rem] font-semibold tracking-wide text-stone-400 uppercase">Worked on</p><div className="mt-1.5 flex flex-wrap gap-1">{tags.map((tag) => <span key={tag} className="rounded-md bg-white px-2 py-0.5 text-xs font-medium text-stone-600 ring-1 ring-stone-200">{tag}</span>)}</div></div> : null}{note ? <div><p className="text-[0.6875rem] font-semibold tracking-wide text-stone-400 uppercase">Note</p><p className="mt-1 text-sm leading-6 text-stone-700">{note}</p></div> : null}{entry.rating ? <div><p className="text-[0.6875rem] font-semibold tracking-wide text-stone-400 uppercase">Session rating</p><p className="mt-1 text-sm font-semibold tabular-nums text-stone-900">{entry.rating} / 10</p></div> : null}</div></details> : <p className="mt-1 text-sm text-stone-400">None added</p>}</div><div className="pt-4"><EditPracticeEntryModal entryId={entry.id} itemSlug={itemSlug} note={entry.content} rating={entry.rating} practicePart={entry.practice_part ?? ""} suggestions={suggestions} /></div></article>;
-}
-
-function formatPracticeDuration(seconds: number) {
-  const safeSeconds = Math.max(0, Math.floor(seconds));
-  const hours = Math.floor(safeSeconds / 3600);
-  const minutes = Math.floor((safeSeconds % 3600) / 60);
-  if (!hours && !minutes) return "Less than 1 minute";
-  const hourLabel = hours ? `${hours} ${hours === 1 ? "hour" : "hours"}` : "";
-  const minuteLabel = minutes ? `${minutes} ${minutes === 1 ? "minute" : "minutes"}` : "";
-  return [hourLabel, minuteLabel].filter(Boolean).join(" ");
 }
 
 function groupEntriesByDay(entries: EntryRecord[]) {
