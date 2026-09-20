@@ -27,7 +27,7 @@ export function AppFrame({
           exit="stride-page-exit"
           default="none"
         >
-          <div className={cn("min-w-0 flex-1", showSidebar && "md:h-full md:min-h-0 md:overflow-y-auto md:overscroll-contain md:[scrollbar-gutter:stable]")}>
+          <div className={cn("min-w-0 flex-1", showSidebar && "stride-scroll-pane md:h-full md:min-h-0 md:overflow-y-auto md:overscroll-contain md:[scrollbar-gutter:stable]")}>
             {children}
           </div>
         </ViewTransition>
