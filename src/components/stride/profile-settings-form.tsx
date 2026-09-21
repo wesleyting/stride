@@ -11,6 +11,7 @@ import { CustomSelect } from "@/components/ui/custom-select";
 import { GUITAR_TUNINGS } from "@/lib/stride";
 import { CopyLinkButton } from "@/components/stride/copy-link-button";
 import { useSettingsSection } from "@/components/stride/settings-tabs";
+import { beginRouteNavigation } from "@/lib/route-loading";
 
 export type ProfileSettings = {
   username: string;
@@ -142,7 +143,7 @@ export function ProfileSettingsForm({
 
       {showCancel && onSaved ? <div className="flex justify-end border-t border-stone-200 pt-4"><button type="button" onClick={onSaved} className={buttonVariants({ variant: "outline" })}>Close</button></div> : null}
       <DialogShell open={Boolean(pendingHref)} onOpenChange={(open) => { if (!open) setPendingHref(null); }} title="Discard Unsaved Changes?" description="Your profile and privacy changes have not been saved.">
-        <div className="flex justify-end gap-2"><button type="button" onClick={() => setPendingHref(null)} className={buttonVariants({ variant: "outline" })}>Keep Editing</button><button type="button" onClick={() => { const href = pendingHref; discardChanges(); setPendingHref(null); if (href) router.push(href); }} className={buttonVariants({ variant: "destructive" })}>Discard and Leave</button></div>
+        <div className="flex justify-end gap-2"><button type="button" onClick={() => setPendingHref(null)} className={buttonVariants({ variant: "outline" })}>Keep Editing</button><button type="button" onClick={() => { const href = pendingHref; discardChanges(); setPendingHref(null); if (href) { beginRouteNavigation(); router.push(href); } }} className={buttonVariants({ variant: "destructive" })}>Discard and Leave</button></div>
       </DialogShell>
       <DialogShell open={confirmPublicDefault} onOpenChange={setConfirmPublicDefault} title="Make New Songs Public?" description="Future songs will be shareable as soon as you add them. Existing songs will not change." size="md">
         <div className="flex justify-end gap-2"><button type="button" onClick={() => setConfirmPublicDefault(false)} className={buttonVariants({ variant: "outline" })}>Keep Private</button><button type="button" onClick={() => { setDefaultSongPublic(true); setDirty(true); setConfirmPublicDefault(false); }} className={buttonVariants()}>Use Public by Default</button></div>

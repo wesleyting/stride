@@ -7,6 +7,7 @@ import { DialogShell } from "@/components/stride/dialog-shell";
 import { LocalDateTime } from "@/components/stride/local-date-time";
 import { buttonVariants } from "@/components/ui/button";
 import { normalizePracticeTags } from "@/lib/practice-tags";
+import { beginRouteNavigation } from "@/lib/route-loading";
 import {
   formatPracticeDuration,
   titleCaseSongName,
@@ -29,6 +30,7 @@ export function HomeSongPreviewModal({
     .slice(0, 3);
   function viewAllLogs() {
     setOpen(false);
+    beginRouteNavigation();
     router.push(`/songs/${song.slug}?from=home`);
   }
 
