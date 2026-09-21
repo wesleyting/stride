@@ -9,7 +9,6 @@ import { DeleteItemModal } from "@/components/stride/delete-item-modal";
 import { DifficultyControl } from "@/components/stride/difficulty-control";
 import { EditItemModal } from "@/components/stride/edit-item-modal";
 import { FavoriteButton } from "@/components/stride/favorite-button";
-import { SongFolderManager } from "@/components/stride/song-folder-manager";
 import { SongVisibilityButton } from "@/components/stride/song-visibility-button";
 import { useToast } from "@/components/stride/toast-provider";
 import { titleCaseSongName, type ItemRecord, type SongFolderRecord } from "@/lib/stride";
@@ -21,6 +20,27 @@ let inMemoryCollapsedFolders = "[]";
 let inMemoryShownHidden = "[]";
 
 type DraggedItem = { type: "song" | "folder"; id: string };
+type SongDrop = { id: string; position: "before" | "after" };
+
+function createVisibleDragImage(event: React.DragEvent<HTMLElement>) {
+  const source = event.currentTarget;
+  const bounds = source.getBoundingClientRect();
+  const clone = source.cloneNode(true) as HTMLElement;
+  clone.removeAttribute("id");
+  Object.assign(clone.style, {
+    position: "fixed",
+    top: "-1000px",
+    left: "-1000px",
+    width: `${bounds.width}px`,
+    opacity: "0.96",
+    transform: "rotate(0.4deg)",
+    boxShadow: "0 14px 30px rgba(28,25,23,0.18)",
+    pointerEvents: "none",
+  });
+  document.body.appendChild(clone);
+  event.dataTransfer.setDragImage(clone, Math.max(0, event.clientX - bounds.left), Math.max(0, event.clientY - bounds.top));
+  window.setTimeout(() => clone.remove(), 0);
+}
 
 function readStoredIds(key: string, fallback: string) {
   try { return window.localStorage.getItem(key) ?? fallback; } catch { return fallback; }
@@ -62,6 +82,7 @@ export function SongLibrary({ songs, folders, foldersReady, referencesBySong = {
   const [highlightedSong, setHighlightedSong] = useState(addedSongSlug ?? null);
   const [dragged, setDragged] = useState<DraggedItem | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
+  const [songDrop, setSongDrop] = useState<SongDrop | null>(null);
   const [folderDropAfter, setFolderDropAfter] = useState(false);
   const draggedRef = useRef(false);
   const collapsedFoldersValue = useSyncExternalStore(subscribeToLibraryView, () => readStoredIds(collapsedFoldersStorageKey, inMemoryCollapsedFolders), () => "[]");
@@ -115,6 +136,7 @@ export function SongLibrary({ songs, folders, foldersReady, referencesBySong = {
   function finishDrag() {
     setDragged(null);
     setDropTarget(null);
+    setSongDrop(null);
     setFolderDropAfter(false);
     window.setTimeout(() => { draggedRef.current = false; }, 0);
   }
@@ -161,8 +183,28 @@ export function SongLibrary({ songs, folders, foldersReady, referencesBySong = {
 
   function handleFolderDrop(folderId: string | null) {
     if (dragged?.type === "folder" && folderId) moveFolder(dragged.id, folderId, folderDropAfter);
-    if (dragged?.type === "song") moveSong(dragged.id, folderId);
+    if (dragged?.type === "song") {
+      const movedSong = layoutSongs.find((song) => song.id === dragged.id);
+      if (movedSong && (movedSong.folder_id ?? null) !== folderId) {
+        const firstSong = layoutSongs
+          .filter((song) => song.id !== dragged.id && (song.folder_id ?? null) === folderId && song.is_hidden === movedSong.is_hidden)
+          .sort((a, b) => a.sort_order - b.sort_order)[0];
+        moveSong(dragged.id, folderId, firstSong?.id);
+      }
+    }
     finishDrag();
+  }
+
+  function dropSongAtPreview(folderId: string | null) {
+    if (dragged?.type !== "song" || !songDrop) return false;
+    const targetSong = layoutSongs.find((song) => song.id === songDrop.id);
+    if (!targetSong) return false;
+    const peers = layoutSongs.filter((song) => song.id !== dragged.id && (song.folder_id ?? null) === folderId && song.is_hidden === targetSong.is_hidden).sort((a, b) => a.sort_order - b.sort_order);
+    const targetIndex = peers.findIndex((song) => song.id === targetSong.id);
+    const beforeId = songDrop.position === "before" ? targetSong.id : peers[targetIndex + 1]?.id;
+    moveSong(dragged.id, folderId, beforeId);
+    finishDrag();
+    return true;
   }
 
   return <>
@@ -177,15 +219,14 @@ export function SongLibrary({ songs, folders, foldersReady, referencesBySong = {
         const hiddenSongs = group.songs.filter((song) => song.is_hidden);
         const folderIsDragged = dragged?.type === "folder" && dragged.id === group.id;
         const folderIsTarget = dropTarget === `folder:${group.id}`;
-        const rowProps = (song: ItemRecord) => ({ song, folders, referenceUrls: referencesBySong[song.id], dragged: dragged?.type === "song" && dragged.id === song.id, dropTarget: dropTarget === `song:${song.id}`, onDragStart: (event: React.DragEvent<HTMLElement>) => { draggedRef.current = true; event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/plain", song.id); setDragged({ type: "song" as const, id: song.id }); }, onDragEnd: finishDrag, onDragOver: (event: React.DragEvent<HTMLElement>) => { if (dragged?.type !== "song") return; event.preventDefault(); event.stopPropagation(); setDropTarget(`song:${song.id}`); }, onDrop: (event: React.DragEvent<HTMLElement>) => { event.preventDefault(); event.stopPropagation(); if (dragged?.type === "song") moveSong(dragged.id, group.folderId, song.id); finishDrag(); }, onOpen: () => { if (!draggedRef.current) router.push(`/songs/${song.slug}`); } });
-        return <section key={group.id} aria-labelledby={`folder-${group.id}`} className={`rounded-xl transition ${folderIsDragged ? "bg-stone-100 opacity-45" : ""} ${folderIsTarget && dragged?.type === "song" ? "ring-2 ring-stone-400 ring-offset-2" : ""} ${folderIsTarget && dragged?.type === "folder" ? folderDropAfter ? "border-b-2 border-stone-500 pb-2" : "border-t-2 border-stone-500 pt-2" : ""}`} onDragOver={(event) => { if (!dragged) return; event.preventDefault(); setDropTarget(`folder:${group.id}`); if (dragged.type === "folder") { const header = event.currentTarget.querySelector("h2"); if (header) { const bounds = header.getBoundingClientRect(); setFolderDropAfter(event.clientY > bounds.top + bounds.height / 2); } } }} onDrop={(event) => { event.preventDefault(); handleFolderDrop(group.folderId); }}>
-          <h2 id={`folder-${group.id}`} className="mb-2"><button type="button" draggable={Boolean(group.folderId)} onDragStart={(event) => { if (!group.folderId) return; draggedRef.current = true; event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/plain", group.folderId); setDragged({ type: "folder", id: group.folderId }); }} onDragEnd={finishDrag} onClick={() => { if (!draggedRef.current) toggleStoredId(collapsedFoldersStorageKey, collapsedFolders, group.id); }} aria-expanded={expanded} aria-controls={`folder-songs-${group.id}`} className="flex w-full cursor-pointer items-center gap-2 rounded-lg px-2 py-2 text-left transition hover:bg-stone-100 focus-visible:ring-2 focus-visible:ring-stone-500 active:cursor-grabbing"><Folder className="size-4 text-stone-400" aria-hidden="true" /><span className="min-w-0 flex-1 truncate text-sm font-semibold text-stone-900">{group.name}</span><span className="text-xs tabular-nums text-stone-400">{activeSongs.length}</span><ChevronDown className={`size-4 text-stone-400 transition-transform ${expanded ? "rotate-180" : ""}`} aria-hidden="true" /></button></h2>
+        const rowProps = (song: ItemRecord) => ({ song, folders, referenceUrls: referencesBySong[song.id], dragged: dragged?.type === "song" && dragged.id === song.id, dropPosition: songDrop?.id === song.id ? songDrop.position : null, onDragStart: (event: React.DragEvent<HTMLElement>) => { draggedRef.current = true; event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/plain", song.id); createVisibleDragImage(event); setDragged({ type: "song" as const, id: song.id }); }, onDragEnd: finishDrag, onDragOver: (event: React.DragEvent<HTMLElement>) => { if (dragged?.type !== "song" || dragged.id === song.id) return; event.preventDefault(); event.stopPropagation(); const bounds = event.currentTarget.getBoundingClientRect(); setDropTarget(null); setSongDrop({ id: song.id, position: event.clientY < bounds.top + bounds.height / 2 ? "before" : "after" }); }, onDrop: (event: React.DragEvent<HTMLElement>) => { event.preventDefault(); event.stopPropagation(); if (dragged?.type === "song") { const peers = layoutSongs.filter((peer) => peer.id !== dragged.id && (peer.folder_id ?? null) === group.folderId && peer.is_hidden === song.is_hidden).sort((a, b) => a.sort_order - b.sort_order); const targetIndex = peers.findIndex((peer) => peer.id === song.id); const bounds = event.currentTarget.getBoundingClientRect(); const position = event.clientY < bounds.top + bounds.height / 2 ? "before" : "after"; const beforeId = position === "before" ? song.id : peers[targetIndex + 1]?.id; moveSong(dragged.id, group.folderId, beforeId); } finishDrag(); }, onOpen: () => { if (!draggedRef.current) router.push(`/songs/${song.slug}`); } });
+        return <section key={group.id} aria-labelledby={`folder-${group.id}`} className={`rounded-xl transition ${folderIsDragged ? "bg-stone-100 opacity-45" : ""} ${folderIsTarget && dragged?.type === "folder" ? folderDropAfter ? "border-b-2 border-stone-500 pb-2" : "border-t-2 border-stone-500 pt-2" : ""}`} onDragOver={(event) => { if (!dragged) return; event.preventDefault(); const overHeader = Boolean((event.target as HTMLElement).closest("h2")); if (dragged.type === "song" && songDrop && !overHeader) return; setSongDrop(null); setDropTarget(`folder:${group.id}`); if (dragged.type === "folder") { const header = event.currentTarget.querySelector("h2"); if (header) { const bounds = header.getBoundingClientRect(); setFolderDropAfter(event.clientY > bounds.top + bounds.height / 2); } } }} onDrop={(event) => { event.preventDefault(); const overHeader = Boolean((event.target as HTMLElement).closest("h2")); if (!overHeader && dropSongAtPreview(group.folderId)) return; handleFolderDrop(group.folderId); }}>
+          <h2 id={`folder-${group.id}`} className="mb-2"><button type="button" draggable={Boolean(group.folderId)} onDragStart={(event) => { if (!group.folderId) return; draggedRef.current = true; event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/plain", group.folderId); createVisibleDragImage(event); setDragged({ type: "folder", id: group.folderId }); }} onDragEnd={finishDrag} onClick={() => { if (!draggedRef.current) toggleStoredId(collapsedFoldersStorageKey, collapsedFolders, group.id); }} aria-expanded={expanded} aria-controls={`folder-songs-${group.id}`} className={`flex w-full cursor-pointer items-center gap-2 rounded-lg px-2 py-2 text-left transition hover:bg-stone-100 focus-visible:ring-2 focus-visible:ring-stone-500 active:cursor-grabbing ${folderIsTarget && dragged?.type === "song" ? "bg-stone-100" : ""}`}><Folder className="size-4 text-stone-400" aria-hidden="true" /><span className="min-w-0 flex-1 truncate text-sm font-semibold text-stone-900">{group.name}</span><span className="text-xs tabular-nums text-stone-400">{activeSongs.length}</span><ChevronDown className={`size-4 text-stone-400 transition-transform ${expanded ? "rotate-180" : ""}`} aria-hidden="true" /></button></h2>
           <div id={`folder-songs-${group.id}`} hidden={!expanded} className="grid gap-2">{activeSongs.length ? activeSongs.map((song) => <SongRow key={song.id} {...rowProps(song)} justAdded={addedSongSlug === song.slug} highlighted={highlightedSong === song.slug} />) : !hiddenSongs.length ? <p className="rounded-xl border border-dashed border-stone-200 px-4 py-5 text-center text-sm text-stone-400">No songs in this folder.</p> : null}{hiddenSongs.length && !hiddenShown ? <HiddenSongsToggle count={hiddenSongs.length} shown={false} onClick={() => toggleStoredId(shownHiddenStorageKey, shownHidden, group.id)} /> : null}{hiddenSongs.length && hiddenShown ? <>{hiddenSongs.map((song) => <SongRow key={song.id} {...rowProps(song)} />)}{!hasFilters ? <HiddenSongsToggle count={hiddenSongs.length} shown onClick={() => toggleStoredId(shownHiddenStorageKey, shownHidden, group.id)} /> : null}</> : null}</div>
         </section>;
       })}
       {!groups.length ? <p className="px-5 py-8 text-center text-sm text-stone-500">{layoutSongs.length ? "No songs match those filters." : "No songs yet."}</p> : null}
     </div>
-    <div className="mt-5 flex justify-center border-t border-stone-200 pt-4"><SongFolderManager folders={layoutFolders} ready={foldersReady} addOnly /></div>
   </>;
 }
 
@@ -193,11 +234,11 @@ function HiddenSongsToggle({ count, shown, onClick }: { count: number; shown: bo
   return <div className="my-1 flex items-center gap-3 text-stone-300"><span className="h-px flex-1 bg-current" aria-hidden="true" /><button type="button" onClick={onClick} aria-expanded={shown} className="flex shrink-0 cursor-pointer items-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-medium text-stone-500 transition hover:bg-stone-100 hover:text-stone-800 focus-visible:ring-2 focus-visible:ring-stone-500"><span>{shown ? `Hide Hidden Songs (${count})` : `Show Hidden Songs (${count})`}</span>{shown ? <Minus className="size-3.5" aria-hidden="true" /> : <Plus className="size-3.5" aria-hidden="true" />}</button><span className="h-px flex-1 bg-current" aria-hidden="true" /></div>;
 }
 
-type SongRowProps = { song: ItemRecord; folders: SongFolderRecord[]; referenceUrls?: string[]; justAdded?: boolean; highlighted?: boolean; dragged: boolean; dropTarget: boolean; onDragStart: (event: React.DragEvent<HTMLElement>) => void; onDragEnd: () => void; onDragOver: (event: React.DragEvent<HTMLElement>) => void; onDrop: (event: React.DragEvent<HTMLElement>) => void; onOpen: () => void };
+type SongRowProps = { song: ItemRecord; folders: SongFolderRecord[]; referenceUrls?: string[]; justAdded?: boolean; highlighted?: boolean; dragged: boolean; dropPosition: "before" | "after" | null; onDragStart: (event: React.DragEvent<HTMLElement>) => void; onDragEnd: () => void; onDragOver: (event: React.DragEvent<HTMLElement>) => void; onDrop: (event: React.DragEvent<HTMLElement>) => void; onOpen: () => void };
 
-function SongRow({ song, folders, referenceUrls, justAdded = false, highlighted = false, dragged, dropTarget, onDragStart, onDragEnd, onDragOver, onDrop, onOpen }: SongRowProps) {
+function SongRow({ song, folders, referenceUrls, justAdded = false, highlighted = false, dragged, dropPosition, onDragStart, onDragEnd, onDragOver, onDrop, onOpen }: SongRowProps) {
   const name = titleCaseSongName(song.name);
-  return <article data-song-slug={song.slug} draggable onDragStart={(event) => { if ((event.target as HTMLElement).closest("button, [data-song-controls]")) { event.preventDefault(); return; } onDragStart(event); }} onDragEnd={onDragEnd} onDragOver={onDragOver} onDrop={onDrop} onClick={onOpen} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onOpen(); } }} role="link" tabIndex={0} aria-label={`Open ${name}`} className={`group grid min-h-18 cursor-pointer gap-3 rounded-xl border px-4 py-3 transition-all duration-500 hover:border-stone-300 hover:shadow-sm focus-visible:ring-2 focus-visible:ring-stone-500 sm:grid-cols-[minmax(0,1fr)_10rem_auto] sm:items-center ${song.is_hidden ? "border-stone-200 bg-stone-50/80 hover:bg-stone-100/80" : "border-stone-200 bg-white hover:bg-stone-50"} ${highlighted ? "border-stone-500 ring-2 ring-stone-300" : ""} ${dragged ? "border-stone-300 bg-stone-100 shadow-none [&>*]:invisible" : ""} ${dropTarget ? "border-stone-500 ring-2 ring-stone-300" : ""}`}>
+  return <article data-song-slug={song.slug} draggable onDragStart={(event) => { if ((event.target as HTMLElement).closest("button, [data-song-controls]")) { event.preventDefault(); return; } onDragStart(event); }} onDragEnd={onDragEnd} onDragOver={onDragOver} onDrop={onDrop} onClick={onOpen} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onOpen(); } }} role="link" tabIndex={0} aria-label={`Open ${name}`} className={`group grid min-h-18 cursor-pointer gap-3 rounded-xl border px-4 py-3 transition-[margin,background-color,border-color,box-shadow] duration-200 hover:border-stone-300 hover:shadow-sm focus-visible:ring-2 focus-visible:ring-stone-500 sm:grid-cols-[minmax(0,1fr)_10rem_auto] sm:items-center ${song.is_hidden ? "border-stone-200 bg-stone-50/80 hover:bg-stone-100/80" : "border-stone-200 bg-white hover:bg-stone-50"} ${highlighted ? "border-stone-500 ring-2 ring-stone-300" : ""} ${dragged ? "border-stone-300 bg-stone-100 shadow-none [&>*]:invisible" : ""} ${dropPosition === "before" ? "mt-20" : dropPosition === "after" ? "mb-20" : ""}`}>
     <h3 className={`flex min-w-0 items-center gap-2 truncate text-sm font-semibold ${song.is_hidden ? "text-stone-700" : "text-stone-950"}`}><span className="truncate">{name}</span>{justAdded ? <span className="shrink-0 rounded-full bg-stone-900 px-2 py-0.5 text-[0.625rem] font-semibold uppercase tracking-wide text-white">Just Added</span> : null}</h3>
     <div data-song-controls onClick={(event) => event.stopPropagation()} onPointerDown={(event) => event.stopPropagation()}><DifficultyControl itemId={song.id} itemSlug={song.slug} activitySlug="guitar" value={song.difficulty} /></div>
     <div data-song-controls onClick={(event) => event.stopPropagation()} onPointerDown={(event) => event.stopPropagation()} className="flex items-center justify-end gap-1"><SongVisibilityButton itemId={song.id} itemName={name} hidden={song.is_hidden} /><FavoriteButton itemId={song.id} initialFavorite={song.is_favorite} compact /><EditItemModal itemId={song.id} itemSlug={song.slug} activitySlug="guitar" itemName={name} difficulty={song.difficulty} youtubeUrl={song.youtube_url} referenceUrls={referenceUrls} tuning={song.tuning} capo={song.capo} folderId={song.folder_id} folders={folders} /><DeleteItemModal itemId={song.id} activitySlug="guitar" itemName={name} /></div>
