@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { FolderPlus, GripVertical, Pencil, Trash2 } from "lucide-react";
+import { FolderPlus, GripVertical, Pencil, Plus, Trash2 } from "lucide-react";
 import { createSongFolderAction, deleteSongFolderAction, renameSongFolderAction, setSongFolderOrderAction } from "@/app/actions";
 import { DialogShell } from "@/components/stride/dialog-shell";
 import { buttonVariants } from "@/components/ui/button";
@@ -9,9 +9,9 @@ import { songFieldClassName } from "@/components/stride/song-fields";
 import { useToast } from "@/components/stride/toast-provider";
 import type { SongFolderRecord } from "@/lib/stride";
 
-export function SongFolderManager({ folders, ready }: { folders: SongFolderRecord[]; ready: boolean }) {
+export function SongFolderManager({ folders, ready, addOnly = false }: { folders: SongFolderRecord[]; ready: boolean; addOnly?: boolean }) {
   const [open, setOpen] = useState(false);
-  return <><button type="button" onClick={() => setOpen(true)} className={buttonVariants({ variant: "outline" })}><FolderPlus data-icon="inline-start" aria-hidden="true" />Folders</button><DialogShell open={open} onOpenChange={setOpen} title="Folders" description="Create and arrange your song library." size="md">{open ? <FolderManagerContent key={folders.map((folder) => folder.id).join(",")} folders={folders} ready={ready} /> : null}</DialogShell></>;
+  return <><button type="button" onClick={() => setOpen(true)} className={addOnly ? "inline-flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-medium text-stone-500 transition hover:bg-stone-100 hover:text-stone-900 focus-visible:ring-2 focus-visible:ring-stone-500" : buttonVariants({ variant: "outline" })}>{addOnly ? <Plus className="size-4" aria-hidden="true" /> : <FolderPlus data-icon="inline-start" aria-hidden="true" />}{addOnly ? "Add Folder" : "Folders"}</button><DialogShell open={open} onOpenChange={setOpen} title={addOnly ? "Add Folder" : "Folders"} description="Create, rename, or remove folders." size="md">{open ? <FolderManagerContent key={folders.map((folder) => folder.id).join(",")} folders={folders} ready={ready} /> : null}</DialogShell></>;
 }
 
 function FolderManagerContent({ folders, ready }: { folders: SongFolderRecord[]; ready: boolean }) {

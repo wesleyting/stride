@@ -646,27 +646,34 @@ export async function setSongFolderOrderAction(folderIds: string[]): Promise<Mut
   return mutationSuccess();
 }
 
-const songArrangementSchema = z.object({
+const moveSongSchema = z.object({
+  itemId: z.string().uuid(),
   folderId: z.string().uuid().nullable(),
-  songs: z.array(z.object({ id: z.string().uuid(), isHidden: z.boolean() })).max(500)
-    .refine((songs) => new Set(songs.map((song) => song.id)).size === songs.length),
+  orderedSongIds: z.array(z.string().uuid()).min(1).max(500)
+    .refine((ids) => new Set(ids).size === ids.length),
 });
 
-export async function setSongArrangementAction(folderId: string | null, songs: { id: string; isHidden: boolean }[]): Promise<MutationState> {
+export async function moveSongAction(itemId: string, folderId: string | null, orderedSongIds: string[]): Promise<MutationState> {
   const { supabase, user } = await getSignedInUser();
   if (!user) return mutationError("You need to sign in first.");
-  const parsed = songArrangementSchema.safeParse({ folderId, songs });
+  const parsed = moveSongSchema.safeParse({ itemId, folderId, orderedSongIds });
   if (!parsed.success) return mutationError("That song order could not be saved.");
-  if (!parsed.data.songs.length) return mutationSuccess();
+  if (!parsed.data.orderedSongIds.includes(parsed.data.itemId)) return mutationError("That song order could not be saved.");
 
-  let ownedQuery = supabase.from("items").select("id, folder_id").eq("user_id", user.id).in("id", parsed.data.songs.map((song) => song.id));
-  ownedQuery = parsed.data.folderId ? ownedQuery.eq("folder_id", parsed.data.folderId) : ownedQuery.is("folder_id", null);
-  const owned = await ownedQuery;
-  if (owned.error || (owned.data?.length ?? 0) !== parsed.data.songs.length) return mutationError("One of those songs is no longer in this folder.");
+  const item = await supabase.from("items").select("id, activity_id").eq("id", parsed.data.itemId).eq("user_id", user.id).maybeSingle();
+  if (item.error || !item.data) return mutationError("That song is no longer available.");
+  if (parsed.data.folderId) {
+    const folder = await supabase.from("song_folders").select("id").eq("id", parsed.data.folderId).eq("user_id", user.id).eq("activity_id", item.data.activity_id).maybeSingle();
+    if (folder.error || !folder.data) return mutationError("That folder is no longer available.");
+  }
+  const owned = await supabase.from("items").select("id").eq("user_id", user.id).eq("activity_id", item.data.activity_id).in("id", parsed.data.orderedSongIds);
+  if (owned.error || (owned.data?.length ?? 0) !== parsed.data.orderedSongIds.length) return mutationError("One of those songs is no longer available.");
 
-  const updates = await Promise.all(parsed.data.songs.map((song, sortOrder) => supabase.from("items").update({ sort_order: sortOrder, is_hidden: song.isHidden }).eq("id", song.id).eq("user_id", user.id)));
+  const moved = await supabase.from("items").update({ folder_id: parsed.data.folderId }).eq("id", parsed.data.itemId).eq("user_id", user.id);
+  if (moved.error) return mutationError(moved.error.message);
+  const updates = await Promise.all(parsed.data.orderedSongIds.map((id, sortOrder) => supabase.from("items").update({ sort_order: sortOrder }).eq("id", id).eq("user_id", user.id)));
   const failed = updates.find((result) => result.error);
-  if (failed?.error) return mutationError(failed.error.code === "42703" ? "Run migration 0025_hidden_songs_and_folder_order.sql first." : failed.error.message);
+  if (failed?.error) return mutationError(failed.error.message);
   revalidatePath("/");
   revalidatePath("/songs");
   return mutationSuccess();
@@ -677,7 +684,12 @@ export async function setSongHiddenAction(itemId: string, isHidden: boolean): Pr
   if (!user) return mutationError("You need to sign in first.");
   const parsed = z.object({ itemId: z.string().uuid(), isHidden: z.boolean() }).safeParse({ itemId, isHidden });
   if (!parsed.success) return mutationError("That song could not be updated.");
-  const result = await supabase.from("items").update({ is_hidden: parsed.data.isHidden }).eq("id", parsed.data.itemId).eq("user_id", user.id).select("id").maybeSingle();
+  const item = await supabase.from("items").select("id, activity_id, folder_id").eq("id", parsed.data.itemId).eq("user_id", user.id).maybeSingle();
+  if (item.error || !item.data) return mutationError("That song is no longer available.");
+  let lastSongQuery = supabase.from("items").select("sort_order").eq("user_id", user.id).eq("activity_id", item.data.activity_id).eq("is_archived", false);
+  lastSongQuery = item.data.folder_id ? lastSongQuery.eq("folder_id", item.data.folder_id) : lastSongQuery.is("folder_id", null);
+  const lastSong = await lastSongQuery.order("sort_order", { ascending: false }).limit(1).maybeSingle();
+  const result = await supabase.from("items").update({ is_hidden: parsed.data.isHidden, sort_order: (lastSong.data?.sort_order ?? -1) + 1 }).eq("id", parsed.data.itemId).eq("user_id", user.id).select("id").maybeSingle();
   if (result.error) return mutationError(result.error.code === "42703" ? "Run migration 0025_hidden_songs_and_folder_order.sql first." : result.error.message);
   if (!result.data) return mutationError("That song is no longer available.");
   revalidatePath("/");
