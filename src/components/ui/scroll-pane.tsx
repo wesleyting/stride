@@ -40,7 +40,7 @@ export function ScrollPane({
       setMetrics(initialMetrics);
       return;
     }
-    const thumbHeight = Math.max(40, trackHeight * (viewport.clientHeight / viewport.scrollHeight));
+    const thumbHeight = Math.min(trackHeight, Math.max(40, trackHeight * (viewport.clientHeight / viewport.scrollHeight) * 0.86));
     const thumbTop = (trackHeight - thumbHeight) * (viewport.scrollTop / maxScroll);
     setMetrics({ scrollable: true, thumbHeight, thumbTop });
   }, []);
@@ -94,7 +94,7 @@ export function ScrollPane({
         const maxScroll = viewport.scrollHeight - viewport.clientHeight;
         viewport.scrollTo({ top: maxThumbTravel > 0 ? Math.max(0, Math.min(targetTop, maxThumbTravel)) / maxThumbTravel * maxScroll : 0, behavior: "smooth" });
       }}
-      className={cn("group/scrollbar pointer-events-auto absolute top-1 right-0.5 bottom-1 z-20 hidden w-2 rounded-full md:block", !metrics.scrollable && "invisible")}
+      className={cn("group/scrollbar pointer-events-auto absolute top-3 right-0.5 bottom-3 z-20 hidden w-2 rounded-full md:block", !metrics.scrollable && "invisible")}
     >
       <div
         onPointerDown={(event) => {

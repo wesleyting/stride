@@ -18,7 +18,7 @@ import { redirect } from "next/navigation";
 import { calculatePracticeStreak, entriesWithinDays, formatTrackedTime, referenceSourceLabel, titleCaseSongName, type EntryRecord, type ItemRecord, type SongFolderRecord } from "@/lib/stride";
 
 export const dynamic = "force-dynamic";
-type ItemExtension = Pick<ItemRecord, "id" | "is_favorite" | "pin_position" | "youtube_url" | "tuning" | "capo">;
+type ItemExtension = Pick<ItemRecord, "id" | "is_favorite" | "pin_position" | "youtube_url" | "tuning" | "capo" | "is_hidden">;
 
 export default async function GuitarDashboard({ searchParams }: PageProps<"/">) {
   const query = await searchParams;
@@ -45,7 +45,7 @@ export default async function GuitarDashboard({ searchParams }: PageProps<"/">) 
     const [itemsResult, entriesResult, extensionResult, durationResult, folderResult] = await Promise.all([
       supabase.from("items").select("id, activity_id, name, slug, difficulty, sort_order, is_archived, created_at, updated_at").eq("user_id", user.id).eq("activity_id", guitar.id).eq("is_archived", false).order("sort_order"),
       supabase.from("entries").select("id, activity_id, item_id, content, rating, practice_part, created_at").eq("user_id", user.id).eq("activity_id", guitar.id).order("created_at", { ascending: false }),
-      supabase.from("items").select("id, is_favorite, pin_position, youtube_url, tuning, capo").eq("user_id", user.id).eq("activity_id", guitar.id),
+      supabase.from("items").select("id, is_favorite, pin_position, youtube_url, tuning, capo, is_hidden").eq("user_id", user.id).eq("activity_id", guitar.id),
       supabase.from("entries").select("id, duration_seconds").eq("user_id", user.id).eq("activity_id", guitar.id),
       supabase.from("song_folders").select("id, activity_id, name, sort_order, created_at").eq("user_id", user.id).eq("activity_id", guitar.id).order("sort_order").order("name"),
     ]);
@@ -53,22 +53,28 @@ export default async function GuitarDashboard({ searchParams }: PageProps<"/">) 
     if (entriesResult.error) throw entriesResult.error;
     let extensionRows = extensionResult.data ?? [];
     if (extensionResult.error?.code === "42703") {
-      const fallback = await supabase.from("items").select("id, is_favorite, youtube_url").eq("user_id", user.id).eq("activity_id", guitar.id);
-      extensionRows = (fallback.data ?? []).map((row) => ({ ...row, pin_position: null, tuning: "standard", capo: null }));
-      workspaceReady = !fallback.error;
-      pinOrderingReady = false;
+      const fallback = await supabase.from("items").select("id, is_favorite, pin_position, youtube_url, tuning, capo").eq("user_id", user.id).eq("activity_id", guitar.id);
+      if (fallback.error?.code === "42703") {
+        const legacyFallback = await supabase.from("items").select("id, is_favorite, youtube_url").eq("user_id", user.id).eq("activity_id", guitar.id);
+        extensionRows = (legacyFallback.data ?? []).map((row) => ({ ...row, pin_position: null, tuning: "standard", capo: null, is_hidden: false }));
+        workspaceReady = !legacyFallback.error;
+        pinOrderingReady = false;
+      } else {
+        extensionRows = (fallback.data ?? []).map((row) => ({ ...row, is_hidden: false }));
+        workspaceReady = !fallback.error;
+      }
     } else workspaceReady = !extensionResult.error;
     timeTrackingReady = !durationResult.error;
     folders = (folderResult.data ?? []) as SongFolderRecord[];
     const extensionById = new Map(extensionRows.map((row) => [row.id, row as ItemExtension]));
-    songs = (itemsResult.data ?? []).map((song) => ({ ...song, is_favorite: extensionById.get(song.id)?.is_favorite ?? false, pin_position: extensionById.get(song.id)?.pin_position ?? null, youtube_url: extensionById.get(song.id)?.youtube_url ?? "", tuning: extensionById.get(song.id)?.tuning ?? "standard", capo: extensionById.get(song.id)?.capo ?? null, folder_id: null })) as ItemRecord[];
+    songs = (itemsResult.data ?? []).map((song) => ({ ...song, is_favorite: extensionById.get(song.id)?.is_favorite ?? false, pin_position: extensionById.get(song.id)?.pin_position ?? null, youtube_url: extensionById.get(song.id)?.youtube_url ?? "", tuning: extensionById.get(song.id)?.tuning ?? "standard", capo: extensionById.get(song.id)?.capo ?? null, folder_id: null, is_hidden: extensionById.get(song.id)?.is_hidden ?? false })) as ItemRecord[];
     const durationById = new Map((durationResult.data ?? []).map((entry) => [entry.id, entry.duration_seconds]));
     entries = (entriesResult.data ?? []).map((entry) => ({ ...entry, duration_seconds: durationById.get(entry.id) ?? null })) as EntryRecord[];
   }
 
   const latestBySong = new Map<string, EntryRecord>();
   entries.forEach((entry) => { if (entry.item_id && !latestBySong.has(entry.item_id)) latestBySong.set(entry.item_id, entry); });
-  const favoriteSongs = songs.filter((song) => song.is_favorite).sort((a, b) => (a.pin_position ?? Number.MAX_SAFE_INTEGER) - (b.pin_position ?? Number.MAX_SAFE_INTEGER));
+  const favoriteSongs = songs.filter((song) => song.is_favorite && !song.is_hidden).sort((a, b) => (a.pin_position ?? Number.MAX_SAFE_INTEGER) - (b.pin_position ?? Number.MAX_SAFE_INTEGER));
   const weekEntries = entriesWithinDays(entries, 7);
   const streak = calculatePracticeStreak(entries.map((entry) => entry.created_at));
   const trackedSecondsThisWeek = weekEntries.reduce((total, entry) => total + (entry.duration_seconds ?? 0), 0);

@@ -20,6 +20,7 @@ export type ItemRecord = {
   slug: string;
   difficulty: number | null;
   folder_id: string | null;
+  is_hidden: boolean;
   is_favorite: boolean;
   pin_position: number | null;
   youtube_url: string;

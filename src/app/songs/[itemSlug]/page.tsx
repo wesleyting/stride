@@ -43,7 +43,7 @@ export default async function SongPage({ params, searchParams }: PageProps<"/son
     const fallback = await supabase.from("items").select("id, is_favorite, youtube_url").eq("user_id", user.id).eq("activity_id", activity.data.id).eq("slug", itemSlug).maybeSingle();
     extensionData = fallback.data ? { ...fallback.data, tuning: "standard", capo: null, folder_id: null } : null;
   }
-  const item = { ...base.data, is_favorite: extensionData?.is_favorite ?? false, pin_position: null, youtube_url: extensionData?.youtube_url ?? "", tuning: extensionData?.tuning ?? "standard", capo: extensionData?.capo ?? null, folder_id: extensionData?.folder_id ?? null } as ItemRecord;
+  const item = { ...base.data, is_favorite: extensionData?.is_favorite ?? false, pin_position: null, youtube_url: extensionData?.youtube_url ?? "", tuning: extensionData?.tuning ?? "standard", capo: extensionData?.capo ?? null, folder_id: extensionData?.folder_id ?? null, is_hidden: false } as ItemRecord;
 
   const [entriesResult, resourcesResult, durationResult, visibilityResult, profileResult, foldersResult, referencesResult] = await Promise.all([
     supabase.from("entries").select("id, activity_id, item_id, content, rating, practice_part, created_at").eq("user_id", user.id).eq("item_id", item.id).order("created_at", { ascending: false }),

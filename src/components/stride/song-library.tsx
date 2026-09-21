@@ -1,18 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, useSyncExternalStore } from "react";
-import { ChevronDown, Folder, Search, X } from "lucide-react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { ChevronDown, EyeOff, Folder, Search, X } from "lucide-react";
+import { ArrangeSongsModal } from "@/components/stride/arrange-songs-modal";
 import { CustomSelect } from "@/components/ui/custom-select";
 import { DeleteItemModal } from "@/components/stride/delete-item-modal";
 import { DifficultyControl } from "@/components/stride/difficulty-control";
 import { EditItemModal } from "@/components/stride/edit-item-modal";
 import { FavoriteButton } from "@/components/stride/favorite-button";
-import { LogPracticeModal } from "@/components/stride/log-practice-modal";
-import { StartPracticeTimerButton } from "@/components/stride/practice-timer";
+import { SongVisibilityButton } from "@/components/stride/song-visibility-button";
 import { titleCaseSongName, type EntryRecord, type ItemRecord, type SongFolderRecord } from "@/lib/stride";
 
 const songSortOptions = [
+  { value: "custom", label: "Custom order" },
   { value: "recent", label: "Recently practiced" },
   { value: "needs-practice", label: "Needs practice" },
   { value: "name", label: "Name" },
@@ -23,7 +24,7 @@ const songSortOptions = [
 
 const songSortStorageKey = "stride:song-library-sort";
 const songSortChangeEvent = "stride:song-library-sort-change";
-let inMemorySongSort = "recent";
+let inMemorySongSort = "custom";
 
 function readSongSort() {
   try {
@@ -54,12 +55,23 @@ function saveSongSort(value: string) {
   window.dispatchEvent(new Event(songSortChangeEvent));
 }
 
-export function SongLibrary({ songs, entries, folders, foldersReady, referencesBySong = {} }: { songs: ItemRecord[]; entries: EntryRecord[]; folders: SongFolderRecord[]; foldersReady: boolean; referencesBySong?: Record<string, string[]> }) {
+export function SongLibrary({ songs, entries, folders, foldersReady, referencesBySong = {}, addedSongSlug }: { songs: ItemRecord[]; entries: EntryRecord[]; folders: SongFolderRecord[]; foldersReady: boolean; referencesBySong?: Record<string, string[]>; addedSongSlug?: string }) {
   const [query, setQuery] = useState("");
-  const sort = useSyncExternalStore(subscribeToSongSort, readSongSort, () => "recent");
+  const sort = useSyncExternalStore(subscribeToSongSort, readSongSort, () => "custom");
   const [difficulty, setDifficulty] = useState("all");
   const [pinnedOnly, setPinnedOnly] = useState(false);
   const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(() => new Set());
+  const [recentlyAdded, setRecentlyAdded] = useState(addedSongSlug ?? null);
+
+  useEffect(() => {
+    if (!addedSongSlug) return;
+    const scrollTimer = window.setTimeout(() => document.querySelector<HTMLElement>(`[data-song-slug="${CSS.escape(addedSongSlug)}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" }), 120);
+    const clearTimer = window.setTimeout(() => setRecentlyAdded(null), 6000);
+    const url = new URL(window.location.href);
+    url.searchParams.delete("added");
+    window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+    return () => { window.clearTimeout(scrollTimer); window.clearTimeout(clearTimer); };
+  }, [addedSongSlug]);
 
   const latestBySong = useMemo(() => {
     const latest = new Map<string, EntryRecord>();
@@ -77,6 +89,7 @@ export function SongLibrary({ songs, entries, folders, foldersReady, referencesB
       })
       .filter((song) => !pinnedOnly || song.is_favorite)
       .sort((a, b) => {
+        if (sort === "custom") return a.sort_order - b.sort_order || a.name.localeCompare(b.name);
         if (sort === "name") return a.name.localeCompare(b.name);
         if (sort === "difficulty-high") return (b.difficulty ?? -1) - (a.difficulty ?? -1) || a.name.localeCompare(b.name);
         if (sort === "difficulty-low") return (a.difficulty ?? 6) - (b.difficulty ?? 6) || a.name.localeCompare(b.name);
@@ -108,8 +121,8 @@ export function SongLibrary({ songs, entries, folders, foldersReady, referencesB
     });
   }
   const groups = [
-    ...folders.map((folder) => ({ id: folder.id, name: folder.name, songs: filtered.filter((song) => song.folder_id === folder.id) })),
-    { id: "uncategorized", name: "Uncategorized", songs: filtered.filter((song) => !song.folder_id || !folders.some((folder) => folder.id === song.folder_id)) },
+    ...folders.map((folder) => ({ id: folder.id, folderId: folder.id, name: folder.name, songs: filtered.filter((song) => song.folder_id === folder.id), allSongs: songs.filter((song) => song.folder_id === folder.id) })),
+    { id: "uncategorized", folderId: null, name: "Uncategorized", songs: filtered.filter((song) => !song.folder_id || !folders.some((folder) => folder.id === song.folder_id)), allSongs: songs.filter((song) => !song.folder_id || !folders.some((folder) => folder.id === song.folder_id)) },
   ].filter((group) => group.songs.length > 0 || !hasFilters && group.id !== "uncategorized");
 
   return <>
@@ -117,18 +130,17 @@ export function SongLibrary({ songs, entries, folders, foldersReady, referencesB
     {hasFilters ? <div className="mt-3 flex min-h-8 items-center justify-between gap-3 px-1"><p aria-live="polite" className="text-xs text-stone-500"><span className="font-semibold text-stone-700">{filtered.length}</span> of {songs.length} {songs.length === 1 ? "song" : "songs"}</p><button type="button" onClick={clearFilters} className="inline-flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold text-stone-600 hover:bg-stone-100 hover:text-stone-950 focus-visible:ring-2 focus-visible:ring-stone-500"><X className="size-3.5" aria-hidden="true" />Clear Filters</button></div> : null}
     {!foldersReady ? <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">Run migration <code>0022_song_folders_and_optional_difficulty.sql</code> to enable folders and optional difficulty.</p> : null}
     <div className="mt-6 grid gap-4">
-      {groups.map((group) => { const expanded = !collapsedFolders.has(group.id); return <section key={group.id} aria-labelledby={`folder-${group.id}`}><h2 id={`folder-${group.id}`} className="mb-2"><button type="button" onClick={() => toggleFolder(group.id)} aria-expanded={expanded} aria-controls={`folder-songs-${group.id}`} className="flex w-full cursor-pointer items-center gap-2 rounded-lg px-2 py-2 text-left transition hover:bg-stone-100 focus-visible:ring-2 focus-visible:ring-stone-500"><Folder className="size-4 text-stone-400" aria-hidden="true" /><span className="min-w-0 flex-1 truncate text-sm font-semibold text-stone-900">{group.name}</span><span className="text-xs tabular-nums text-stone-400">{group.songs.length}</span><ChevronDown className={`size-4 text-stone-400 transition-transform ${expanded ? "rotate-180" : ""}`} aria-hidden="true" /></button></h2><div id={`folder-songs-${group.id}`} hidden={!expanded} className="grid gap-2">{group.songs.length ? group.songs.map((song) => <SongRow key={song.id} song={song} latest={latestBySong.get(song.id)} entries={entries} folders={folders} referenceUrls={referencesBySong[song.id]} />) : <p className="rounded-xl border border-dashed border-stone-200 px-4 py-5 text-center text-sm text-stone-400">No songs in this folder.</p>}</div></section>; })}
+      {groups.map((group) => { const expanded = !collapsedFolders.has(group.id); const activeSongs = group.songs.filter((song) => !song.is_hidden); const hiddenSongs = group.songs.filter((song) => song.is_hidden); return <section key={group.id} aria-labelledby={`folder-${group.id}`}><h2 id={`folder-${group.id}`} className="mb-2 flex items-center gap-1"><button type="button" onClick={() => toggleFolder(group.id)} aria-expanded={expanded} aria-controls={`folder-songs-${group.id}`} className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-lg px-2 py-2 text-left transition hover:bg-stone-100 focus-visible:ring-2 focus-visible:ring-stone-500"><Folder className="size-4 text-stone-400" aria-hidden="true" /><span className="min-w-0 flex-1 truncate text-sm font-semibold text-stone-900">{group.name}</span><span className="text-xs tabular-nums text-stone-400">{activeSongs.length}</span><ChevronDown className={`size-4 text-stone-400 transition-transform ${expanded ? "rotate-180" : ""}`} aria-hidden="true" /></button>{group.allSongs.length ? <ArrangeSongsModal folderId={group.folderId} folderName={group.name} songs={group.allSongs} onSaved={() => saveSongSort("custom")} /> : null}</h2><div id={`folder-songs-${group.id}`} hidden={!expanded} className="grid gap-2">{activeSongs.length ? activeSongs.map((song) => <SongRow key={song.id} song={song} folders={folders} referenceUrls={referencesBySong[song.id]} justAdded={recentlyAdded === song.slug} />) : hiddenSongs.length ? <p className="rounded-xl border border-dashed border-stone-200 px-4 py-4 text-center text-sm text-stone-400">No active songs in this folder.</p> : <p className="rounded-xl border border-dashed border-stone-200 px-4 py-5 text-center text-sm text-stone-400">No songs in this folder.</p>}{hiddenSongs.length ? <details className="group/hidden mt-1"><summary className="flex cursor-pointer list-none items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-stone-500 transition hover:bg-stone-100 hover:text-stone-800"><EyeOff className="size-4" aria-hidden="true" /><span className="flex-1">Hidden</span><span className="text-xs tabular-nums">{hiddenSongs.length}</span><ChevronDown className="size-4 transition-transform group-open/hidden:rotate-180" aria-hidden="true" /></summary><div className="mt-2 grid gap-2 border-l border-stone-200 pl-3">{hiddenSongs.map((song) => <SongRow key={song.id} song={song} folders={folders} referenceUrls={referencesBySong[song.id]} hidden />)}</div></details> : null}</div></section>; })}
       {!groups.length ? <p className="px-5 py-8 text-center text-sm text-stone-500">{songs.length ? "No songs match those filters." : "No songs yet."}</p> : null}
     </div>
   </>;
 }
 
-function SongRow({ song, latest, entries, folders, referenceUrls }: { song: ItemRecord; latest?: EntryRecord; entries: EntryRecord[]; folders: SongFolderRecord[]; referenceUrls?: string[] }) {
-  const parts = entries.filter((entry) => entry.item_id === song.id && entry.practice_part).map((entry) => entry.practice_part!);
-  return <article className="group grid min-h-18 gap-3 rounded-xl border border-stone-200 bg-white px-4 py-3 transition hover:border-stone-300 hover:bg-stone-50 hover:shadow-sm focus-within:bg-stone-50 sm:grid-cols-[minmax(0,1fr)_10rem_9rem_10rem] sm:items-center">
-    <Link href={`/songs/${song.slug}`} className="min-w-0 rounded-md focus-visible:ring-2 focus-visible:ring-stone-500"><h3 className="truncate text-sm font-semibold text-stone-950 group-hover:underline">{titleCaseSongName(song.name)}</h3></Link>
+function SongRow({ song, folders, referenceUrls, hidden = false, justAdded = false }: { song: ItemRecord; folders: SongFolderRecord[]; referenceUrls?: string[]; hidden?: boolean; justAdded?: boolean }) {
+  const name = titleCaseSongName(song.name);
+  return <article data-song-slug={song.slug} className={`group grid min-h-18 gap-3 rounded-xl border bg-white px-4 py-3 transition-all duration-500 hover:border-stone-300 hover:bg-stone-50 hover:shadow-sm focus-within:bg-stone-50 sm:grid-cols-[minmax(0,1fr)_10rem_auto] sm:items-center ${justAdded ? "border-stone-500 bg-stone-50 ring-2 ring-stone-300" : "border-stone-200"} ${hidden ? "opacity-75" : ""}`}>
+    <Link href={`/songs/${song.slug}`} className="min-w-0 rounded-md focus-visible:ring-2 focus-visible:ring-stone-500"><h3 className="flex min-w-0 items-center gap-2 truncate text-sm font-semibold text-stone-950 group-hover:underline"><span className="truncate">{name}</span>{justAdded ? <span className="shrink-0 rounded-full bg-stone-900 px-2 py-0.5 text-[0.625rem] font-semibold uppercase tracking-wide text-white">Just Added</span> : null}</h3></Link>
     <DifficultyControl itemId={song.id} itemSlug={song.slug} activitySlug="guitar" value={song.difficulty} />
-    <div className="flex items-center justify-end gap-1"><LogPracticeModal activitySlug="guitar" activityName="Guitar" activityKind="practice" itemSlug={song.slug} itemName={titleCaseSongName(song.name)} hasHistory={Boolean(latest)} previousParts={parts} currentYoutubeUrl={song.youtube_url} secondary iconOnly /><FavoriteButton itemId={song.id} initialFavorite={song.is_favorite} compact /><EditItemModal itemId={song.id} itemSlug={song.slug} activitySlug="guitar" itemName={titleCaseSongName(song.name)} difficulty={song.difficulty} youtubeUrl={song.youtube_url} referenceUrls={referenceUrls} tuning={song.tuning} capo={song.capo} folderId={song.folder_id} folders={folders} /><DeleteItemModal itemId={song.id} activitySlug="guitar" itemName={titleCaseSongName(song.name)} /></div>
-    <div className="[&>button]:w-full"><StartPracticeTimerButton itemId={song.id} itemSlug={song.slug} itemName={titleCaseSongName(song.name)} primary /></div>
+    <div className="flex items-center justify-end gap-1"><SongVisibilityButton itemId={song.id} itemName={name} hidden={hidden} /><FavoriteButton itemId={song.id} initialFavorite={song.is_favorite} compact /><EditItemModal itemId={song.id} itemSlug={song.slug} activitySlug="guitar" itemName={name} difficulty={song.difficulty} youtubeUrl={song.youtube_url} referenceUrls={referenceUrls} tuning={song.tuning} capo={song.capo} folderId={song.folder_id} folders={folders} /><DeleteItemModal itemId={song.id} activitySlug="guitar" itemName={name} /></div>
   </article>;
 }
