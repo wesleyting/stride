@@ -75,6 +75,7 @@ const itemSchema = z.object({
   difficulty: optionalDifficultySchema,
   folderId: optionalFolderIdSchema,
   isPublic: z.boolean().default(false),
+  isHidden: z.boolean().default(false),
   referenceUrls: referenceUrlsSchema,
   tuning: guitarTuningSchema.default("standard"),
   capo: z.preprocess(
@@ -472,6 +473,7 @@ export async function createItemAction(
     difficulty: formData.get("difficulty"),
     folderId: formData.get("folderId") ?? "",
     isPublic: formData.get("isPublic") === "true",
+    isHidden: formData.get("isHidden") === "true",
     referenceUrls: formData.getAll("referenceUrl"),
     tuning: formData.get("tuning") ?? "standard",
     capo: formData.get("capo") ?? "",
@@ -538,6 +540,7 @@ export async function createItemAction(
     difficulty: parsed.data.difficulty,
     folder_id: parsed.data.folderId,
     is_public: parsed.data.isPublic,
+    is_hidden: parsed.data.isHidden,
     youtube_url: parsed.data.referenceUrls[0] ?? "",
     tuning: parsed.data.tuning || "standard",
     capo: parsed.data.capo,
@@ -545,7 +548,7 @@ export async function createItemAction(
   }).select("id").single();
 
   if (error) {
-    return mutationError(error.code === "42703" || error.code === "PGRST204" || error.code === "23502" ? "Run migration 0022_song_folders_and_optional_difficulty.sql before saving this song." : error.message);
+    return mutationError(error.code === "42703" || error.code === "PGRST204" || error.code === "23502" ? "Run the latest Supabase migrations before saving this song." : error.message);
   }
 
   const references = await supabase.rpc("replace_song_references", { target_item_id: createdItem.id, reference_urls: parsed.data.referenceUrls });

@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
-import { ChevronDown, Eye, Lock, Plus } from "lucide-react";
+import { ChevronDown, Eye, EyeOff, Lock, Plus } from "lucide-react";
 import { createItemAction, type MutationState } from "@/app/actions";
 import { DialogShell } from "@/components/stride/dialog-shell";
 import { DifficultyField, FolderField, ReferenceLinksField, SongSetupFields, songFieldClassName } from "@/components/stride/song-fields";
@@ -114,6 +114,7 @@ function ItemForm({
   );
   const [difficulty, setDifficulty] = useState<number | null>(null);
   const [isPublic, setIsPublic] = useState(defaultSongPublic && !isGuest);
+  const [isHidden, setIsHidden] = useState(false);
 
   useEffect(() => {
     if (state.success) {
@@ -153,8 +154,8 @@ function ItemForm({
           <DifficultyField value={difficulty} onChange={setDifficulty} />
           <ReferenceLinksField />
           <details className="group overflow-hidden rounded-xl border border-stone-200 bg-stone-50/60">
-            <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-semibold text-stone-800 hover:bg-stone-100"><span>More Options</span><span className="flex items-center gap-2">{isPublic ? <span className="rounded-full bg-stone-200 px-2 py-0.5 text-[0.6875rem] font-semibold text-stone-700">Public</span> : null}<ChevronDown className="size-4 text-stone-400 transition group-open:rotate-180" aria-hidden="true" /></span></summary>
-            <div className="grid gap-5 border-t border-stone-200 bg-white p-4"><SongSetupFields tuning={defaultTuning} /><VisibilityField isPublic={isPublic} setIsPublic={setIsPublic} isGuest={isGuest} /></div>
+            <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-semibold text-stone-800 hover:bg-stone-100"><span>More Options</span><span className="flex items-center gap-2">{isHidden ? <span className="rounded-full bg-stone-200 px-2 py-0.5 text-[0.6875rem] font-semibold text-stone-700">Hidden</span> : isPublic ? <span className="rounded-full bg-stone-200 px-2 py-0.5 text-[0.6875rem] font-semibold text-stone-700">Public</span> : null}<ChevronDown className="size-4 text-stone-400 transition group-open:rotate-180" aria-hidden="true" /></span></summary>
+            <div className="grid gap-5 border-t border-stone-200 bg-white p-4"><SongSetupFields tuning={defaultTuning} /><HiddenSongField hidden={isHidden} setHidden={setIsHidden} /><VisibilityField isPublic={isPublic} setIsPublic={setIsPublic} isGuest={isGuest} /></div>
           </details>
         </section>
       ) : (
@@ -175,6 +176,10 @@ function ItemForm({
       </div>
     </form>
   );
+}
+
+function HiddenSongField({ hidden, setHidden }: { hidden: boolean; setHidden: (value: boolean) => void }) {
+  return <div><input type="hidden" name="isHidden" value={String(hidden)} /><button type="button" role="switch" aria-checked={hidden} onClick={() => setHidden(!hidden)} className={`flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition focus-visible:ring-2 focus-visible:ring-stone-500 ${hidden ? "border-stone-400 bg-stone-50" : "border-stone-200 hover:border-stone-300"}`}>{hidden ? <EyeOff className="size-4 shrink-0 text-stone-600" aria-hidden="true" /> : <Eye className="size-4 shrink-0 text-stone-500" aria-hidden="true" />}<span className="min-w-0 flex-1"><span className="block text-sm font-semibold text-stone-900">Add as Hidden</span><span className="mt-0.5 block text-xs leading-5 text-stone-500">Keep it beneath your active songs for now.</span></span><span className={`relative h-5 w-9 shrink-0 rounded-full transition ${hidden ? "bg-stone-900" : "bg-stone-300"}`}><span className={`absolute top-0.5 size-4 rounded-full bg-white shadow-sm transition-transform ${hidden ? "translate-x-4.5" : "translate-x-0.5"}`} /></span></button></div>;
 }
 
 function VisibilityField({ isPublic, setIsPublic, isGuest }: { isPublic: boolean; setIsPublic: (value: boolean) => void; isGuest: boolean }) {
