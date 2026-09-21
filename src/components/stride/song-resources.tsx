@@ -2,8 +2,10 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Download, Expand, Eye, FileAudio, FileImage, FileVideo, Lock, Trash2, Upload } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, Expand, Eye, FileAudio, FileImage, FileVideo, Link2, Lock, Trash2, Upload } from "lucide-react";
+import { updateSongWorkspaceAction } from "@/app/actions";
 import { DialogShell } from "@/components/stride/dialog-shell";
 import { buttonVariants } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
@@ -15,8 +17,10 @@ const acceptedTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/g
 const accept = Array.from(acceptedTypes).join(",");
 type PendingMedia = { file: File; previewUrl: string; isPublic: boolean };
 
-export function SongResources({ itemId, itemSlug, userId, initialResources, isGuest = false, defaultPublic = false }: { itemId: string; itemSlug: string; userId: string; initialResources: SongResourceRecord[]; isGuest?: boolean; defaultPublic?: boolean }) {
+export function SongResources({ itemId, itemSlug, userId, initialResources, referenceUrls, isGuest = false, defaultPublic = false }: { itemId: string; itemSlug: string; userId: string; initialResources: SongResourceRecord[]; referenceUrls: string[]; isGuest?: boolean; defaultPublic?: boolean }) {
+  const router = useRouter();
   const [resources, setResources] = useState(initialResources);
+  const [references, setReferences] = useState(referenceUrls);
   const [pendingMedia, setPendingMedia] = useState<PendingMedia | null>(null);
   const [selected, setSelected] = useState<SongResourceRecord | null>(null);
   const [sharingCandidate, setSharingCandidate] = useState<SongResourceRecord | null>(null);
@@ -26,10 +30,11 @@ export function SongResources({ itemId, itemSlug, userId, initialResources, isGu
   const [guestGateOpen, setGuestGateOpen] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [dragLabel, setDragLabel] = useState("Drop Practice Media Here");
-  const [mediaActive, setMediaActive] = useState(false);
+  const [pastedLink, setPastedLink] = useState<string | null>(null);
+  const [linkError, setLinkError] = useState("");
+  const [savingLink, setSavingLink] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const selectedPreviewRef = useRef<HTMLDivElement>(null);
-  const sectionRef = useRef<HTMLElement>(null);
   const dragDepth = useRef(0);
   const { showToast } = useToast();
   const selectedIndex = selected ? resources.findIndex((resource) => resource.id === selected.id) : -1;
@@ -60,18 +65,62 @@ export function SongResources({ itemId, itemSlug, userId, initialResources, isGu
   }, [chooseFile, isGuest]);
 
   useEffect(() => {
-    if (!mediaActive || pendingMedia || selected) return;
+    if (pendingMedia || selected || sharingCandidate || guestGateOpen || pastedLink) return;
     function onPaste(event: ClipboardEvent) {
       const target = event.target as HTMLElement | null;
-      if (target?.matches("input, textarea, [contenteditable='true']")) return;
+      if (target?.closest("input, textarea, [contenteditable='true'], [role='dialog']")) return;
       const file = Array.from(event.clipboardData?.items ?? []).find((item) => item.kind === "file" && acceptedTypes.has(item.type))?.getAsFile() ?? undefined;
-      if (!file) return;
+      if (file) {
+        event.preventDefault();
+        receiveFile(file);
+        return;
+      }
+
+      const text = event.clipboardData?.getData("text/plain").trim() ?? "";
+      if (!text || text.length > 500) return;
+      try {
+        const url = new URL(text);
+        if (url.protocol !== "http:" && url.protocol !== "https:") return;
+      } catch {
+        return;
+      }
       event.preventDefault();
-      receiveFile(file);
+      if (references.includes(text)) {
+        showToast("That reference link is already added.");
+        return;
+      }
+      if (references.length >= 10) {
+        showToast("A song can have up to 10 reference links.", { tone: "error" });
+        return;
+      }
+      setLinkError("");
+      setPastedLink(text);
     }
     window.addEventListener("paste", onPaste);
     return () => window.removeEventListener("paste", onPaste);
-  }, [mediaActive, pendingMedia, receiveFile, selected]);
+  }, [guestGateOpen, pastedLink, pendingMedia, receiveFile, references, selected, sharingCandidate, showToast]);
+
+  async function savePastedLink() {
+    if (!pastedLink) return;
+    setSavingLink(true);
+    setLinkError("");
+    const nextReferences = [...references, pastedLink];
+    const formData = new FormData();
+    formData.set("itemId", itemId);
+    formData.set("itemSlug", itemSlug);
+    nextReferences.forEach((url) => formData.append("referenceUrl", url));
+    const result = await updateSongWorkspaceAction({ success: false, error: null }, formData);
+    if (!result.success) {
+      setLinkError(result.error ?? "Could not add the reference link.");
+      setSavingLink(false);
+      return;
+    }
+    setReferences(nextReferences);
+    setPastedLink(null);
+    setSavingLink(false);
+    showToast("Reference link added.");
+    router.refresh();
+  }
 
   function closePreview() {
     if (busy) return;
@@ -159,14 +208,18 @@ export function SongResources({ itemId, itemSlug, userId, initialResources, isGu
     showToast("Practice media removed.");
   }
 
-  return <section ref={sectionRef} className={`relative rounded-xl border bg-white transition ${dragActive ? "border-stone-500" : "border-stone-200"}`} aria-labelledby="resources-heading" onPointerEnter={() => setMediaActive(true)} onPointerLeave={() => setMediaActive(false)} onFocusCapture={() => setMediaActive(true)} onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setMediaActive(false); }} onDragEnter={(event) => { if (!Array.from(event.dataTransfer.items).some((item) => item.kind === "file")) return; event.preventDefault(); dragDepth.current += 1; const type = Array.from(event.dataTransfer.items).find((item) => item.kind === "file")?.type ?? ""; setDragLabel(type.startsWith("image/") ? "Drop Image Here" : type.startsWith("audio/") ? "Drop Recording Here" : type.startsWith("video/") ? "Drop Video Here" : "Drop Practice Media Here"); setDragActive(true); }} onDragOver={(event) => { if (!Array.from(event.dataTransfer.items).some((item) => item.kind === "file")) return; event.preventDefault(); event.dataTransfer.dropEffect = "copy"; }} onDragLeave={(event) => { event.preventDefault(); dragDepth.current = Math.max(0, dragDepth.current - 1); if (dragDepth.current === 0) setDragActive(false); }} onDrop={(event) => { event.preventDefault(); dragDepth.current = 0; setDragActive(false); receiveFile(Array.from(event.dataTransfer.files).find((file) => acceptedTypes.has(file.type)) ?? event.dataTransfer.files[0]); }}>
+  return <section className={`relative rounded-xl border bg-white transition ${dragActive ? "border-stone-500" : "border-stone-200"}`} aria-labelledby="resources-heading" onDragEnter={(event) => { if (!Array.from(event.dataTransfer.items).some((item) => item.kind === "file")) return; event.preventDefault(); dragDepth.current += 1; const type = Array.from(event.dataTransfer.items).find((item) => item.kind === "file")?.type ?? ""; setDragLabel(type.startsWith("image/") ? "Drop Image Here" : type.startsWith("audio/") ? "Drop Recording Here" : type.startsWith("video/") ? "Drop Video Here" : "Drop Practice Media Here"); setDragActive(true); }} onDragOver={(event) => { if (!Array.from(event.dataTransfer.items).some((item) => item.kind === "file")) return; event.preventDefault(); event.dataTransfer.dropEffect = "copy"; }} onDragLeave={(event) => { event.preventDefault(); dragDepth.current = Math.max(0, dragDepth.current - 1); if (dragDepth.current === 0) setDragActive(false); }} onDrop={(event) => { event.preventDefault(); dragDepth.current = 0; setDragActive(false); receiveFile(Array.from(event.dataTransfer.files).find((file) => acceptedTypes.has(file.type)) ?? event.dataTransfer.files[0]); }}>
     {dragActive ? <div className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-stone-700 bg-white/95 text-center shadow-inner backdrop-blur-sm"><span className="flex size-11 items-center justify-center rounded-xl bg-stone-100"><Upload className="size-5 text-stone-700" aria-hidden="true" /></span><p className="text-sm font-semibold text-stone-950">{dragLabel}</p><p className="text-xs text-stone-500">Preview before uploading</p></div> : null}
-    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 px-4 py-3 sm:px-5"><div><h2 id="resources-heading" className="text-sm font-semibold text-stone-950">Practice Media</h2><p className="mt-0.5 text-xs text-stone-500">Choose, drop, or paste a screenshot or recording.</p></div>{isGuest ? <button type="button" onClick={() => setGuestGateOpen(true)} className={buttonVariants({ variant: "outline", size: "sm" })}><Upload data-icon="inline-start" aria-hidden="true" />Add Media</button> : <label className={buttonVariants({ variant: "outline", size: "sm" })}><Upload data-icon="inline-start" aria-hidden="true" />Add Media<input ref={inputRef} type="file" accept={accept} className="sr-only" onChange={(event) => chooseFile(event.target.files?.[0])} /></label>}</div>
+    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 px-4 py-3 sm:px-5"><div><h2 id="resources-heading" className="text-sm font-semibold text-stone-950">Practice Media</h2><p className="mt-0.5 text-xs text-stone-500">Choose or drop a screenshot or recording.</p></div><div className="flex flex-wrap items-center justify-end gap-2">{isGuest ? <button type="button" onClick={() => setGuestGateOpen(true)} className={buttonVariants({ variant: "outline", size: "sm" })}><Upload data-icon="inline-start" aria-hidden="true" />Add Media</button> : <label className={buttonVariants({ variant: "outline", size: "sm" })}><Upload data-icon="inline-start" aria-hidden="true" />Add Media<input ref={inputRef} type="file" accept={accept} className="sr-only" onChange={(event) => chooseFile(event.target.files?.[0])} /></label>}<span className="hidden text-xs whitespace-nowrap text-stone-400 sm:inline"><kbd className="rounded border border-stone-200 bg-stone-50 px-1.5 py-0.5 font-sans text-[0.6875rem] text-stone-500">Ctrl/⌘ V</kbd> to paste</span></div></div>
     {error && !pendingMedia ? <p role="alert" className="mx-4 mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800 sm:mx-5">{error}</p> : null}
     {resources.length ? <div className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-3 sm:p-5">{resources.map((resource) => <ResourceCard key={resource.id} resource={resource} open={() => setSelected(resource)} toggleVisibility={() => changeVisibility(resource)} />)}</div> : <button type="button" onClick={() => isGuest ? setGuestGateOpen(true) : inputRef.current?.click()} className="m-4 flex w-[calc(100%-2rem)] items-center gap-3 rounded-lg border border-dashed border-stone-300 px-4 py-5 text-left transition hover:border-stone-400 hover:bg-stone-50 focus-visible:ring-2 focus-visible:ring-stone-500 sm:m-5 sm:w-[calc(100%-2.5rem)]"><span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-stone-100"><Upload className="size-5 text-stone-600" aria-hidden="true" /></span><span><span className="block text-sm font-semibold text-stone-900">Add Your First Recording</span><span className="mt-0.5 block text-xs text-stone-500">Choose, drop, or paste media</span></span></button>}
 
     <DialogShell open={guestGateOpen} onOpenChange={setGuestGateOpen} title="Add Practice Media" description="Create an account to upload recordings or images." size="md">
       <div className="flex justify-end gap-2"><button type="button" onClick={() => setGuestGateOpen(false)} className={buttonVariants({ variant: "outline" })}>Not Now</button><Link href={authHref("/sign-up", `/songs/${itemSlug}`)} className={buttonVariants()}>Create Account</Link></div>
+    </DialogShell>
+
+    <DialogShell open={Boolean(pastedLink)} onOpenChange={(open) => { if (!open && !savingLink) { setPastedLink(null); setLinkError(""); } }} title="Add Reference Link?" description="Save the pasted link to this song." size="md">
+      {pastedLink ? <div className="grid gap-5"><div className="flex min-w-0 items-center gap-3 rounded-xl border border-stone-200 bg-stone-50 px-4 py-3"><Link2 className="size-4 shrink-0 text-stone-500" aria-hidden="true" /><span className="truncate text-sm text-stone-700">{pastedLink}</span></div>{linkError ? <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{linkError}</p> : null}<div className="flex justify-end gap-2"><button type="button" onClick={() => { setPastedLink(null); setLinkError(""); }} disabled={savingLink} className={buttonVariants({ variant: "outline" })}>Cancel</button><button type="button" onClick={savePastedLink} disabled={savingLink} className={buttonVariants()}>{savingLink ? "Adding…" : "Add Reference"}</button></div></div> : null}
     </DialogShell>
 
     <DialogShell open={Boolean(pendingMedia)} onOpenChange={(open) => { if (!open) closePreview(); }} title="Preview Practice Media" description="Make sure this is the right file, then choose who can see it." size="lg">
