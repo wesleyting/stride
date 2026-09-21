@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Download, Expand, Eye, FileAudio, FileImage, FileVideo, Lock, Trash2, Upload } from "lucide-react";
 import { DialogShell } from "@/components/stride/dialog-shell";
 import { buttonVariants } from "@/components/ui/button";
@@ -24,8 +24,13 @@ export function SongResources({ itemId, itemSlug, userId, initialResources, isGu
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [guestGateOpen, setGuestGateOpen] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
+  const [dragLabel, setDragLabel] = useState("Drop Practice Media Here");
+  const [mediaActive, setMediaActive] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const selectedPreviewRef = useRef<HTMLDivElement>(null);
+  const sectionRef = useRef<HTMLElement>(null);
+  const dragDepth = useRef(0);
   const { showToast } = useToast();
   const selectedIndex = selected ? resources.findIndex((resource) => resource.id === selected.id) : -1;
 
@@ -39,14 +44,34 @@ export function SongResources({ itemId, itemSlug, userId, initialResources, isGu
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [confirmingDelete, resources, selected, selectedIndex]);
 
-  function chooseFile(file?: File) {
+  const chooseFile = useCallback((file?: File) => {
     if (inputRef.current) inputRef.current.value = "";
     if (!file) return;
     if (!acceptedTypes.has(file.type)) { setError("Use a JPG, PNG, WebP, GIF, MP4, MOV, WebM, MP3, M4A, or WAV file."); return; }
     if (file.size > 50 * 1024 * 1024) { setError("Practice media must be 50 MB or smaller."); return; }
     setError("");
     setPendingMedia({ file, previewUrl: URL.createObjectURL(file), isPublic: defaultPublic });
-  }
+  }, [defaultPublic]);
+
+  const receiveFile = useCallback((file?: File) => {
+    if (!file) { setError("Drop an image, audio recording, or video file."); return; }
+    if (isGuest) { setGuestGateOpen(true); return; }
+    chooseFile(file);
+  }, [chooseFile, isGuest]);
+
+  useEffect(() => {
+    if (!mediaActive || pendingMedia || selected) return;
+    function onPaste(event: ClipboardEvent) {
+      const target = event.target as HTMLElement | null;
+      if (target?.matches("input, textarea, [contenteditable='true']")) return;
+      const file = Array.from(event.clipboardData?.items ?? []).find((item) => item.kind === "file" && acceptedTypes.has(item.type))?.getAsFile() ?? undefined;
+      if (!file) return;
+      event.preventDefault();
+      receiveFile(file);
+    }
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+  }, [mediaActive, pendingMedia, receiveFile, selected]);
 
   function closePreview() {
     if (busy) return;
@@ -134,10 +159,11 @@ export function SongResources({ itemId, itemSlug, userId, initialResources, isGu
     showToast("Practice media removed.");
   }
 
-  return <section className="rounded-xl border border-stone-200 bg-white" aria-labelledby="resources-heading">
-    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 px-4 py-3 sm:px-5"><div><h2 id="resources-heading" className="text-sm font-semibold text-stone-950">Practice Media</h2><p className="mt-0.5 text-xs text-stone-500">Preview each file and choose who can see it.</p></div>{isGuest ? <button type="button" onClick={() => setGuestGateOpen(true)} className={buttonVariants({ variant: "outline", size: "sm" })}><Upload data-icon="inline-start" aria-hidden="true" />Add Media</button> : <label className={buttonVariants({ variant: "outline", size: "sm" })}><Upload data-icon="inline-start" aria-hidden="true" />Add Media<input ref={inputRef} type="file" accept={accept} className="sr-only" onChange={(event) => chooseFile(event.target.files?.[0])} /></label>}</div>
+  return <section ref={sectionRef} className={`relative rounded-xl border bg-white transition ${dragActive ? "border-stone-500" : "border-stone-200"}`} aria-labelledby="resources-heading" onPointerEnter={() => setMediaActive(true)} onPointerLeave={() => setMediaActive(false)} onFocusCapture={() => setMediaActive(true)} onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setMediaActive(false); }} onDragEnter={(event) => { if (!Array.from(event.dataTransfer.items).some((item) => item.kind === "file")) return; event.preventDefault(); dragDepth.current += 1; const type = Array.from(event.dataTransfer.items).find((item) => item.kind === "file")?.type ?? ""; setDragLabel(type.startsWith("image/") ? "Drop Image Here" : type.startsWith("audio/") ? "Drop Recording Here" : type.startsWith("video/") ? "Drop Video Here" : "Drop Practice Media Here"); setDragActive(true); }} onDragOver={(event) => { if (!Array.from(event.dataTransfer.items).some((item) => item.kind === "file")) return; event.preventDefault(); event.dataTransfer.dropEffect = "copy"; }} onDragLeave={(event) => { event.preventDefault(); dragDepth.current = Math.max(0, dragDepth.current - 1); if (dragDepth.current === 0) setDragActive(false); }} onDrop={(event) => { event.preventDefault(); dragDepth.current = 0; setDragActive(false); receiveFile(Array.from(event.dataTransfer.files).find((file) => acceptedTypes.has(file.type)) ?? event.dataTransfer.files[0]); }}>
+    {dragActive ? <div className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-stone-700 bg-white/95 text-center shadow-inner backdrop-blur-sm"><span className="flex size-11 items-center justify-center rounded-xl bg-stone-100"><Upload className="size-5 text-stone-700" aria-hidden="true" /></span><p className="text-sm font-semibold text-stone-950">{dragLabel}</p><p className="text-xs text-stone-500">Preview before uploading</p></div> : null}
+    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 px-4 py-3 sm:px-5"><div><h2 id="resources-heading" className="text-sm font-semibold text-stone-950">Practice Media</h2><p className="mt-0.5 text-xs text-stone-500">Choose, drop, or paste a screenshot or recording.</p></div>{isGuest ? <button type="button" onClick={() => setGuestGateOpen(true)} className={buttonVariants({ variant: "outline", size: "sm" })}><Upload data-icon="inline-start" aria-hidden="true" />Add Media</button> : <label className={buttonVariants({ variant: "outline", size: "sm" })}><Upload data-icon="inline-start" aria-hidden="true" />Add Media<input ref={inputRef} type="file" accept={accept} className="sr-only" onChange={(event) => chooseFile(event.target.files?.[0])} /></label>}</div>
     {error && !pendingMedia ? <p role="alert" className="mx-4 mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800 sm:mx-5">{error}</p> : null}
-    {resources.length ? <div className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-3 sm:p-5">{resources.map((resource) => <ResourceCard key={resource.id} resource={resource} open={() => setSelected(resource)} toggleVisibility={() => changeVisibility(resource)} />)}</div> : <button type="button" onClick={() => isGuest ? setGuestGateOpen(true) : inputRef.current?.click()} className="m-4 flex w-[calc(100%-2rem)] items-center gap-3 rounded-lg border border-dashed border-stone-300 px-4 py-5 text-left transition hover:border-stone-400 hover:bg-stone-50 focus-visible:ring-2 focus-visible:ring-stone-500 sm:m-5 sm:w-[calc(100%-2.5rem)]"><span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-stone-100"><Upload className="size-5 text-stone-600" aria-hidden="true" /></span><span><span className="block text-sm font-semibold text-stone-900">Add Your First Recording</span><span className="mt-0.5 block text-xs text-stone-500">Video, audio, or a screenshot</span></span></button>}
+    {resources.length ? <div className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-3 sm:p-5">{resources.map((resource) => <ResourceCard key={resource.id} resource={resource} open={() => setSelected(resource)} toggleVisibility={() => changeVisibility(resource)} />)}</div> : <button type="button" onClick={() => isGuest ? setGuestGateOpen(true) : inputRef.current?.click()} className="m-4 flex w-[calc(100%-2rem)] items-center gap-3 rounded-lg border border-dashed border-stone-300 px-4 py-5 text-left transition hover:border-stone-400 hover:bg-stone-50 focus-visible:ring-2 focus-visible:ring-stone-500 sm:m-5 sm:w-[calc(100%-2.5rem)]"><span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-stone-100"><Upload className="size-5 text-stone-600" aria-hidden="true" /></span><span><span className="block text-sm font-semibold text-stone-900">Add Your First Recording</span><span className="mt-0.5 block text-xs text-stone-500">Choose, drop, or paste media</span></span></button>}
 
     <DialogShell open={guestGateOpen} onOpenChange={setGuestGateOpen} title="Add Practice Media" description="Create an account to upload recordings or images." size="md">
       <div className="flex justify-end gap-2"><button type="button" onClick={() => setGuestGateOpen(false)} className={buttonVariants({ variant: "outline" })}>Not Now</button><Link href={authHref("/sign-up", `/songs/${itemSlug}`)} className={buttonVariants()}>Create Account</Link></div>
