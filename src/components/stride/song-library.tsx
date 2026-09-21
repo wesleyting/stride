@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { ChevronDown, EyeOff, Folder, Search, X } from "lucide-react";
+import { ChevronDown, Folder, Minus, Plus, Search, X } from "lucide-react";
 import { ArrangeSongsModal } from "@/components/stride/arrange-songs-modal";
 import { CustomSelect } from "@/components/ui/custom-select";
 import { DeleteItemModal } from "@/components/stride/delete-item-modal";
@@ -24,7 +24,12 @@ const songSortOptions = [
 
 const songSortStorageKey = "stride:song-library-sort";
 const songSortChangeEvent = "stride:song-library-sort-change";
+const collapsedFoldersStorageKey = "stride:song-library-collapsed-folders";
+const shownHiddenStorageKey = "stride:song-library-shown-hidden";
+const songLibraryViewChangeEvent = "stride:song-library-view-change";
 let inMemorySongSort = "custom";
+let inMemoryCollapsedFolders = "[]";
+let inMemoryShownHidden = "[]";
 
 function readSongSort() {
   try {
@@ -55,22 +60,61 @@ function saveSongSort(value: string) {
   window.dispatchEvent(new Event(songSortChangeEvent));
 }
 
+function readStoredIds(key: string, fallback: string) {
+  try {
+    return window.localStorage.getItem(key) ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function parseStoredIds(value: string) {
+  try {
+    const parsed = JSON.parse(value);
+    return new Set<string>(Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === "string") : []);
+  } catch {
+    return new Set<string>();
+  }
+}
+
+function subscribeToLibraryView(onStoreChange: () => void) {
+  window.addEventListener("storage", onStoreChange);
+  window.addEventListener(songLibraryViewChangeEvent, onStoreChange);
+  return () => {
+    window.removeEventListener("storage", onStoreChange);
+    window.removeEventListener(songLibraryViewChangeEvent, onStoreChange);
+  };
+}
+
+function saveStoredIds(key: string, ids: Set<string>) {
+  const value = JSON.stringify([...ids]);
+  if (key === collapsedFoldersStorageKey) inMemoryCollapsedFolders = value;
+  else inMemoryShownHidden = value;
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    // Keep the view preference for this page when storage is unavailable.
+  }
+  window.dispatchEvent(new Event(songLibraryViewChangeEvent));
+}
+
 export function SongLibrary({ songs, entries, folders, foldersReady, referencesBySong = {}, addedSongSlug }: { songs: ItemRecord[]; entries: EntryRecord[]; folders: SongFolderRecord[]; foldersReady: boolean; referencesBySong?: Record<string, string[]>; addedSongSlug?: string }) {
   const [query, setQuery] = useState("");
   const sort = useSyncExternalStore(subscribeToSongSort, readSongSort, () => "custom");
   const [difficulty, setDifficulty] = useState("all");
   const [pinnedOnly, setPinnedOnly] = useState(false);
-  const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(() => new Set());
-  const [recentlyAdded, setRecentlyAdded] = useState(addedSongSlug ?? null);
+  const collapsedFoldersValue = useSyncExternalStore(subscribeToLibraryView, () => readStoredIds(collapsedFoldersStorageKey, inMemoryCollapsedFolders), () => "[]");
+  const shownHiddenValue = useSyncExternalStore(subscribeToLibraryView, () => readStoredIds(shownHiddenStorageKey, inMemoryShownHidden), () => "[]");
+  const collapsedFolders = useMemo(() => parseStoredIds(collapsedFoldersValue), [collapsedFoldersValue]);
+  const shownHidden = useMemo(() => parseStoredIds(shownHiddenValue), [shownHiddenValue]);
 
   useEffect(() => {
     if (!addedSongSlug) return;
     const scrollTimer = window.setTimeout(() => document.querySelector<HTMLElement>(`[data-song-slug="${CSS.escape(addedSongSlug)}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" }), 120);
-    const clearTimer = window.setTimeout(() => setRecentlyAdded(null), 6000);
     const url = new URL(window.location.href);
     url.searchParams.delete("added");
     window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
-    return () => { window.clearTimeout(scrollTimer); window.clearTimeout(clearTimer); };
+    return () => window.clearTimeout(scrollTimer);
   }, [addedSongSlug]);
 
   const latestBySong = useMemo(() => {
@@ -113,12 +157,16 @@ export function SongLibrary({ songs, entries, folders, foldersReady, referencesB
     setPinnedOnly(false);
   }
   function toggleFolder(folderId: string) {
-    setCollapsedFolders((current) => {
-      const next = new Set(current);
-      if (next.has(folderId)) next.delete(folderId);
-      else next.add(folderId);
-      return next;
-    });
+    const next = new Set(collapsedFolders);
+    if (next.has(folderId)) next.delete(folderId);
+    else next.add(folderId);
+    saveStoredIds(collapsedFoldersStorageKey, next);
+  }
+  function toggleHidden(folderId: string) {
+    const next = new Set(shownHidden);
+    if (next.has(folderId)) next.delete(folderId);
+    else next.add(folderId);
+    saveStoredIds(shownHiddenStorageKey, next);
   }
   const groups = [
     ...folders.map((folder) => ({ id: folder.id, folderId: folder.id, name: folder.name, songs: filtered.filter((song) => song.folder_id === folder.id), allSongs: songs.filter((song) => song.folder_id === folder.id) })),
@@ -126,21 +174,25 @@ export function SongLibrary({ songs, entries, folders, foldersReady, referencesB
   ].filter((group) => group.songs.length > 0 || !hasFilters && group.id !== "uncategorized");
 
   return <>
-    <div className="mt-6 grid gap-2 lg:grid-cols-[minmax(14rem,1fr)_12rem_10rem_auto]"><label className="relative block"><span className="sr-only">Search songs</span><Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-stone-400" aria-hidden="true" /><input data-shortcut-search aria-keyshortcuts="/" value={query} onChange={(event) => { setQuery(event.target.value); setCollapsedFolders(new Set()); }} onKeyDown={(event) => { if (event.key === "Escape") { if (query) setQuery(""); else event.currentTarget.blur(); } }} placeholder="Search songs…" className="h-10 w-full rounded-lg border border-stone-300 bg-white pr-10 pl-9 text-sm shadow-sm transition hover:border-stone-400 focus:border-stone-500 focus:ring-2 focus:ring-stone-500/20" />{query ? <button type="button" onClick={() => setQuery("")} title="Clear search" aria-label="Clear song search" className="absolute top-1/2 right-2 flex size-7 -translate-y-1/2 cursor-pointer items-center justify-center rounded-md text-stone-400 hover:bg-stone-100 hover:text-stone-800 focus-visible:ring-2 focus-visible:ring-stone-500"><X className="size-4" aria-hidden="true" /></button> : <kbd className="pointer-events-none absolute top-1/2 right-3 hidden -translate-y-1/2 rounded border border-stone-200 bg-stone-50 px-1.5 py-0.5 font-sans text-[0.6875rem] text-stone-400 sm:block">/</kbd>}</label><CustomSelect value={sort} onValueChange={saveSongSort} ariaLabel="Sort songs" options={[...songSortOptions]} /><CustomSelect value={difficulty} onValueChange={(value) => { setDifficulty(value); setCollapsedFolders(new Set()); }} ariaLabel="Filter by difficulty" options={[{ value: "all", label: "Any difficulty" }, { value: "unset", label: "Not set" }, ...Array.from({ length: 10 }, (_, index) => (index + 1) / 2).map((value) => ({ value: String(value), label: `${value} star${value === 1 ? "" : "s"}` }))]} /><button type="button" aria-pressed={pinnedOnly} onClick={() => { setPinnedOnly((current) => !current); setCollapsedFolders(new Set()); }} className={`h-10 cursor-pointer rounded-lg border px-3 text-sm font-medium transition focus-visible:ring-2 focus-visible:ring-stone-500 ${pinnedOnly ? "border-stone-900 bg-stone-900 text-white" : "border-stone-300 bg-white text-stone-700 hover:bg-stone-50"}`}>Pinned only</button></div>
+    <div className="mt-6 grid gap-2 lg:grid-cols-[minmax(14rem,1fr)_12rem_10rem_auto]"><label className="relative block"><span className="sr-only">Search songs</span><Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-stone-400" aria-hidden="true" /><input data-shortcut-search aria-keyshortcuts="/" value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") { if (query) setQuery(""); else event.currentTarget.blur(); } }} placeholder="Search songs…" className="h-10 w-full rounded-lg border border-stone-300 bg-white pr-10 pl-9 text-sm shadow-sm transition hover:border-stone-400 focus:border-stone-500 focus:ring-2 focus:ring-stone-500/20" />{query ? <button type="button" onClick={() => setQuery("")} title="Clear search" aria-label="Clear song search" className="absolute top-1/2 right-2 flex size-7 -translate-y-1/2 cursor-pointer items-center justify-center rounded-md text-stone-400 hover:bg-stone-100 hover:text-stone-800 focus-visible:ring-2 focus-visible:ring-stone-500"><X className="size-4" aria-hidden="true" /></button> : <kbd className="pointer-events-none absolute top-1/2 right-3 hidden -translate-y-1/2 rounded border border-stone-200 bg-stone-50 px-1.5 py-0.5 font-sans text-[0.6875rem] text-stone-400 sm:block">/</kbd>}</label><CustomSelect value={sort} onValueChange={saveSongSort} ariaLabel="Sort songs" options={[...songSortOptions]} /><CustomSelect value={difficulty} onValueChange={setDifficulty} ariaLabel="Filter by difficulty" options={[{ value: "all", label: "Any difficulty" }, { value: "unset", label: "Not set" }, ...Array.from({ length: 10 }, (_, index) => (index + 1) / 2).map((value) => ({ value: String(value), label: `${value} star${value === 1 ? "" : "s"}` }))]} /><button type="button" aria-pressed={pinnedOnly} onClick={() => setPinnedOnly((current) => !current)} className={`h-10 cursor-pointer rounded-lg border px-3 text-sm font-medium transition focus-visible:ring-2 focus-visible:ring-stone-500 ${pinnedOnly ? "border-stone-900 bg-stone-900 text-white" : "border-stone-300 bg-white text-stone-700 hover:bg-stone-50"}`}>Pinned only</button></div>
     {hasFilters ? <div className="mt-3 flex min-h-8 items-center justify-between gap-3 px-1"><p aria-live="polite" className="text-xs text-stone-500"><span className="font-semibold text-stone-700">{filtered.length}</span> of {songs.length} {songs.length === 1 ? "song" : "songs"}</p><button type="button" onClick={clearFilters} className="inline-flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold text-stone-600 hover:bg-stone-100 hover:text-stone-950 focus-visible:ring-2 focus-visible:ring-stone-500"><X className="size-3.5" aria-hidden="true" />Clear Filters</button></div> : null}
     {!foldersReady ? <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">Run migration <code>0022_song_folders_and_optional_difficulty.sql</code> to enable folders and optional difficulty.</p> : null}
     <div className="mt-6 grid gap-4">
-      {groups.map((group) => { const expanded = !collapsedFolders.has(group.id); const activeSongs = group.songs.filter((song) => !song.is_hidden); const hiddenSongs = group.songs.filter((song) => song.is_hidden); return <section key={group.id} aria-labelledby={`folder-${group.id}`}><h2 id={`folder-${group.id}`} className="mb-2 flex items-center gap-1"><button type="button" onClick={() => toggleFolder(group.id)} aria-expanded={expanded} aria-controls={`folder-songs-${group.id}`} className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-lg px-2 py-2 text-left transition hover:bg-stone-100 focus-visible:ring-2 focus-visible:ring-stone-500"><Folder className="size-4 text-stone-400" aria-hidden="true" /><span className="min-w-0 flex-1 truncate text-sm font-semibold text-stone-900">{group.name}</span><span className="text-xs tabular-nums text-stone-400">{activeSongs.length}</span><ChevronDown className={`size-4 text-stone-400 transition-transform ${expanded ? "rotate-180" : ""}`} aria-hidden="true" /></button>{group.allSongs.length ? <ArrangeSongsModal folderId={group.folderId} folderName={group.name} songs={group.allSongs} onSaved={() => saveSongSort("custom")} /> : null}</h2><div id={`folder-songs-${group.id}`} hidden={!expanded} className="grid gap-2">{activeSongs.length ? activeSongs.map((song) => <SongRow key={song.id} song={song} folders={folders} referenceUrls={referencesBySong[song.id]} justAdded={recentlyAdded === song.slug} />) : hiddenSongs.length ? <p className="rounded-xl border border-dashed border-stone-200 px-4 py-4 text-center text-sm text-stone-400">No active songs in this folder.</p> : <p className="rounded-xl border border-dashed border-stone-200 px-4 py-5 text-center text-sm text-stone-400">No songs in this folder.</p>}{hiddenSongs.length ? <details className="group/hidden mt-1"><summary className="flex cursor-pointer list-none items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-stone-500 transition hover:bg-stone-100 hover:text-stone-800"><EyeOff className="size-4" aria-hidden="true" /><span className="flex-1">Hidden</span><span className="text-xs tabular-nums">{hiddenSongs.length}</span><ChevronDown className="size-4 transition-transform group-open/hidden:rotate-180" aria-hidden="true" /></summary><div className="mt-2 grid gap-2 border-l border-stone-200 pl-3">{hiddenSongs.map((song) => <SongRow key={song.id} song={song} folders={folders} referenceUrls={referencesBySong[song.id]} hidden />)}</div></details> : null}</div></section>; })}
+      {groups.map((group) => { const expanded = hasFilters || !collapsedFolders.has(group.id); const hiddenShown = hasFilters || shownHidden.has(group.id); const activeSongs = group.songs.filter((song) => !song.is_hidden); const hiddenSongs = group.songs.filter((song) => song.is_hidden); return <section key={group.id} aria-labelledby={`folder-${group.id}`}><h2 id={`folder-${group.id}`} className="mb-2 flex items-center gap-1"><button type="button" onClick={() => toggleFolder(group.id)} aria-expanded={expanded} aria-controls={`folder-songs-${group.id}`} className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-lg px-2 py-2 text-left transition hover:bg-stone-100 focus-visible:ring-2 focus-visible:ring-stone-500"><Folder className="size-4 text-stone-400" aria-hidden="true" /><span className="min-w-0 flex-1 truncate text-sm font-semibold text-stone-900">{group.name}</span><span className="text-xs tabular-nums text-stone-400">{activeSongs.length}</span><ChevronDown className={`size-4 text-stone-400 transition-transform ${expanded ? "rotate-180" : ""}`} aria-hidden="true" /></button>{group.allSongs.length ? <ArrangeSongsModal folderId={group.folderId} folderName={group.name} songs={group.allSongs} onSaved={() => saveSongSort("custom")} /> : null}</h2><div id={`folder-songs-${group.id}`} hidden={!expanded} className="grid gap-2">{activeSongs.length ? activeSongs.map((song) => <SongRow key={song.id} song={song} folders={folders} referenceUrls={referencesBySong[song.id]} justAdded={addedSongSlug === song.slug} />) : !hiddenSongs.length ? <p className="rounded-xl border border-dashed border-stone-200 px-4 py-5 text-center text-sm text-stone-400">No songs in this folder.</p> : null}{hiddenSongs.length && !hiddenShown ? <HiddenSongsToggle count={hiddenSongs.length} shown={false} onClick={() => toggleHidden(group.id)} /> : null}{hiddenSongs.length && hiddenShown ? <>{hiddenSongs.map((song) => <SongRow key={song.id} song={song} folders={folders} referenceUrls={referencesBySong[song.id]} />)}{!hasFilters ? <HiddenSongsToggle count={hiddenSongs.length} shown onClick={() => toggleHidden(group.id)} /> : null}</> : null}</div></section>; })}
       {!groups.length ? <p className="px-5 py-8 text-center text-sm text-stone-500">{songs.length ? "No songs match those filters." : "No songs yet."}</p> : null}
     </div>
   </>;
 }
 
-function SongRow({ song, folders, referenceUrls, hidden = false, justAdded = false }: { song: ItemRecord; folders: SongFolderRecord[]; referenceUrls?: string[]; hidden?: boolean; justAdded?: boolean }) {
+function HiddenSongsToggle({ count, shown, onClick }: { count: number; shown: boolean; onClick: () => void }) {
+  return <div className="my-1 flex items-center gap-3 text-stone-300"><span className="h-px flex-1 bg-current" aria-hidden="true" /><button type="button" onClick={onClick} aria-expanded={shown} className="flex shrink-0 cursor-pointer items-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-medium text-stone-500 transition hover:bg-stone-100 hover:text-stone-800 focus-visible:ring-2 focus-visible:ring-stone-500"><span>{shown ? "Hide Hidden Songs" : `Show Hidden Songs (${count})`}</span>{shown ? <Minus className="size-3.5" aria-hidden="true" /> : <Plus className="size-3.5" aria-hidden="true" />}</button><span className="h-px flex-1 bg-current" aria-hidden="true" /></div>;
+}
+
+function SongRow({ song, folders, referenceUrls, justAdded = false }: { song: ItemRecord; folders: SongFolderRecord[]; referenceUrls?: string[]; justAdded?: boolean }) {
   const name = titleCaseSongName(song.name);
-  return <article data-song-slug={song.slug} className={`group grid min-h-18 gap-3 rounded-xl border bg-white px-4 py-3 transition-all duration-500 hover:border-stone-300 hover:bg-stone-50 hover:shadow-sm focus-within:bg-stone-50 sm:grid-cols-[minmax(0,1fr)_10rem_auto] sm:items-center ${justAdded ? "border-stone-500 bg-stone-50 ring-2 ring-stone-300" : "border-stone-200"} ${hidden ? "opacity-75" : ""}`}>
+  return <article data-song-slug={song.slug} className={`group grid min-h-18 gap-3 rounded-xl border bg-white px-4 py-3 transition-all duration-500 hover:border-stone-300 hover:bg-stone-50 hover:shadow-sm focus-within:bg-stone-50 sm:grid-cols-[minmax(0,1fr)_10rem_auto] sm:items-center ${justAdded ? "border-stone-500 bg-stone-50 ring-2 ring-stone-300" : "border-stone-200"}`}>
     <Link href={`/songs/${song.slug}`} className="min-w-0 rounded-md focus-visible:ring-2 focus-visible:ring-stone-500"><h3 className="flex min-w-0 items-center gap-2 truncate text-sm font-semibold text-stone-950 group-hover:underline"><span className="truncate">{name}</span>{justAdded ? <span className="shrink-0 rounded-full bg-stone-900 px-2 py-0.5 text-[0.625rem] font-semibold uppercase tracking-wide text-white">Just Added</span> : null}</h3></Link>
     <DifficultyControl itemId={song.id} itemSlug={song.slug} activitySlug="guitar" value={song.difficulty} />
-    <div className="flex items-center justify-end gap-1"><SongVisibilityButton itemId={song.id} itemName={name} hidden={hidden} /><FavoriteButton itemId={song.id} initialFavorite={song.is_favorite} compact /><EditItemModal itemId={song.id} itemSlug={song.slug} activitySlug="guitar" itemName={name} difficulty={song.difficulty} youtubeUrl={song.youtube_url} referenceUrls={referenceUrls} tuning={song.tuning} capo={song.capo} folderId={song.folder_id} folders={folders} /><DeleteItemModal itemId={song.id} activitySlug="guitar" itemName={name} /></div>
+    <div className="flex items-center justify-end gap-1"><SongVisibilityButton itemId={song.id} itemName={name} hidden={song.is_hidden} /><FavoriteButton itemId={song.id} initialFavorite={song.is_favorite} compact /><EditItemModal itemId={song.id} itemSlug={song.slug} activitySlug="guitar" itemName={name} difficulty={song.difficulty} youtubeUrl={song.youtube_url} referenceUrls={referenceUrls} tuning={song.tuning} capo={song.capo} folderId={song.folder_id} folders={folders} /><DeleteItemModal itemId={song.id} activitySlug="guitar" itemName={name} /></div>
   </article>;
 }
