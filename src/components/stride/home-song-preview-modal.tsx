@@ -29,9 +29,10 @@ export function HomeSongPreviewModal({
     .filter((entry) => entry.item_id === song.id)
     .slice(0, 3);
   function viewAllLogs() {
+    const destination = `/songs/${song.slug}?from=home`;
     setOpen(false);
-    beginRouteNavigation();
-    router.push(`/songs/${song.slug}?from=home`);
+    beginRouteNavigation(`/songs/${song.slug}`);
+    router.push(destination);
   }
 
   return (
