@@ -51,7 +51,7 @@ export default async function SongPage({ params, searchParams }: PageProps<"/son
     supabase.from("entries").select("id, duration_seconds").eq("user_id", user.id).eq("item_id", item.id),
     supabase.from("items").select("is_public").eq("user_id", user.id).eq("id", item.id).maybeSingle(),
     supabase.from("profiles").select("username, is_public, default_resource_public").eq("user_id", user.id).maybeSingle(),
-    supabase.from("song_folders").select("id, activity_id, parent_id, name, sort_order, created_at").eq("user_id", user.id).eq("activity_id", activity.data.id).order("sort_order").order("name"),
+    supabase.from("song_folders").select("id, activity_id, name, sort_order, created_at").eq("user_id", user.id).eq("activity_id", activity.data.id).order("sort_order").order("name"),
     supabase.from("song_references").select("url, sort_order").eq("user_id", user.id).eq("item_id", item.id).order("sort_order"),
   ]);
   if (entriesResult.error) throw entriesResult.error;

@@ -47,7 +47,7 @@ export default async function GuitarDashboard({ searchParams }: PageProps<"/">) 
       supabase.from("entries").select("id, activity_id, item_id, content, rating, practice_part, created_at").eq("user_id", user.id).eq("activity_id", guitar.id).order("created_at", { ascending: false }),
       supabase.from("items").select("id, is_favorite, pin_position, youtube_url, tuning, capo, is_hidden").eq("user_id", user.id).eq("activity_id", guitar.id),
       supabase.from("entries").select("id, duration_seconds").eq("user_id", user.id).eq("activity_id", guitar.id),
-      supabase.from("song_folders").select("id, activity_id, parent_id, name, sort_order, created_at").eq("user_id", user.id).eq("activity_id", guitar.id).order("sort_order").order("name"),
+      supabase.from("song_folders").select("id, activity_id, name, sort_order, created_at").eq("user_id", user.id).eq("activity_id", guitar.id).order("sort_order").order("name"),
     ]);
     if (itemsResult.error) throw itemsResult.error;
     if (entriesResult.error) throw entriesResult.error;

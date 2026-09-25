@@ -38,11 +38,6 @@ export function FolderField({ folders, value = null, activitySlug = "guitar" }: 
   const { showToast } = useToast();
 
   const localFolders = [...folders, ...addedFolders.filter((added) => !folders.some((folder) => folder.id === added.id))];
-  const rootFolders = localFolders.filter((folder) => !folder.parent_id).sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name));
-  const folderOptions = rootFolders.flatMap((folder) => [
-    { value: folder.id, label: folder.name },
-    ...localFolders.filter((candidate) => candidate.parent_id === folder.id).sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name)).map((child) => ({ value: child.id, label: `↳ ${child.name}` })),
-  ]);
 
   function addFolder() {
     if (!folderName.trim()) {
@@ -59,7 +54,7 @@ export function FolderField({ folders, value = null, activitySlug = "guitar" }: 
         setError(result.error ?? "Could not create the folder.");
         return;
       }
-      setAddedFolders((current) => [...current.filter((folder) => folder.id !== result.folder!.id), { ...result.folder!, activity_id: "", parent_id: result.folder!.parent_id ?? null, sort_order: result.folder!.sort_order ?? 999, created_at: new Date().toISOString() }]);
+      setAddedFolders((current) => [...current.filter((folder) => folder.id !== result.folder!.id), { ...result.folder!, activity_id: "", sort_order: 999, created_at: new Date().toISOString() }]);
       setSelected(result.folder.id);
       setFolderName("");
       setAdding(false);
@@ -67,7 +62,7 @@ export function FolderField({ folders, value = null, activitySlug = "guitar" }: 
     });
   }
 
-  return <div className="grid gap-2 text-sm font-semibold text-stone-900"><span>Folder</span><CustomSelect name="folderId" value={selected} onValueChange={(next) => { if (next === "add-folder") { setAdding(true); setError(null); } else { setSelected(next); setAdding(false); } }} ariaLabel="Song folder" placement="below" options={[{ value: "uncategorized", label: "Uncategorized" }, ...folderOptions, { value: "add-folder", label: "+ Add Folder", tone: "action" }]} />{adding ? <div className="grid gap-2 rounded-lg border border-stone-200 bg-stone-50 p-3"><input value={folderName} onChange={(event) => setFolderName(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addFolder(); } }} autoFocus maxLength={40} placeholder="Folder name" aria-label="New folder name" className={songFieldClassName} />{error ? <span role="alert" className="text-xs font-normal text-red-700">{error}</span> : null}<div className="flex justify-end gap-2"><button type="button" onClick={() => { setAdding(false); setError(null); }} className={buttonVariants({ variant: "ghost", size: "sm" })}>Cancel</button><button type="button" onClick={addFolder} disabled={pending} className={buttonVariants({ size: "sm" })}><Plus data-icon="inline-start" aria-hidden="true" />{pending ? "Adding…" : "Add Folder"}</button></div></div> : null}</div>;
+  return <div className="grid gap-2 text-sm font-semibold text-stone-900"><span>Folder</span><CustomSelect name="folderId" value={selected} onValueChange={(next) => { if (next === "add-folder") { setAdding(true); setError(null); } else { setSelected(next); setAdding(false); } }} ariaLabel="Song folder" placement="below" options={[{ value: "uncategorized", label: "Uncategorized" }, ...localFolders.map((folder) => ({ value: folder.id, label: folder.name })), { value: "add-folder", label: "+ Add Folder", tone: "action" }]} />{adding ? <div className="grid gap-2 rounded-lg border border-stone-200 bg-stone-50 p-3"><input value={folderName} onChange={(event) => setFolderName(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addFolder(); } }} autoFocus maxLength={40} placeholder="Folder name" aria-label="New folder name" className={songFieldClassName} />{error ? <span role="alert" className="text-xs font-normal text-red-700">{error}</span> : null}<div className="flex justify-end gap-2"><button type="button" onClick={() => { setAdding(false); setError(null); }} className={buttonVariants({ variant: "ghost", size: "sm" })}>Cancel</button><button type="button" onClick={addFolder} disabled={pending} className={buttonVariants({ size: "sm" })}><Plus data-icon="inline-start" aria-hidden="true" />{pending ? "Adding…" : "Add Folder"}</button></div></div> : null}</div>;
 }
 
 export function ReferenceLinksField({ urls = [], hideLabel = false }: { urls?: string[]; hideLabel?: boolean }) {
