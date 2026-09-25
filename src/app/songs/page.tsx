@@ -22,7 +22,7 @@ export default async function SongsPage({ searchParams }: { searchParams: Promis
     const [base, extension, folderResult, referenceResult] = await Promise.all([
       supabase.from("items").select("id, activity_id, name, slug, difficulty, sort_order, is_archived, created_at, updated_at").eq("user_id", user.id).eq("activity_id", activity.data.id).eq("is_archived", false).order("name"),
       supabase.from("items").select("id, is_favorite, pin_position, youtube_url, tuning, capo, folder_id, is_hidden").eq("user_id", user.id).eq("activity_id", activity.data.id),
-      supabase.from("song_folders").select("id, activity_id, name, sort_order, created_at").eq("user_id", user.id).eq("activity_id", activity.data.id).order("sort_order").order("name"),
+      supabase.from("song_folders").select("id, activity_id, parent_id, name, sort_order, created_at").eq("user_id", user.id).eq("activity_id", activity.data.id).order("sort_order").order("name"),
       supabase.from("song_references").select("item_id, url, sort_order").eq("user_id", user.id).order("sort_order"),
     ]);
     if (base.error) throw base.error;
@@ -45,6 +45,6 @@ export default async function SongsPage({ searchParams }: { searchParams: Promis
   }
 
   const isGuest = user.is_anonymous === true;
-  const libraryKey = [...folders.map((folder) => `${folder.id}:${folder.sort_order}`), ...songs.map((song) => `${song.id}:${song.folder_id ?? "none"}:${song.sort_order}:${song.is_hidden}`)].join("|");
+  const libraryKey = [...folders.map((folder) => `${folder.id}:${folder.parent_id ?? "root"}:${folder.sort_order}`), ...songs.map((song) => `${song.id}:${song.folder_id ?? "none"}:${song.sort_order}:${song.is_hidden}`)].join("|");
   return <AppFrame showSidebar sidebarFooter={<SessionSidebarFooter signedIn isGuest={isGuest} next="/songs" />}><main className="min-w-0 flex-1 px-4 py-6 sm:px-7 sm:py-8"><header className="flex items-start justify-between gap-4"><h1 className="text-2xl font-semibold tracking-tight text-stone-950">All songs</h1><div className="flex gap-2"><SongFolderManager folders={folders} ready={foldersReady} /><CreateItemModal activitySlug="guitar" activityKind="practice" isGuest={isGuest} folders={foldersReady ? folders : undefined} defaultSongPublic={preferencesResult.data?.default_song_public ?? false} defaultTuning={preferencesResult.data?.default_tuning ?? "standard"} /></div></header><SongLibrary key={libraryKey} songs={songs} folders={folders} foldersReady={foldersReady} referencesBySong={referencesBySong} addedSongSlug={added} isGuest={isGuest} defaultSongPublic={preferencesResult.data?.default_song_public ?? false} defaultTuning={preferencesResult.data?.default_tuning ?? "standard"} /></main></AppFrame>;
 }

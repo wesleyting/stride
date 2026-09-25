@@ -17,7 +17,7 @@ import {
 export type MutationState = {
   success: boolean;
   error: string | null;
-  folder?: { id: string; name: string } | null;
+  folder?: { id: string; name: string; parent_id?: string | null; sort_order?: number } | null;
 };
 
 const authSchema = z.object({
@@ -108,6 +108,7 @@ const songWorkspaceSchema = z.object({
 const folderSchema = z.object({
   activitySlug: z.string().trim().min(1),
   name: z.string().trim().min(1, "Give the folder a name.").max(40, "Keep folder names under 40 characters."),
+  parentId: z.preprocess((value) => value === "" || value === undefined ? null : value, z.string().uuid().nullable()),
 });
 
 const editSongSchema = itemSchema.extend({
@@ -571,7 +572,7 @@ export async function createSongFolderAction(
   const { supabase, user } = await getSignedInUser();
   if (!user) return mutationError("You need to sign in first.");
 
-  const parsed = folderSchema.safeParse({ activitySlug: formData.get("activitySlug"), name: formData.get("name") });
+  const parsed = folderSchema.safeParse({ activitySlug: formData.get("activitySlug"), name: formData.get("name"), parentId: formData.get("parentId") });
   if (!parsed.success) return mutationError(parsed.error.issues[0]?.message ?? "Check the folder name.");
 
   let activity = await supabase.from("activities").select("id").eq("user_id", user.id).eq("slug", parsed.data.activitySlug).maybeSingle();
@@ -581,13 +582,22 @@ export async function createSongFolderAction(
   }
   if (activity.error || !activity.data) return mutationError("That activity could not be found.");
 
-  const lastFolder = await supabase.from("song_folders").select("sort_order").eq("user_id", user.id).eq("activity_id", activity.data.id).order("sort_order", { ascending: false }).limit(1).maybeSingle();
+  if (parsed.data.parentId) {
+    const parent = await supabase.from("song_folders").select("id, parent_id").eq("id", parsed.data.parentId).eq("user_id", user.id).eq("activity_id", activity.data.id).maybeSingle();
+    if (parent.error || !parent.data) return mutationError("That parent folder is no longer available.");
+    if (parent.data.parent_id) return mutationError("Folders can only be nested one level deep.");
+  }
+
+  let lastFolderQuery = supabase.from("song_folders").select("sort_order").eq("user_id", user.id).eq("activity_id", activity.data.id);
+  lastFolderQuery = parsed.data.parentId ? lastFolderQuery.eq("parent_id", parsed.data.parentId) : lastFolderQuery.is("parent_id", null);
+  const lastFolder = await lastFolderQuery.order("sort_order", { ascending: false }).limit(1).maybeSingle();
   const result = await supabase.from("song_folders").insert({
     user_id: user.id,
     activity_id: activity.data.id,
+    parent_id: parsed.data.parentId,
     name: titleCaseSongName(parsed.data.name),
     sort_order: (lastFolder.data?.sort_order ?? -1) + 1,
-  }).select("id, name").single();
+  }).select("id, name, parent_id, sort_order").single();
   if (result.error) {
     if (result.error.code === "42P01" || result.error.code === "PGRST205") return mutationError("Run migration 0022_song_folders_and_optional_difficulty.sql first.");
     if (result.error.code === "23505") return mutationError("A folder with that name already exists.");
@@ -605,6 +615,12 @@ export async function deleteSongFolderAction(folderId: string): Promise<Mutation
 
   const parsed = z.string().uuid().safeParse(folderId);
   if (!parsed.success) return mutationError("That folder could not be found.");
+  const folder = await supabase.from("song_folders").select("id, parent_id").eq("id", parsed.data).eq("user_id", user.id).maybeSingle();
+  if (folder.error || !folder.data) return mutationError("That folder is no longer available.");
+  if (folder.data.parent_id) {
+    const moved = await supabase.from("items").update({ folder_id: folder.data.parent_id }).eq("folder_id", folder.data.id).eq("user_id", user.id);
+    if (moved.error) return mutationError(moved.error.message);
+  }
   const result = await supabase.from("song_folders").delete().eq("id", parsed.data).eq("user_id", user.id);
   if (result.error) return mutationError(result.error.message);
 
@@ -645,6 +661,42 @@ export async function setSongFolderOrderAction(folderIds: string[]): Promise<Mut
   const updates = await Promise.all(parsed.data.map((id, sortOrder) => supabase.from("song_folders").update({ sort_order: sortOrder }).eq("id", id).eq("user_id", user.id)));
   const failed = updates.find((result) => result.error);
   if (failed?.error) return mutationError(failed.error.message);
+  revalidatePath("/songs");
+  return mutationSuccess();
+}
+
+const folderTreeNodeSchema = z.object({
+  id: z.string().uuid(),
+  parentId: z.string().uuid().nullable(),
+  sortOrder: z.number().int().min(0),
+});
+
+export async function setSongFolderTreeAction(nodes: Array<{ id: string; parentId: string | null; sortOrder: number }>): Promise<MutationState> {
+  const { supabase, user } = await getSignedInUser();
+  if (!user) return mutationError("You need to sign in first.");
+  const parsed = z.array(folderTreeNodeSchema).max(100).refine((items) => new Set(items.map((item) => item.id)).size === items.length).safeParse(nodes);
+  if (!parsed.success) return mutationError("That folder layout could not be saved.");
+  if (!parsed.data.length) return mutationSuccess();
+
+  const owned = await supabase.from("song_folders").select("id, activity_id").eq("user_id", user.id).in("id", parsed.data.map((node) => node.id));
+  if (owned.error || (owned.data?.length ?? 0) !== parsed.data.length) return mutationError("One of those folders is no longer available.");
+  const activityIds = new Set((owned.data ?? []).map((folder) => folder.activity_id));
+  if (activityIds.size !== 1) return mutationError("Folders from different libraries cannot be combined.");
+  const nodeById = new Map(parsed.data.map((node) => [node.id, node]));
+  for (const node of parsed.data) {
+    if (!node.parentId) continue;
+    const parent = nodeById.get(node.parentId);
+    if (!parent || parent.parentId || parent.id === node.id) return mutationError("Folders can only be nested one level deep.");
+  }
+  const roots = parsed.data.filter((node) => !node.parentId).sort((a, b) => a.sortOrder - b.sortOrder);
+  const children = parsed.data.filter((node) => node.parentId).sort((a, b) => a.sortOrder - b.sortOrder);
+  const updates = [];
+  for (const node of [...roots, ...children]) {
+    updates.push(await supabase.from("song_folders").update({ parent_id: node.parentId, sort_order: node.sortOrder }).eq("id", node.id).eq("user_id", user.id));
+  }
+  const failed = updates.find((result) => result.error);
+  if (failed?.error) return mutationError(failed.error.code === "42703" ? "Run migration 0026_song_subfolders.sql before organizing subfolders." : failed.error.message);
+  revalidatePath("/");
   revalidatePath("/songs");
   return mutationSuccess();
 }
