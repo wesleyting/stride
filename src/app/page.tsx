@@ -7,7 +7,7 @@ import { HomeSongsModal } from "@/components/stride/home-songs-modal";
 import { HomeSongPreviewModal } from "@/components/stride/home-song-preview-modal";
 import { GuestSavePrompt } from "@/components/stride/guest-save-prompt";
 import { LogPracticeModal } from "@/components/stride/log-practice-modal";
-import { LocalDateTime, LocalPracticeStreak } from "@/components/stride/local-date-time";
+import { LocalDateTime, LocalPracticeStreak, LocalTrackedTimeToday } from "@/components/stride/local-date-time";
 import { StartPracticeTimerButton } from "@/components/stride/practice-timer";
 import { SongWorkspaceModal } from "@/components/stride/song-workspace-modal";
 import { SignedOutDashboard } from "@/components/stride/signed-out-dashboard";
@@ -80,6 +80,12 @@ export default async function GuitarDashboard({ searchParams }: PageProps<"/">) 
   const weekEntries = entriesWithinDays(entries, 7);
   const streak = calculatePracticeStreak(entries.map((entry) => entry.created_at));
   const trackedSecondsThisWeek = weekEntries.reduce((total, entry) => total + (entry.duration_seconds ?? 0), 0);
+  const serverToday = new Date();
+  const trackedSecondsTodayFallback = entries.reduce((total, entry) => {
+    const date = new Date(entry.created_at);
+    const isToday = date.getFullYear() === serverToday.getFullYear() && date.getMonth() === serverToday.getMonth() && date.getDate() === serverToday.getDate();
+    return total + (isToday ? entry.duration_seconds ?? 0 : 0);
+  }, 0);
 
   return (
     <AppFrame showSidebar sidebarFooter={<SessionSidebarFooter signedIn isGuest={isGuest} next="/" />}>
@@ -91,7 +97,7 @@ export default async function GuitarDashboard({ searchParams }: PageProps<"/">) 
 
         {isGuest && songs.length ? <div className="mt-5"><GuestSavePrompt /></div> : null}
 
-        <section className="mt-7 grid gap-3 sm:grid-cols-3" aria-label="Practice overview"><Metric icon={Flame} value={<LocalPracticeStreak createdDates={entries.map((entry) => entry.created_at)} fallback={streak} />} label="Current practice streak" /><Metric icon={CalendarDays} value={`${weekEntries.length}`} label="Sessions in the last 7 days" /><Metric icon={Clock3} value={formatTrackedTime(trackedSecondsThisWeek)} label="Tracked practice this week" /></section>
+        <section className="mt-7 grid gap-3 sm:grid-cols-3" aria-label="Practice overview"><Metric icon={Flame} value={<LocalPracticeStreak createdDates={entries.map((entry) => entry.created_at)} fallback={streak} />} label="Current practice streak" /><Metric icon={CalendarDays} value={`${weekEntries.length}`} label="Sessions in the last 7 days" /><Metric icon={Clock3} value={<LocalTrackedTimeToday entries={entries} fallback={trackedSecondsTodayFallback} />} label={`Today · ${formatTrackedTime(trackedSecondsThisWeek)} this week`} /></section>
         {!workspaceReady ? <div className="mt-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">Run Supabase migration <code>0006_guitar_workspace.sql</code> to enable favorites, next steps, and song images.</div> : null}
         {workspaceReady && !pinOrderingReady ? <div className="mt-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">Run Supabase migration <code>0013_pinned_song_order.sql</code> to save your custom pin order.</div> : null}
         {!timeTrackingReady ? <div className="mt-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">Run Supabase migration <code>0007_practice_time_and_public_profiles.sql</code> to save timer sessions and tracked practice time.</div> : null}

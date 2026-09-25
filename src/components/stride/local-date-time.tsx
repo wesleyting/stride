@@ -5,6 +5,7 @@ import {
   calculatePracticeStreak,
   formatCompactLogDate,
   formatEntryDisplay,
+  formatTrackedTime,
 } from "@/lib/stride";
 
 type DateDisplay = "compact" | "relative" | "time";
@@ -52,4 +53,25 @@ export function LocalPracticeStreak({
   const browserReady = useBrowserReady();
   const streak = browserReady ? calculatePracticeStreak(createdDates) : fallback;
   return <>{streak ? `${streak} day${streak === 1 ? "" : "s"}` : "Start today"}</>;
+}
+
+export function LocalTrackedTimeToday({
+  entries,
+  fallback,
+}: {
+  entries: Array<{ created_at: string; duration_seconds?: number | null }>;
+  fallback: number;
+}) {
+  const browserReady = useBrowserReady();
+  const now = new Date();
+  const seconds = browserReady
+    ? entries.reduce((total, entry) => {
+        const date = new Date(entry.created_at);
+        const isToday = date.getFullYear() === now.getFullYear()
+          && date.getMonth() === now.getMonth()
+          && date.getDate() === now.getDate();
+        return total + (isToday ? entry.duration_seconds ?? 0 : 0);
+      }, 0)
+    : fallback;
+  return <>{formatTrackedTime(seconds)}</>;
 }
