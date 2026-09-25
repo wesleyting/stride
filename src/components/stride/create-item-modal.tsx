@@ -22,6 +22,9 @@ export function CreateItemModal({
   folders,
   defaultSongPublic = false,
   defaultTuning = "standard",
+  initialFolderId = null,
+  compact = false,
+  folderName,
 }: {
   activitySlug: string;
   activityKind: "practice" | "journal" | "fitness" | "projects";
@@ -31,6 +34,9 @@ export function CreateItemModal({
   folders?: SongFolderRecord[];
   defaultSongPublic?: boolean;
   defaultTuning?: string;
+  initialFolderId?: string | null;
+  compact?: boolean;
+  folderName?: string;
 }) {
   const [open, setOpen] = useState(defaultOpen);
 
@@ -54,13 +60,13 @@ export function CreateItemModal({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        data-shortcut-add-song
-        aria-keyshortcuts="N"
-        title={`${actionLabel} (N)`}
-        className={buttonVariants({ size: "default" })}
+        {...(!compact ? { "data-shortcut-add-song": true, "aria-keyshortcuts": "N" } : {})}
+        aria-label={compact ? `Add song to ${folderName ?? "this folder"}` : undefined}
+        title={compact ? `Add song to ${folderName ?? "this folder"}` : `${actionLabel} (N)`}
+        className={compact ? `${buttonVariants({ variant: "ghost", size: "icon-sm" })} text-stone-400 hover:text-stone-900` : buttonVariants({ size: "default" })}
       >
-        <Plus data-icon="inline-start" aria-hidden="true" />
-        {actionLabel}
+        <Plus {...(!compact ? { "data-icon": "inline-start" } : {})} aria-hidden="true" />
+        {!compact ? actionLabel : null}
       </button>
 
       <DialogShell
@@ -79,6 +85,7 @@ export function CreateItemModal({
             folders={folders}
             defaultSongPublic={defaultSongPublic}
             defaultTuning={defaultTuning}
+            initialFolderId={initialFolderId}
             close={() => setOpen(false)}
           />
         ) : null}
@@ -96,6 +103,7 @@ function ItemForm({
   folders,
   defaultSongPublic,
   defaultTuning,
+  initialFolderId,
   close,
 }: {
   activitySlug: string;
@@ -106,6 +114,7 @@ function ItemForm({
   folders?: SongFolderRecord[];
   defaultSongPublic: boolean;
   defaultTuning: string;
+  initialFolderId: string | null;
   close: () => void;
 }) {
   const [state, formAction, pending] = useActionState(
@@ -150,7 +159,7 @@ function ItemForm({
 
       {activityKind === "practice" ? (
         <section className="grid gap-5 border-t border-stone-200 pt-4">
-          {folders ? <FolderField folders={folders} activitySlug={activitySlug} /> : null}
+          {folders ? <FolderField folders={folders} value={initialFolderId} activitySlug={activitySlug} /> : null}
           <DifficultyField value={difficulty} onChange={setDifficulty} />
           <ReferenceLinksField />
           <details className="group overflow-hidden rounded-xl border border-stone-200 bg-stone-50/60">

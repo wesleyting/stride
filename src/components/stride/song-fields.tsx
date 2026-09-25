@@ -70,7 +70,7 @@ export function ReferenceLinksField({ urls = [], hideLabel = false }: { urls?: s
 
   return <fieldset className="grid gap-2">
     <legend className={hideLabel ? "sr-only" : "text-sm font-semibold text-stone-900"}>Reference Links</legend>
-    <div className="grid gap-2">
+    <div className={`grid gap-2 ${hideLabel ? "" : "mt-2"}`}>
       {links.map((url, index) => <div key={index} className="flex items-center gap-2">
         <div className="relative min-w-0 flex-1"><Link2 className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-stone-400" aria-hidden="true" /><input name="referenceUrl" type="url" maxLength={500} value={url} onChange={(event) => setLinks((current) => current.map((value, position) => position === index ? event.target.value : value))} aria-label={`Reference link ${index + 1}`} placeholder={index === 0 ? "YouTube, Ultimate Guitar, or another site" : "Another reference link"} className={`${songFieldClassName} pl-9`} /></div>
         {links.length > 1 ? <button type="button" onClick={() => setLinks((current) => current.filter((_, position) => position !== index))} title="Remove link" aria-label={`Remove reference link ${index + 1}`} className={buttonVariants({ variant: "ghost", size: "icon-sm" })}><X aria-hidden="true" /></button> : null}
