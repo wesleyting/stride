@@ -2,10 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, Folder, Link2, Minus, Plus, Search, X } from "lucide-react";
+import { ChevronDown, Folder, Link2, Minus, Play, Plus, Search, X } from "lucide-react";
 import { moveSongAction, setSongFolderOrderAction } from "@/app/actions";
 import { CustomSelect } from "@/components/ui/custom-select";
-import { Tooltip } from "@/components/ui/tooltip";
 import { CreateItemModal } from "@/components/stride/create-item-modal";
 import { DeleteItemModal } from "@/components/stride/delete-item-modal";
 import { DifficultyControl } from "@/components/stride/difficulty-control";
@@ -257,11 +256,8 @@ function ReferenceShortcuts({ urls = [] }: { urls?: string[] }) {
   return <span data-song-controls role="group" className="flex shrink-0 items-center gap-0.5" aria-label="Song references">{references.map((url) => {
     const label = referenceSourceLabel(url);
     const youtube = label === "YouTube";
-    const tooltip = youtube ? "Open YouTube video" : `Open ${label} link`;
-    return <Tooltip key={url} content={tooltip}><a href={url} target="_blank" rel="noreferrer" draggable={false} aria-label={tooltip} onClick={(event) => event.stopPropagation()} onPointerDown={(event) => event.stopPropagation()} className="inline-flex size-6 cursor-pointer items-center justify-center rounded-md text-stone-300 transition-colors hover:bg-stone-100 hover:text-stone-500 focus-visible:ring-2 focus-visible:ring-stone-500">{youtube ? <YouTubeIcon /> : <Link2 className="size-3.5" strokeWidth={1.8} aria-hidden="true" />}</a></Tooltip>;
+    const accessibleLabel = youtube ? "Open YouTube video" : `Open ${label} link`;
+    const Icon = youtube ? Play : Link2;
+    return <a key={url} href={url} target="_blank" rel="noreferrer" draggable={false} aria-label={accessibleLabel} onClick={(event) => event.stopPropagation()} onPointerDown={(event) => event.stopPropagation()} className="inline-flex size-6 cursor-pointer items-center justify-center rounded-md text-stone-400 transition-colors hover:bg-stone-100 hover:text-stone-700 focus-visible:ring-2 focus-visible:ring-stone-500"><Icon className="size-3.5" strokeWidth={1.8} fill="none" aria-hidden="true" /></a>;
   })}</span>;
-}
-
-function YouTubeIcon() {
-  return <svg viewBox="0 0 24 24" fill="none" className="size-3.5" aria-hidden="true"><rect x="2.75" y="5.25" width="18.5" height="13.5" rx="4" stroke="currentColor" strokeWidth="1.75" /><path d="m10.25 9 5 3-5 3V9Z" fill="currentColor" /></svg>;
 }
