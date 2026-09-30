@@ -7,9 +7,20 @@ import { referenceSourceLabel } from "@/lib/stride";
 function youtubeEmbedUrl(value: string) {
   try {
     const url = new URL(value);
-    if (!url.hostname.includes("youtube.com") && !url.hostname.includes("youtu.be")) return null;
-    const id = url.hostname.includes("youtu.be") ? url.pathname.slice(1).split("/")[0] : url.searchParams.get("v") ?? url.pathname.split("/").filter(Boolean).pop();
-    return id ? `https://www.youtube-nocookie.com/embed/${encodeURIComponent(id)}` : null;
+    const host = url.hostname.toLowerCase().replace(/^www\./, "");
+    const shortLink = host === "youtu.be";
+    if (!shortLink && host !== "youtube.com" && host !== "m.youtube.com" && host !== "youtube-nocookie.com") return null;
+    if (url.protocol !== "https:" && url.protocol !== "http:") return null;
+    const path = url.pathname.split("/").filter(Boolean);
+    const id = shortLink ? path[0] : path[0] === "watch" ? url.searchParams.get("v") : ["embed", "shorts", "live"].includes(path[0]) ? path[1] : null;
+    if (!id || !/^[\w-]{11}$/.test(id)) return null;
+
+    const timestamp = url.searchParams.get("t") ?? url.searchParams.get("start") ?? new URLSearchParams(url.hash.slice(1)).get("t") ?? "";
+    const parts = timestamp.match(/^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?$/i);
+    const seconds = /^\d+$/.test(timestamp) ? Number(timestamp) : parts ? Number(parts[1] ?? 0) * 3600 + Number(parts[2] ?? 0) * 60 + Number(parts[3] ?? 0) : 0;
+    const embed = new URL(`https://www.youtube-nocookie.com/embed/${id}`);
+    if (Number.isSafeInteger(seconds) && seconds > 0) embed.searchParams.set("start", String(seconds));
+    return embed.toString();
   } catch { return null; }
 }
 
