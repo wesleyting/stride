@@ -73,7 +73,22 @@ function FolderManagerContent({ folders, ready }: { folders: SongFolderRecord[];
     });
   }
 
-  const orderChanged = orderedFolders.map((folder) => folder.id).join(",") !== folders.map((folder) => folder.id).join(",");
+  const currentIds = new Set(orderedFolders.map((folder) => folder.id));
+  const savedIds = new Set(folders.map((folder) => folder.id));
+  const savedOrder = [
+    ...folders.filter((folder) => currentIds.has(folder.id)).map((folder) => folder.id),
+    ...orderedFolders.filter((folder) => !savedIds.has(folder.id)).map((folder) => folder.id),
+  ];
+  const orderChanged = orderedFolders.map((folder) => folder.id).join(",") !== savedOrder.join(",");
+
+  function resetOrder() {
+    const savedPositions = new Map(savedOrder.map((id, index) => [id, index]));
+    setOrderedFolders((current) => [...current].sort((a, b) =>
+      (savedPositions.get(a.id) ?? savedOrder.length) - (savedPositions.get(b.id) ?? savedOrder.length)
+    ));
+    setDraggedId(null);
+    setDeleteError(null);
+  }
 
   function saveOrder() {
     startSavingOrder(async () => {
@@ -97,7 +112,7 @@ function FolderManagerContent({ folders, ready }: { folders: SongFolderRecord[];
         <button type="button" draggable={editingId !== folder.id} onDragStart={() => setDraggedId(folder.id)} onDragEnd={() => setDraggedId(null)} onKeyDown={(event) => { if (event.key === "ArrowUp") { event.preventDefault(); moveFolder(folder.id, index - 1); } if (event.key === "ArrowDown") { event.preventDefault(); moveFolder(folder.id, index + 1); } }} title="Drag to reorder. Use arrow keys when focused." aria-label={`Reorder ${folder.name}`} className="flex size-8 shrink-0 cursor-grab items-center justify-center rounded-md text-stone-400 hover:bg-stone-100 hover:text-stone-700 focus-visible:ring-2 focus-visible:ring-stone-500 active:cursor-grabbing"><GripVertical className="size-4" aria-hidden="true" /></button>
         {editingId === folder.id ? <form onSubmit={(event) => { event.preventDefault(); renameFolder(folder.id); }} className="flex min-w-0 flex-1 items-center gap-2"><label className="sr-only" htmlFor={`rename-folder-${folder.id}`}>Folder name</label><input id={`rename-folder-${folder.id}`} autoFocus required maxLength={40} value={editingName} onChange={(event) => setEditingName(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") { event.stopPropagation(); setEditingId(null); } }} className={`${songFieldClassName} min-w-0 flex-1`} /><button type="submit" disabled={renaming} className={buttonVariants({ size: "sm" })}>{renaming ? "Saving…" : "Save"}</button><button type="button" disabled={renaming} onClick={() => setEditingId(null)} className={buttonVariants({ variant: "ghost", size: "sm" })}>Cancel</button></form> : <><span className="min-w-0 flex-1 truncate text-sm font-medium text-stone-900">{folder.name}</span><button type="button" onClick={() => { setEditingId(folder.id); setEditingName(folder.name); setDeleteError(null); }} title={`Rename ${folder.name}`} aria-label={`Rename ${folder.name}`} className={buttonVariants({ variant: "ghost", size: "icon-sm" })}><Pencil aria-hidden="true" /></button><button type="button" disabled={deleting} onClick={() => removeFolder(folder)} title={`Remove ${folder.name}`} aria-label={`Remove ${folder.name}`} className={buttonVariants({ variant: "ghost", size: "icon-sm" })}><Trash2 aria-hidden="true" /></button></>}
       </div>)}</div> : <p className="py-3 text-center text-sm text-stone-500">No folders yet.</p>}
-      {orderChanged ? <div className="mt-3 flex items-center justify-between gap-3 rounded-lg bg-stone-50 px-3 py-2"><p className="text-xs text-stone-600">Folder order changed</p><button type="button" onClick={saveOrder} disabled={savingOrder} className={buttonVariants({ size: "sm" })}>{savingOrder ? "Saving…" : "Save Order"}</button></div> : null}
+      {orderChanged ? <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-stone-50 px-3 py-2"><p className="text-xs text-stone-600">Folder order changed</p><div className="ml-auto flex items-center gap-1"><button type="button" onClick={resetOrder} disabled={savingOrder} aria-label="Reset folder order to saved order" className={buttonVariants({ variant: "ghost", size: "sm" })}>Reset</button><button type="button" onClick={saveOrder} disabled={savingOrder} className={buttonVariants({ size: "sm" })}>{savingOrder ? "Saving…" : "Save Order"}</button></div></div> : null}
       <p className="mt-3 text-xs leading-5 text-stone-500">Removing a folder keeps its songs and moves them to Uncategorized.</p>
     </div>
   </div>;
