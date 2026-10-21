@@ -14,6 +14,8 @@ type ToastMessage = {
   id: string;
   message: string;
   tone: NonNullable<ToastOptions["tone"]>;
+  duration: number;
+  revision: number;
 };
 
 type ToastContextValue = {
@@ -24,28 +26,23 @@ const ToastContext = createContext<ToastContextValue | null>(null);
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
-  const timers = useRef(new Map<string, number>());
+  const nextRevision = useRef(0);
   const pathname = usePathname();
 
   const dismiss = useCallback((id: string) => {
-    const timer = timers.current.get(id);
-    if (timer) window.clearTimeout(timer);
-    timers.current.delete(id);
     setToasts((current) => current.filter((toast) => toast.id !== id));
   }, []);
 
   const showToast = useCallback((message: string, options?: ToastOptions) => {
     const id = options?.id ?? crypto.randomUUID();
-    const previousTimer = timers.current.get(id);
-    if (previousTimer) window.clearTimeout(previousTimer);
+    const revision = ++nextRevision.current;
 
     setToasts((current) => [
       ...current.filter((toast) => toast.id !== id),
-      { id, message, tone: options?.tone ?? "success" },
+      { id, message, tone: options?.tone ?? "success", duration: options?.duration ?? (options?.tone === "error" ? 6000 : 3200), revision },
     ].slice(-3));
 
-    timers.current.set(id, window.setTimeout(() => dismiss(id), options?.duration ?? 3200));
-  }, [dismiss]);
+  }, []);
 
   useEffect(() => {
     const url = new URL(window.location.href);
@@ -64,11 +61,6 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
   }, [pathname, showToast]);
 
-  useEffect(() => () => {
-    timers.current.forEach((timer) => window.clearTimeout(timer));
-    timers.current.clear();
-  }, []);
-
   return (
     <ToastContext.Provider value={{ showToast }}>
       {children}
@@ -78,11 +70,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         className="pointer-events-none fixed right-3 bottom-20 z-[200] flex w-[min(22rem,calc(100vw-1.5rem))] flex-col items-end gap-2 md:right-5 md:bottom-5"
       >
         {toasts.map((toast) => (
-          <div
-            key={toast.id}
-            role={toast.tone === "error" ? "alert" : "status"}
-            className={`pointer-events-auto flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-sm font-medium text-white shadow-2xl animate-in fade-in slide-in-from-bottom-2 duration-200 ${toast.tone === "error" ? "border-red-800 bg-red-950" : "border-stone-700 bg-stone-950"}`}
-          >
+          <ToastCard key={toast.id} toast={toast} onDismiss={dismiss}>
             <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-white/12">
               {toast.tone === "error" ? <CircleAlert className="size-3.5" aria-hidden="true" /> : toast.tone === "info" ? <Info className="size-3.5" aria-hidden="true" /> : <Check className="size-3.5" aria-hidden="true" />}
             </span>
@@ -95,11 +83,31 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             >
               <X className="size-4" aria-hidden="true" />
             </button>
-          </div>
+          </ToastCard>
         ))}
       </div>
     </ToastContext.Provider>
   );
+}
+
+function ToastCard({ toast, onDismiss, children }: { toast: ToastMessage; onDismiss: (id: string) => void; children: React.ReactNode }) {
+  const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
+
+  useEffect(() => {
+    if (hovered || focused) return;
+    const timer = window.setTimeout(() => onDismiss(toast.id), toast.duration);
+    return () => window.clearTimeout(timer);
+  }, [hovered, focused, toast.id, toast.duration, toast.revision, onDismiss]);
+
+  return <div
+    role={toast.tone === "error" ? "alert" : "status"}
+    onMouseEnter={() => setHovered(true)}
+    onMouseLeave={() => setHovered(false)}
+    onFocusCapture={() => setFocused(true)}
+    onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false); }}
+    className={`pointer-events-auto flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-sm font-medium text-white shadow-2xl animate-in fade-in slide-in-from-bottom-2 duration-200 ${toast.tone === "error" ? "border-red-800 bg-red-950" : "border-stone-700 bg-stone-950"}`}
+  >{children}</div>;
 }
 
 export function useToast() {
