@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { usePathname } from "next/navigation";
-import { House, Library, Settings, UsersRound, Waypoints } from "lucide-react";
+import { Ellipsis, House, Library, Settings, UsersRound, Waypoints } from "lucide-react";
+import { DialogShell } from "@/components/stride/dialog-shell";
 import { ScrollPane } from "@/components/ui/scroll-pane";
 import { cn } from "@/lib/utils";
 
@@ -62,13 +64,15 @@ export function DesktopNavigation({ footer }: { footer?: React.ReactNode }) {
   );
 }
 
-export function MobileNavigation() {
+export function MobileNavigation({ footer }: { footer?: React.ReactNode }) {
   const pathname = usePathname();
+  const [moreOpen, setMoreOpen] = useState(false);
 
   return (
+    <>
     <nav
       aria-label="Primary navigation"
-      className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-stone-200 bg-white/95 px-1 pb-[max(0.35rem,env(safe-area-inset-bottom))] pt-1 shadow-[0_-4px_18px_rgba(0,0,0,0.05)] backdrop-blur md:hidden"
+      className={cn("fixed inset-x-0 bottom-0 z-30 grid border-t border-stone-200 bg-white/95 px-1 pb-[max(0.35rem,env(safe-area-inset-bottom))] pt-1 shadow-[0_-4px_18px_rgba(0,0,0,0.05)] backdrop-blur md:hidden", footer ? "grid-cols-5" : "grid-cols-4")}
     >
       {mobileDestinations.map(({ href, label, icon: Icon }) => {
         const active = isActive(pathname, href);
@@ -87,6 +91,9 @@ export function MobileNavigation() {
           </Link>
         );
       })}
+      {footer ? <button type="button" onClick={() => setMoreOpen(true)} aria-haspopup="dialog" aria-expanded={moreOpen} className="flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-lg px-1 text-[0.6875rem] font-medium text-stone-500 transition hover:bg-stone-50 hover:text-stone-900 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-stone-500"><Ellipsis className="size-4" aria-hidden="true" /><span>More</span></button> : null}
     </nav>
+    {footer ? <DialogShell open={moreOpen} onOpenChange={setMoreOpen} title="Account & More"><div onClick={(event) => { if ((event.target as HTMLElement).closest("a[href]")) setMoreOpen(false); }} className="[&_a]:flex [&_a]:min-h-11 [&_a]:items-center [&_button]:min-h-11">{footer}</div></DialogShell> : null}
+    </>
   );
 }

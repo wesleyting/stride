@@ -241,17 +241,17 @@ export function PracticeTimerProvider({ children }: { children: React.ReactNode 
 
   return (
     <TimerContext.Provider value={contextValue}>
-      <div className={cn("min-h-full transition-[padding]", timer && "pt-14")}>
+      <div className={cn("min-h-full transition-[padding]", timer && "pt-28 sm:pt-14")}>
         {children}
       </div>
 
       {timer ? (
         <div className="fixed inset-x-0 top-0 z-40 border-b border-stone-700 bg-stone-950 text-white shadow-lg">
-          <div className="mx-auto flex h-14 max-w-7xl items-center gap-3 px-3 sm:px-5">
+          <div className="mx-auto flex h-28 max-w-7xl flex-wrap items-center gap-x-2 gap-y-0 px-3 py-2 sm:h-14 sm:flex-nowrap sm:gap-x-3 sm:px-5 sm:py-0">
             <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-white/10">
               <Clock3 className="size-4" aria-hidden="true" />
             </span>
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0 flex-1 basis-[calc(100%-4rem)] sm:basis-auto">
               <p className="truncate text-sm font-semibold">{timer.itemName}</p>
               <p className="text-[0.6875rem] text-stone-400">
                 {timer.startedAt
@@ -263,20 +263,21 @@ export function PracticeTimerProvider({ children }: { children: React.ReactNode 
             </div>
             <output
               aria-live="off"
-              className="min-w-18 text-center font-mono text-base font-semibold tabular-nums sm:text-lg"
+              className="min-w-16 text-center font-mono text-base font-semibold tabular-nums sm:min-w-18 sm:text-lg"
             >
               {formatStopwatch(elapsedSeconds)}
             </output>
             <button
               type="button"
               onClick={timer.startedAt ? pause : resume}
+              aria-label={timer.startedAt ? "Pause timer" : "Resume timer"}
               className={cn(
                 buttonVariants({ variant: "ghost", size: "sm" }),
                 "text-white hover:bg-white/10 hover:text-white",
               )}
             >
               {timer.startedAt ? <Pause aria-hidden="true" /> : <Play aria-hidden="true" />}
-              <span className="hidden sm:inline">{timer.startedAt ? "Pause" : "Resume"}</span>
+              <span >{timer.startedAt ? "Pause" : "Resume"}</span>
             </button>
             <button
               type="button"

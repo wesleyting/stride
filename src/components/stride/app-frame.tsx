@@ -66,10 +66,10 @@ export function AppFrame({
   }
 
   return (
-    <div onClickCapture={handleNavigationClick} className={cn("min-h-screen bg-stone-100 md:h-dvh md:min-h-0 md:overflow-hidden md:p-4 xl:p-6", showSidebar && "pb-16 md:pb-4 xl:pb-6")}>
+    <div onClickCapture={handleNavigationClick} className={cn("min-h-dvh bg-stone-100 md:h-dvh md:min-h-0 md:overflow-hidden md:p-4 xl:p-6", showSidebar && "pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-4 xl:pb-6")}>
       <div
         className={cn(
-          "mx-auto min-h-screen overflow-hidden bg-background md:h-full md:min-h-0 md:rounded-lg md:border md:border-stone-300 md:shadow-sm",
+          "mx-auto min-h-dvh overflow-hidden bg-background md:h-full md:min-h-0 md:rounded-lg md:border md:border-stone-300 md:shadow-sm",
           showSidebar ? "max-w-[82rem] md:flex" : "max-w-6xl",
         )}
       >
@@ -86,7 +86,7 @@ export function AppFrame({
           </ScrollPane>
         </ViewTransition>
       </div>
-      {showSidebar ? <MobileNavigation /> : null}
+      {showSidebar ? <MobileNavigation key={pathname} footer={sidebarFooter} /> : null}
     </div>
   );
 }

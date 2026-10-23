@@ -258,3 +258,17 @@
     animation: none;
   }
 }
+
+/* Keep phone controls easy to tap without changing the desktop density. */
+@media (pointer: coarse) {
+  .group\/button { min-height: 2.75rem; min-width: 2.75rem; }
+  [data-song-controls] a { min-width: 2.75rem; min-height: 2.75rem; }
+  .touch-order-controls { display: flex; }
+  .desktop-drag-handle { display: none; }
+}
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  textarea, select { font-size: 16px; }
+  html:has(.dialog-shell[open]) { overflow: hidden; }
+  .dialog-shell { max-height: 100dvh; }
+}

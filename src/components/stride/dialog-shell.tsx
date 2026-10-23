@@ -68,7 +68,7 @@ export function DialogShell({
       className="dialog-shell fixed inset-0 z-50 m-0 h-full w-full max-w-none border-0 bg-transparent p-0 text-stone-950 backdrop:bg-stone-950/35"
     >
       <div
-        className="flex min-h-full items-center justify-center p-4 sm:p-6"
+        className="flex min-h-full items-center justify-center p-2 sm:p-6"
         onPointerDown={(event) => {
           backdropPointerDown.current = event.target === event.currentTarget;
         }}
@@ -82,13 +82,13 @@ export function DialogShell({
         <section
           onClick={(event) => event.stopPropagation()}
           className={cn(
-            "dialog-panel flex max-h-[calc(100vh-2rem)] w-full flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-stone-200 sm:max-h-[calc(100vh-3rem)]",
+            "dialog-panel flex max-h-[calc(100dvh-1rem)] w-full flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-stone-200 sm:max-h-[calc(100dvh-3rem)]",
             size === "md" && "max-w-xl",
             size === "lg" && "max-w-3xl",
             size === "xl" && "max-w-5xl",
           )}
         >
-          <header className="flex items-start justify-between gap-4 border-b border-stone-200 px-5 py-4 sm:px-6">
+          <header className="flex items-start justify-between gap-4 border-b border-stone-200 px-4 py-3 sm:px-6 sm:py-4">
             <div className="min-w-0">
               <h2
                 id={titleId}
@@ -117,7 +117,7 @@ export function DialogShell({
               <X aria-hidden="true" />
             </button>
           </header>
-          <div className="flex-1 overflow-y-auto px-5 py-5 sm:px-6">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-6">
             {children}
           </div>
         </section>
