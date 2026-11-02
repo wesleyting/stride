@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, RotateCcw } from "lucide-react";
 import { moveSongAction } from "@/app/actions";
 import { DialogShell } from "@/components/stride/dialog-shell";
 import { useToast } from "@/components/stride/toast-provider";
@@ -28,7 +28,8 @@ function ArrangementDraft({ song, songs, folders, saving, setSaving, close }: {
 }) {
   // Freeze the draft's source while open, including during background refreshes.
   const [positions] = useState(() => songPositions(song, songs, folders));
-  const [position, setPosition] = useState(() => Math.max(0, positions.findIndex((slot) => slot.original)));
+  const originalPosition = positions.findIndex((slot) => slot.original);
+  const [position, setPosition] = useState(() => Math.max(0, originalPosition));
   const [error, setError] = useState<string | null>(null);
   const saveLock = useRef(false);
   const router = useRouter();
@@ -75,7 +76,10 @@ function ArrangementDraft({ song, songs, folders, saving, setSaving, close }: {
       <button type="button" disabled={saving || position === 0} onClick={() => step(-1)} className={buttonVariants({ variant: "outline" })}><ArrowUp aria-hidden="true" />Move Up</button>
       <button type="button" disabled={saving || position === positions.length - 1} onClick={() => step(1)} className={buttonVariants({ variant: "outline" })}><ArrowDown aria-hidden="true" />Move Down</button>
     </div>
-    <p className="text-center text-xs text-stone-500">Keep moving to reach the next folder.</p>
+    <div className="flex items-center justify-between gap-3">
+      <p className="text-xs text-stone-500">Keep moving to reach the next folder.</p>
+      <button type="button" disabled={saving || originalPosition < 0 || slot.original} onClick={() => { setPosition(originalPosition); setError(null); }} aria-label="Reset to original song position" className={buttonVariants({ variant: "ghost", size: "sm" })}><RotateCcw aria-hidden="true" />Reset</button>
+    </div>
     {error ? <p role="alert" className="text-sm text-red-700">{error}</p> : null}
     <div className="flex justify-end gap-2 border-t border-stone-200 pt-4">
       <button type="button" disabled={saving} onClick={close} className={buttonVariants({ variant: "outline" })}>Cancel</button>
