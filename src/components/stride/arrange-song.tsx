@@ -13,19 +13,18 @@ import { titleCaseSongName, type ItemRecord, type SongFolderRecord } from "@/lib
 
 export function ArrangeSong({ song, songs, folders }: { song: ItemRecord; songs: ItemRecord[]; folders: SongFolderRecord[] }) {
   const [open, setOpen] = useState(false);
-  const [saving, setSaving] = useState(false);
   return <>
     <button type="button" onClick={() => setOpen(true)} aria-label={`Arrange ${titleCaseSongName(song.name)}`} className={`${buttonVariants({ variant: "ghost", size: "icon-sm" })} touch-order-controls sm:hidden`}><ArrowUpDown aria-hidden="true" /></button>
-    <DialogShell open={open} onOpenChange={(value) => { if (!saving) setOpen(value); }} title="Arrange Song">
-      {open ? <ArrangementDraft song={song} songs={songs} folders={folders} saving={saving} setSaving={setSaving} close={() => setOpen(false)} /> : null}
-    </DialogShell>
+    {open ? <ArrangementDraft song={song} songs={songs} folders={folders} close={() => setOpen(false)} /> : null}
   </>;
 }
 
-function ArrangementDraft({ song, songs, folders, saving, setSaving, close }: {
+function ArrangementDraft({ song, songs, folders, close }: {
   song: ItemRecord; songs: ItemRecord[]; folders: SongFolderRecord[];
-  saving: boolean; setSaving: (value: boolean) => void; close: () => void;
+  close: () => void;
 }) {
+  const [saving, setSaving] = useState(false);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
   // Freeze the draft's source while open, including during background refreshes.
   const [positions] = useState(() => songPositions(song, songs, folders));
   const originalPosition = positions.findIndex((slot) => slot.original);
@@ -36,6 +35,12 @@ function ArrangementDraft({ song, songs, folders, saving, setSaving, close }: {
   const { showToast } = useToast();
   const slot = positions[position];
   const folderOptions = positions.filter((item) => item.index === 0).map((item) => ({ value: item.folderId ?? "uncategorized", label: item.folderName }));
+
+  function requestClose() {
+    if (saveLock.current) return;
+    if (slot.original) close();
+    else setConfirmDiscard(true);
+  }
 
   function step(direction: number) {
     setPosition((current) => Math.max(0, Math.min(positions.length - 1, current + direction)));
@@ -61,7 +66,7 @@ function ArrangementDraft({ song, songs, folders, saving, setSaving, close }: {
     }
   }
 
-  return <div className="grid gap-4">
+  return <><DialogShell open onOpenChange={(value) => { if (!value) requestClose(); }} title="Arrange Song"><div className="grid gap-4">
     <p className="text-sm text-stone-500">Move freely. Nothing changes until you save.</p>
     <CustomSelect value={slot.folderId ?? "uncategorized"} onValueChange={(value) => {
       if (!saving) { setPosition(positions.findIndex((item) => (item.folderId ?? "uncategorized") === value)); setError(null); }
@@ -82,8 +87,15 @@ function ArrangementDraft({ song, songs, folders, saving, setSaving, close }: {
     </div>
     {error ? <p role="alert" className="text-sm text-red-700">{error}</p> : null}
     <div className="flex justify-end gap-2 border-t border-stone-200 pt-4">
-      <button type="button" disabled={saving} onClick={close} className={buttonVariants({ variant: "outline" })}>Cancel</button>
+      <button type="button" disabled={saving} onClick={requestClose} className={buttonVariants({ variant: "outline" })}>Cancel</button>
       <button type="button" disabled={saving || slot.original} onClick={() => void save(slot)} className={buttonVariants()}>{saving ? "Saving…" : "Save Position"}</button>
     </div>
-  </div>;
+  </div></DialogShell>
+    <DialogShell open={confirmDiscard} onOpenChange={setConfirmDiscard} title="Discard Changes?" description="Your new song position hasn’t been saved.">
+      <div className="flex flex-wrap justify-end gap-2">
+        <button type="button" autoFocus onClick={() => setConfirmDiscard(false)} className={buttonVariants({ variant: "outline" })}>Keep Arranging</button>
+        <button type="button" onClick={close} className={buttonVariants({ variant: "destructive" })}>Discard Changes</button>
+      </div>
+    </DialogShell>
+  </>;
 }
