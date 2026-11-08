@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import {
   createContext,
   useContext,
@@ -7,7 +9,8 @@ import {
   useRef,
   useState,
 } from "react";
-import { Clock3, Gauge, Minus, Pause, Play, Plus, Square, TimerReset, X } from "lucide-react";
+import { ChevronRight, Clock3, Gauge, Minus, Pause, Play, Plus, Square, TimerReset, X } from "lucide-react";
+import { beginRouteNavigation } from "@/lib/route-loading";
 import { saveTimedPracticeAction } from "@/app/actions";
 import { DialogShell } from "@/components/stride/dialog-shell";
 import { PracticeTagInput } from "@/components/stride/practice-tag-input";
@@ -251,16 +254,25 @@ export function PracticeTimerProvider({ children }: { children: React.ReactNode 
             <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-white/10">
               <Clock3 className="size-4" aria-hidden="true" />
             </span>
-            <div className="min-w-0 flex-1 basis-[calc(100%-4rem)] sm:basis-auto">
-              <p className="truncate text-sm font-semibold">{timer.itemName}</p>
+            <Link
+              href={`/songs/${encodeURIComponent(timer.itemSlug)}`}
+              onNavigate={() => {
+                const destination = `/songs/${encodeURIComponent(timer.itemSlug)}`;
+                if (window.location.pathname !== destination) beginRouteNavigation(destination);
+              }}
+              aria-label={`Open ${timer.itemName}`}
+              className="flex min-h-11 min-w-0 flex-1 basis-[calc(100%-4rem)] items-center gap-2 rounded-md px-1 transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white sm:basis-auto"
+            >
+              <div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{timer.itemName}</p>
               <p className="text-[0.6875rem] text-stone-400">
                 {timer.startedAt
                   ? "Practice timer running"
                   : timer.stoppedAtLimit
                     ? "Paused at the 4-hour safety limit"
                     : "Practice timer paused"}
-              </p>
-            </div>
+              </p></div>
+              <ChevronRight className="size-3.5 shrink-0 text-stone-400" aria-hidden="true" />
+            </Link>
             <output
               aria-live="off"
               className="min-w-16 text-center font-mono text-base font-semibold tabular-nums sm:min-w-18 sm:text-lg"

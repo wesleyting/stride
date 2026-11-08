@@ -19,6 +19,11 @@ for (const width of [320, 390, 430]) {
     await expect(page.locator("body")).toHaveJSProperty("scrollWidth", width);
     const pause = page.getByRole("button", { name: "Pause timer", exact: true });
     await expect(pause).toBeVisible();
+    const timerSong = page.getByRole("link", { name: "Open A Long Song Name That Should Still Fit On A Phone", exact: true });
+    await expect(timerSong).toHaveAttribute("href", "/songs/test-song");
+    const songBounds = await timerSong.boundingBox();
+    expect(songBounds!.height).toBeGreaterThanOrEqual(44);
+    expect(songBounds!.x + songBounds!.width).toBeLessThanOrEqual(width);
     const bounds = await pause.boundingBox();
     expect(bounds!.height).toBeGreaterThanOrEqual(44);
     await page.screenshot({ path: testInfo.outputPath("mobile-timer.png") });
