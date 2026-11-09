@@ -16,6 +16,7 @@ import { SongFolderManager } from "@/components/stride/song-folder-manager";
 import { useToast } from "@/components/stride/toast-provider";
 import { beginRouteNavigation } from "@/lib/route-loading";
 import { startDragAutoScroll } from "@/lib/drag-auto-scroll";
+import { installPointerLibraryDrag } from "@/lib/pointer-library-drag";
 import { referenceSourceLabel, titleCaseSongName, type ItemRecord, type SongFolderRecord } from "@/lib/stride";
 
 const collapsedFoldersStorageKey = "stride:song-library-collapsed-folders";
@@ -91,6 +92,10 @@ export function SongLibrary({ songs, folders, foldersReady, referencesBySong = {
   const [folderDropAfter, setFolderDropAfter] = useState(false);
   const draggedRef = useRef(false);
   const libraryRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!libraryRef.current) return;
+    return installPointerLibraryDrag(libraryRef.current);
+  }, []);
   const isDragging = dragged !== null;
   useEffect(() => {
     if (!isDragging || !libraryRef.current) return;

@@ -10,6 +10,14 @@ export function startDragAutoScroll(source: HTMLElement): () => void {
   let frame = 0;
   let previousTime = 0;
   let stopped = false;
+  let manualScrollUntil = 0;
+
+  function wheel(event: WheelEvent) {
+    if (!event.ctrlKey && (pageScroll || scroller.contains(event.target as Node))) {
+      // Let normal wheel/trackpad scrolling win over edge scrolling briefly.
+      manualScrollUntil = performance.now() + 600;
+    }
+  }
 
   function track(event: DragEvent) {
     pointer = { x: event.clientX, y: event.clientY };
@@ -19,7 +27,7 @@ export function startDragAutoScroll(source: HTMLElement): () => void {
     if (stopped) return;
     const elapsed = previousTime ? Math.min(time - previousTime, 40) / 1000 : 0;
     previousTime = time;
-    if (pointer) {
+    if (pointer && time >= manualScrollUntil) {
       const rect = scroller.getBoundingClientRect();
       const top = pageScroll ? 0 : Math.max(0, rect.top);
       const bottom = pageScroll ? window.innerHeight : Math.min(window.innerHeight, rect.bottom);
@@ -47,6 +55,7 @@ export function startDragAutoScroll(source: HTMLElement): () => void {
     document.removeEventListener("dragleave", leave, true);
     document.removeEventListener("drop", stop, true);
     document.removeEventListener("dragend", stop, true);
+    document.removeEventListener("wheel", wheel, true);
     window.removeEventListener("blur", stop);
   }
 
@@ -54,6 +63,7 @@ export function startDragAutoScroll(source: HTMLElement): () => void {
   document.addEventListener("dragleave", leave, true);
   document.addEventListener("drop", stop, true);
   document.addEventListener("dragend", stop, true);
+  document.addEventListener("wheel", wheel, { capture: true, passive: true });
   window.addEventListener("blur", stop);
   frame = requestAnimationFrame(tick);
   return stop;
