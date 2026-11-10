@@ -58,7 +58,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       queueMicrotask(() => showToast(messages[notice], { id: `navigation-${notice}` }));
     }
     url.searchParams.delete("notice");
-    window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
   }, [pathname, showToast]);
 
   return (

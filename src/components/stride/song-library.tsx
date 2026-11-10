@@ -17,6 +17,7 @@ import { SongFolderManager } from "@/components/stride/song-folder-manager";
 import { useToast } from "@/components/stride/toast-provider";
 import { beginRouteNavigation } from "@/lib/route-loading";
 import { startDragAutoScroll } from "@/lib/drag-auto-scroll";
+import { scheduleNewSongScroll } from "@/lib/new-song-scroll";
 import { installPointerLibraryDrag } from "@/lib/pointer-library-drag";
 import { referenceSourceLabel, titleCaseSongName, type ItemRecord, type SongFolderRecord } from "@/lib/stride";
 
@@ -119,18 +120,14 @@ export function SongLibrary({ songs, folders, foldersReady, referencesBySong = {
   const shownHidden = useMemo(() => parseStoredIds(shownHiddenValue), [shownHiddenValue]);
 
   useEffect(() => {
-    if (!addedSongSlug) return;
+    if (!addedSongSlug || new URL(window.location.href).searchParams.get("added") !== addedSongSlug) return;
     const addedSong = songs.find((song) => song.slug === addedSongSlug);
     if (addedSong) {
       const next = parseStoredIds(readStoredIds(collapsedFoldersStorageKey, inMemoryCollapsedFolders));
       next.delete(addedSong.folder_id ?? "uncategorized");
       saveStoredIds(collapsedFoldersStorageKey, next);
     }
-    const scrollTimer = window.setTimeout(() => document.querySelector<HTMLElement>(`[data-song-slug="${CSS.escape(addedSongSlug)}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" }), 140);
-    const url = new URL(window.location.href);
-    url.searchParams.delete("added");
-    window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
-    return () => window.clearTimeout(scrollTimer);
+    return scheduleNewSongScroll(addedSongSlug);
   }, [addedSongSlug, songs]);
 
   useEffect(() => {
@@ -281,7 +278,14 @@ export function SongLibrary({ songs, folders, foldersReady, referencesBySong = {
           <div id={`folder-songs-${group.id}`} hidden={!expanded} className={compact ? "grid gap-0.5" : "grid gap-2"}>{activeSongs.length ? activeSongs.map((song) => <SongRow key={song.id} {...rowProps(song)} justAdded={addedSongSlug === song.slug} highlighted={highlightedSong === song.slug} />) : !hiddenSongs.length ? <p className="rounded-xl border border-dashed border-stone-200 px-4 py-5 text-center text-sm text-stone-400">No songs in this folder.</p> : null}{hiddenSongs.length && !hiddenShown ? <HiddenSongsToggle compact={compact} count={hiddenSongs.length} shown={false} onClick={() => toggleStoredId(shownHiddenStorageKey, shownHidden, group.id)} /> : null}{hiddenSongs.length && hiddenShown ? <>{hiddenSongs.map((song) => <SongRow key={song.id} {...rowProps(song)} />)}{!hasFilters ? <HiddenSongsToggle compact={compact} count={hiddenSongs.length} shown onClick={() => toggleStoredId(shownHiddenStorageKey, shownHidden, group.id)} /> : null}</> : null}</div>
         </section>;
       })}
-      {!groups.length ? <p className="px-5 py-8 text-center text-sm text-stone-500">{layoutSongs.length ? "No songs match those filters." : "No songs yet."}</p> : null}
+      {!groups.length ? <div className="rounded-xl border border-dashed border-stone-200 px-5 py-8 text-center">
+        <Search className="mx-auto mb-3 size-5 text-stone-400" aria-hidden="true" />
+        <p role="status" className="text-sm font-medium text-stone-800">{hasFilters ? "No matching songs" : "No songs yet"}</p>
+        {hasFilters ? <>
+          <p className="mx-auto mt-1 max-w-sm break-words text-sm text-stone-500">{query.trim() ? <>Nothing found for “{query.trim()}”. Try another search or clear your filters.</> : "Try a different difficulty or turn off Pinned only."}</p>
+          <button type="button" onClick={() => { setQuery(""); setDifficulty("all"); setPinnedOnly(false); libraryRef.current?.querySelector<HTMLInputElement>("[data-shortcut-search]")?.focus({ preventScroll: true }); }} className="mt-4 inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-lg border border-stone-200 bg-white px-3 text-sm font-medium text-stone-700 transition-colors hover:bg-stone-50 focus-visible:ring-2 focus-visible:ring-stone-500"><X className="size-3.5" aria-hidden="true" />Clear Search &amp; Filters</button>
+        </> : <p className="mt-1 text-sm text-stone-500">Add a song to start your library.</p>}
+      </div> : null}
     </div>
     {foldersReady ? <div className="mt-3 border-t border-stone-100 px-1 pt-3"><SongFolderManager folders={folders} ready addOnly /></div> : null}
   </div>;
