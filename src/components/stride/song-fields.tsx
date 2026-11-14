@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { Link2, Plus, X } from "lucide-react";
+import { ExternalLink, Link2, Plus, X } from "lucide-react";
 import { createSongFolderAction } from "@/app/actions";
 import { CustomSelect } from "@/components/ui/custom-select";
 import { StarRating } from "@/components/stride/star-rating";
@@ -9,6 +9,7 @@ import { useToast } from "@/components/stride/toast-provider";
 import { buttonVariants } from "@/components/ui/button";
 import { GUITAR_TUNINGS } from "@/lib/stride";
 import type { SongFolderRecord } from "@/lib/stride";
+import { referencePreviewUrl } from "@/lib/reference-preview";
 
 export const songFieldClassName =
   "w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-sm text-stone-950 shadow-sm outline-none transition placeholder:text-stone-400 hover:border-stone-400 focus:border-stone-500 focus:ring-2 focus:ring-stone-500/20";
@@ -83,10 +84,13 @@ export function ReferenceLinksField({ urls = [], hideLabel = false }: { urls?: s
   return <fieldset className="grid gap-2">
     <legend className={hideLabel ? "sr-only" : "text-sm font-semibold text-stone-900"}>Reference Links</legend>
     <div className={`grid gap-2 ${hideLabel ? "" : "mt-2"}`}>
-      {links.map((url, index) => <div key={index} className="flex items-center gap-2">
-        <div className="relative min-w-0 flex-1"><Link2 className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-stone-400" aria-hidden="true" /><input ref={(node) => { inputRefs.current[index] = node; if (node && focusNewLink.current && index === links.length - 1) { focusNewLink.current = false; node.focus(); } }} name="referenceUrl" type="url" maxLength={500} value={url} onChange={(event) => setLinks((current) => current.map((value, position) => position === index ? event.target.value : value))} aria-label={`Reference link ${index + 1}`} placeholder={index === 0 ? "YouTube, Ultimate Guitar, or another site" : "Another reference link"} className={`${songFieldClassName} pl-9`} /></div>
+      {links.map((url, index) => {
+        const previewUrl = referencePreviewUrl(url);
+        return <div key={index} className="flex items-center gap-2">
+        <div className="relative min-w-0 flex-1"><Link2 className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-stone-400" aria-hidden="true" /><input ref={(node) => { inputRefs.current[index] = node; if (node && focusNewLink.current && index === links.length - 1) { focusNewLink.current = false; node.focus(); } }} name="referenceUrl" type="url" maxLength={500} value={url} onChange={(event) => setLinks((current) => current.map((value, position) => position === index ? event.target.value : value))} aria-label={`Reference link ${index + 1}`} placeholder={index === 0 ? "YouTube, Ultimate Guitar, or another site" : "Another reference link"} className={`${songFieldClassName} pl-9 ${previewUrl ? "pr-12" : ""}`} />{previewUrl ? <a href={previewUrl} target="_blank" rel="noopener noreferrer" aria-label={`Open reference link ${index + 1} in a new tab`} title="Open link in a new tab" className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-lg text-stone-400 transition-colors hover:bg-stone-50 hover:text-stone-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-500"><ExternalLink className="size-3.5" aria-hidden="true" /></a> : null}</div>
         {links.length > 1 ? <button type="button" onClick={() => setLinks((current) => current.filter((_, position) => position !== index))} title="Remove link" aria-label={`Remove reference link ${index + 1}`} className={buttonVariants({ variant: "ghost", size: "icon-sm" })}><X aria-hidden="true" /></button> : null}
-      </div>)}
+      </div>;
+      })}
     </div>
     {links.length < 10 ? <button type="button" onClick={addLink} className="mt-1 inline-flex w-fit cursor-pointer items-center gap-1.5 rounded-md text-sm font-medium text-stone-600 hover:text-stone-950 focus-visible:ring-2 focus-visible:ring-stone-500"><Plus className="size-3.5" aria-hidden="true" />Add Another Link</button> : null}
   </fieldset>;
